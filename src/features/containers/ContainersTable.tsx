@@ -63,31 +63,16 @@ export function ContainersTable({ containers }: ContainersTableProps) {
       </div>
 
       {/* Mobile card layout */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-2">
         {containers.map((c) => (
-          <div key={c.id} className="rounded-lg border bg-card p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
+          <div key={c.id} className="rounded-lg border bg-card px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground truncate mt-0.5">{c.image}</p>
+                <p className="font-medium truncate text-sm">{c.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{c.status}</p>
               </div>
+              <ContainerStateBadge state={c.state} />
               <ContainerActionsMenu container={c} />
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-xs text-muted-foreground">Status</span>
-                <p className="truncate">{c.status}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">State</span>
-                <div className="mt-0.5">
-                  <ContainerStateBadge state={c.state} />
-                </div>
-              </div>
-              <div className="col-span-2">
-                <span className="text-xs text-muted-foreground">Ports</span>
-                <p className="font-mono text-xs truncate">{c.ports || "—"}</p>
-              </div>
             </div>
           </div>
         ))}
