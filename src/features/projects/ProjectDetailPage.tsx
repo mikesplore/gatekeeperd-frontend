@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { Link2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,23 @@ import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
 export function ProjectDetailPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data, isLoading, isError, error } = useProjectDetail(slug);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const defaultTab = searchParams.get("tab") === "payments" ? "payments" : "overview";
+
+  const reversalAlert = useMemo(() => {
+    if (!data) return null;
+    const { project, payments } = data;
+    if (project.status === "active" || payments.length === 0) return null;
+    const latest = payments[0];
+    if (latest.gatewayStatus !== "reversed") return null;
+    return latest.paidAt ?? latest.createdAt;
+  }, [data]);
 
   if (isError && getApiErrorCode(error) === "project_not_found") {
     return (
@@ -85,7 +97,7 @@ export function ProjectDetailPage() {
             </CardHeader>
           </Card>
 
-          <Tabs defaultValue="overview">
+          <Tabs defaultValue={defaultTab}>
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>
@@ -126,7 +138,16 @@ export function ProjectDetailPage() {
                     Generate payment link
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {reversalAlert && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Payment reversed</AlertTitle>
+                      <AlertDescription>
+                        This project was automatically re-blocked due to a payment reversal on{" "}
+                        {format(new Date(reversalAlert), "MMM d, yyyy")}.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <PaymentsHistoryTable payments={payments} currency={project.currency} />
                 </CardContent>
               </Card>

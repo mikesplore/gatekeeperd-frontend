@@ -1,13 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import {
-  Box,
-  Container,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Moon,
-  Sun,
-} from "lucide-react";
+import { CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,6 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/projects", label: "Projects", icon: Box },
+  { to: "/payments", label: "Payments", icon: CreditCard },
   { to: "/containers", label: "Containers", icon: Container },
 ];
 

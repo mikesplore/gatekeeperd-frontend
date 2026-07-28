@@ -7,6 +7,7 @@ import { DashboardOverviewPage } from "@/features/dashboard/DashboardOverviewPag
 import { NotFoundPage } from "@/features/NotFoundPage";
 import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
 import { ProjectsListPage } from "@/features/projects/ProjectsListPage";
+import { PaymentsPage } from "@/features/payments/PaymentsPage";
 
 export const router = createBrowserRouter([
   {
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
           { index: true, element: <DashboardOverviewPage /> },
           { path: "projects", element: <ProjectsListPage /> },
           { path: "projects/:slug", element: <ProjectDetailPage /> },
+          { path: "payments", element: <PaymentsPage /> },
           { path: "containers", element: <ContainersPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
