@@ -108,7 +108,7 @@ export function LandingPage() {
         />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div>
+            <div className="text-center lg:text-left">
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-tight">
                 <span className="text-foreground">Never chase a</span>{" "}
                 <span className="text-primary">payment</span>{" "}
@@ -118,28 +118,16 @@ export function LandingPage() {
                 Stop arguing with clients over overdue payments. Gatekeeper handles the reminders, blocks access when
                 payments are late, and restores it the moment they pay. No awkward conversations. No code changes.
               </p>
-              <div className="mt-10 flex items-center gap-4">
-                {token ? (
+              {!token && (
+                <div className="mt-10 flex justify-center lg:justify-start">
                   <Button size="lg" asChild>
-                    <Link to="/app">
-                      Go to Dashboard
+                    <Link to="/login">
+                      Get Started
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </Button>
-                ) : (
-                  <>
-                    <Button size="lg" asChild>
-                      <Link to="/login">
-                        Get Started
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                      </Link>
-                    </Button>
-                    <Button size="lg" variant="outline" asChild>
-                      <a href="#how-it-works">See How It Works</a>
-                    </Button>
-                  </>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             <div className="lg:block">
               <img src={rideTillICanNoMoreImg} alt="" className="w-full h-auto max-h-64 sm:max-h-none object-contain" loading="eager" />
