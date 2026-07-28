@@ -39,8 +39,8 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
             to={to}
             onClick={onNav}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
-              active && "bg-accent text-accent-foreground",
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent",
+              active && "bg-sidebar-accent text-sidebar-accent-foreground",
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
@@ -65,11 +65,11 @@ export function AppShell() {
     <div className="flex min-h-screen bg-background">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-56 border-r bg-card transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-56 border-r bg-sidebar text-sidebar-foreground transition-transform md:static md:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
-        <div className="flex h-14 items-center border-b px-4 font-semibold">Gatekeeper</div>
+        <div className="flex h-14 items-center border-b border-sidebar-border px-4 font-semibold">Gatekeeper</div>
         <SidebarNav onNav={() => setSidebarOpen(false)} />
       </aside>
 
