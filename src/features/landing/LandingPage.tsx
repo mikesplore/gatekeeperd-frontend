@@ -141,8 +141,8 @@ export function LandingPage() {
                 )}
               </div>
             </div>
-            <div className="hidden lg:block">
-              <img src={rideTillICanNoMoreImg} alt="" className="w-full h-auto" loading="eager" />
+            <div className="lg:block">
+              <img src={rideTillICanNoMoreImg} alt="" className="w-full h-auto max-h-64 sm:max-h-none object-contain" loading="eager" />
             </div>
           </div>
         </div>
