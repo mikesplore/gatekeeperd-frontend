@@ -77,16 +77,10 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 font-bold text-xl">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            Gatekeeper
+            <ShieldCheck className="h-6 w-6 text-primary shrink-0" />
+            <span>Gatekeeper</span>
           </div>
-          <nav className="flex items-center gap-4">
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Features
-            </a>
-            <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              How It Works
-            </a>
+          <nav>
             {token ? (
               <Button asChild>
                 <Link to="/app">
