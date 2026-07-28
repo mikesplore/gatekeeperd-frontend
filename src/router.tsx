@@ -1,0 +1,32 @@
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import { AppShell } from "@/components/layout/AppShell";
+import { LoginPage } from "@/features/auth/LoginPage";
+import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
+import { ContainersPage } from "@/features/containers/ContainersPage";
+import { DashboardOverviewPage } from "@/features/dashboard/DashboardOverviewPage";
+import { NotFoundPage } from "@/features/NotFoundPage";
+import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
+import { ProjectsListPage } from "@/features/projects/ProjectsListPage";
+
+export const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <AppShell />,
+        children: [
+          { index: true, element: <DashboardOverviewPage /> },
+          { path: "projects", element: <ProjectsListPage /> },
+          { path: "projects/:slug", element: <ProjectDetailPage /> },
+          { path: "containers", element: <ContainersPage /> },
+          { path: "*", element: <NotFoundPage /> },
+        ],
+      },
+    ],
+  },
+  { path: "*", element: <Navigate to="/login" replace /> },
+]);
