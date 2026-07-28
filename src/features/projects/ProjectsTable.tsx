@@ -20,9 +20,10 @@ interface ProjectsTableProps {
   onEdit: (project: Project) => void;
   onBlock: (project: Project) => void;
   onUnblock: (project: Project) => void;
+  onDelete: (project: Project) => void;
 }
 
-export function ProjectsTable({ projects, onEdit, onBlock, onUnblock }: ProjectsTableProps) {
+export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }: ProjectsTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -62,7 +63,13 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock }: Projects
                 : "—"}
             </TableCell>
             <TableCell>
-              <ProjectActionsMenu project={project} onEdit={onEdit} onBlock={onBlock} onUnblock={onUnblock} />
+              <ProjectActionsMenu
+                project={project}
+                onEdit={onEdit}
+                onBlock={onBlock}
+                onUnblock={onUnblock}
+                onDelete={onDelete}
+              />
             </TableCell>
           </TableRow>
         ))}
@@ -76,11 +83,13 @@ function ProjectActionsMenu({
   onEdit,
   onBlock,
   onUnblock,
+  onDelete,
 }: {
   project: Project;
   onEdit: (p: Project) => void;
   onBlock: (p: Project) => void;
   onUnblock: (p: Project) => void;
+  onDelete: (p: Project) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -102,6 +111,13 @@ function ProjectActionsMenu({
         ) : (
           <DropdownMenuItem onClick={() => { setOpen(false); onUnblock(project); }}>Unblock</DropdownMenuItem>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => { setOpen(false); onDelete(project); }}
+        >
+          Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

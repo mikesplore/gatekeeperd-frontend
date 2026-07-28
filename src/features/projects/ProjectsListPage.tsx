@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QueryState } from "@/components/QueryState";
 import { useProjects } from "@/hooks/useProjects";
 import { BlockUnblockDialog } from "./BlockUnblockDialog";
+import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import { ProjectsTable } from "./ProjectsTable";
 import type { Project, ProjectStatus } from "@/types/project";
@@ -21,6 +22,7 @@ export function ProjectsListPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [blockTarget, setBlockTarget] = useState<{ project: Project; mode: "block" | "unblock" } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -99,6 +101,7 @@ export function ProjectsListPage() {
                   onEdit={(p) => { setEditProject(p); setFormOpen(true); }}
                   onBlock={(p) => setBlockTarget({ project: p, mode: "block" })}
                   onUnblock={(p) => setBlockTarget({ project: p, mode: "unblock" })}
+                  onDelete={setDeleteTarget}
                 />
               )
             }
@@ -116,6 +119,12 @@ export function ProjectsListPage() {
         project={blockTarget?.project ?? null}
         mode={blockTarget?.mode ?? null}
         onClose={() => setBlockTarget(null)}
+      />
+
+      <DeleteProjectDialog
+        project={deleteTarget}
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
       />
     </div>
   );

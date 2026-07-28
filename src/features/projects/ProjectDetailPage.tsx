@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Link2, Pencil } from "lucide-react";
+import { Link2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,15 +14,18 @@ import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
 import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
 import { BlockUnblockDialog } from "@/features/projects/BlockUnblockDialog";
+import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
 import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
 
 export function ProjectDetailPage() {
   const { slug = "" } = useParams();
+  const navigate = useNavigate();
   const { data, isLoading, isError, error } = useProjectDetail(slug);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (isError && getApiErrorCode(error) === "project_not_found") {
     return (
@@ -74,6 +77,10 @@ export function ProjectDetailPage() {
                     Unblock
                   </Button>
                 )}
+                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
               </div>
             </CardHeader>
           </Card>
@@ -140,6 +147,12 @@ export function ProjectDetailPage() {
           <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
           <GeneratePaymentLinkDialog project={project} open={payOpen} onOpenChange={setPayOpen} />
           <BlockUnblockDialog project={project} mode={blockMode} onClose={() => setBlockMode(null)} />
+          <DeleteProjectDialog
+            project={project}
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            onDeleted={() => navigate("/projects")}
+          />
         </div>
       )}
     </QueryState>

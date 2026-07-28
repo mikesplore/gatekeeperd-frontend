@@ -64,6 +64,17 @@ export function useUnblockProject() {
   });
 }
 
+export function useDeleteProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (slug: string) => api.delete(`/admin/projects/${slug}`),
+    onSuccess: (_data, slug) => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.removeQueries({ queryKey: ["project", slug] });
+    },
+  });
+}
+
 export function useProjectDetail(slug: string) {
   return useQuery({
     queryKey: ["project", slug],
