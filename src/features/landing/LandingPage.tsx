@@ -7,7 +7,7 @@ import firewallImg from "@/images/undraw_firewall_cfej.svg";
 import heavyLiftingImg from "@/images/undraw_heavy-lifting_d753.svg";
 import onlinePaymentsImg from "@/images/undraw_online-payments_d5ef.svg";
 import relaxationImg from "@/images/undraw_relaxation_jsge.svg";
-import rideTillICanNoMoreImg from "@/images/undraw_ride-till-i-can-no-more_j9e9.svg";
+import rideTillICanNoMoreImg from "@/images/undraw_jogging_tf9a.svg";
 
 const features = [
   {
