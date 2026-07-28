@@ -29,7 +29,7 @@ export function ProjectsUpcoming({ projects }: { projects: Project[] }) {
           <ul className="space-y-2">
             {upcoming.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
-                <Link to={`/projects/${p.slug}`} className="font-medium hover:underline truncate min-w-0">
+                <Link to={`/app/projects/${p.slug}`} className="font-medium hover:underline truncate min-w-0">
                   {p.name}
                 </Link>
                 <span className="text-muted-foreground shrink-0">
@@ -88,7 +88,7 @@ export function ProjectsOverdue() {
                   return (
                     <li key={p.slug} className="rounded-md border p-3 text-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <Link to={`/projects/${p.slug}`} className="font-medium hover:underline truncate min-w-0">
+                        <Link to={`/app/projects/${p.slug}`} className="font-medium hover:underline truncate min-w-0">
                           {p.name}
                         </Link>
                         <span className="shrink-0 font-semibold text-red-600">{p.daysOverdue}d late</span>

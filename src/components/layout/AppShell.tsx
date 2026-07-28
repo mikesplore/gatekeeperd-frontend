@@ -17,10 +17,10 @@ import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/projects", label: "Projects", icon: Box },
-  { to: "/payments", label: "Payments", icon: CreditCard },
-  { to: "/containers", label: "Containers", icon: Container },
+  { to: "/app", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/app/projects", label: "Projects", icon: Box },
+  { to: "/app/payments", label: "Payments", icon: CreditCard },
+  { to: "/app/containers", label: "Containers", icon: Container },
 ];
 
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
@@ -29,7 +29,10 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
   return (
     <nav className="flex flex-col gap-1 p-2">
       {navItems.map(({ to, label, icon: Icon }) => {
-        const active = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
+        const active =
+          to === "/app"
+            ? location.pathname === "/app"
+            : location.pathname.startsWith(to);
         return (
           <Link
             key={to}

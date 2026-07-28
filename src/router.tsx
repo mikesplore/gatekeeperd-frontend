@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
+import { LandingPage } from "@/features/landing/LandingPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { ContainersPage } from "@/features/containers/ContainersPage";
@@ -11,10 +12,15 @@ import { PaymentsPage } from "@/features/payments/PaymentsPage";
 
 export const router = createBrowserRouter([
   {
-    path: "/login",
+    index: true,
+    element: <LandingPage />,
+  },
+  {
+    path: "login",
     element: <LoginPage />,
   },
   {
+    path: "app",
     element: <ProtectedRoute />,
     children: [
       {
@@ -30,5 +36,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: "*", element: <Navigate to="/login" replace /> },
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);
