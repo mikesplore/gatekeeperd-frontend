@@ -14,6 +14,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
+import { useThemeStore } from "@/store/themeStore";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -22,7 +23,7 @@ const navItems = [
   { to: "/containers", label: "Containers", icon: Container },
 ];
 
-function SidebarNav({ collapsed }: { collapsed?: boolean }) {
+function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
   const location = useLocation();
 
   return (
@@ -33,6 +34,7 @@ function SidebarNav({ collapsed }: { collapsed?: boolean }) {
           <Link
             key={to}
             to={to}
+            onClick={onNav}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
               active && "bg-accent text-accent-foreground",
@@ -51,12 +53,8 @@ export function AppShell() {
   const email = useAuthStore((s) => s.email);
   const logout = useAuthStore((s) => s.logout);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
-
-  const toggleTheme = () => {
-    document.documentElement.classList.toggle("dark");
-    setDark(document.documentElement.classList.contains("dark"));
-  };
+  const dark = useThemeStore((s) => s.dark);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
 
@@ -69,7 +67,7 @@ export function AppShell() {
         )}
       >
         <div className="flex h-14 items-center border-b px-4 font-semibold">Gatekeeper</div>
-        <SidebarNav />
+        <SidebarNav onNav={() => setSidebarOpen(false)} />
       </aside>
 
       {sidebarOpen && (

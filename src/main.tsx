@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { useRehydrateSession } from "@/hooks/useAuth";
 import { router } from "@/router";
 import { useAuthStore } from "@/store/authStore";
+import { useThemeStore } from "@/store/themeStore";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -15,6 +16,16 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function ThemeBootstrap({ children }: { children: React.ReactNode }) {
+  const dark = useThemeStore((s) => s.dark);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
+
+  return <>{children}</>;
+}
 
 function SessionBootstrap({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -33,10 +44,12 @@ function SessionBootstrap({ children }: { children: React.ReactNode }) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <SessionBootstrap>
-        <RouterProvider router={router} />
-        <Toaster richColors closeButton position="top-right" />
-      </SessionBootstrap>
+      <ThemeBootstrap>
+        <SessionBootstrap>
+          <RouterProvider router={router} />
+          <Toaster richColors closeButton position="top-right" />
+        </SessionBootstrap>
+      </ThemeBootstrap>
     </QueryClientProvider>
   </StrictMode>,
 );
