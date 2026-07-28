@@ -45,26 +45,28 @@ export function ProjectsListPage() {
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground">Manage client projects and access control.</p>
         </div>
-        <Button onClick={() => { setEditProject(null); setFormOpen(true); }}>
+        <Button onClick={() => { setEditProject(null); setFormOpen(true); }} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           New Project
         </Button>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="blocked">Blocked</TabsTrigger>
-            <TabsTrigger value="manual_block">Manual Block</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="all" className="flex-1 sm:flex-none">All</TabsTrigger>
+              <TabsTrigger value="active" className="flex-1 sm:flex-none">Active</TabsTrigger>
+              <TabsTrigger value="blocked" className="flex-1 sm:flex-none">Blocked</TabsTrigger>
+              <TabsTrigger value="manual_block" className="flex-1 sm:flex-none">Manual Block</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
         <Input
           placeholder="Search by name, domain, or client…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
         />
       </div>
 

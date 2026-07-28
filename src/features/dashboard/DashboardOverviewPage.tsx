@@ -36,28 +36,28 @@ export function StatCards({ projects, revenueThisMonth, revenueLastMonth, curren
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
       {items.map((item) => (
         <Card key={item.label}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{item.label}</CardTitle>
+          <CardHeader className="pb-2 p-3 sm:p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{item.label}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className={`text-3xl font-bold ${item.className ?? ""}`}>{item.value}</p>
+          <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+            <p className={`text-xl sm:text-3xl font-bold ${item.className ?? ""}`}>{item.value}</p>
           </CardContent>
         </Card>
       ))}
       {revenueThisMonth != null && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Revenue this month</CardTitle>
+        <Card className="col-span-2 sm:col-span-1">
+          <CardHeader className="pb-2 p-3 sm:p-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Revenue this month</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
+          <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+            <p className="text-xl sm:text-3xl font-bold">
               {currency} {revenueThisMonth.toLocaleString()}
             </p>
             {revenueDelta != null && (
-              <p className={revenueDelta >= 0 ? "text-sm text-emerald-600" : "text-sm text-red-600"}>
+              <p className={revenueDelta >= 0 ? "text-xs sm:text-sm text-emerald-600" : "text-xs sm:text-sm text-red-600"}>
                 {revenueDelta >= 0 ? "+" : ""}
                 {revenueDelta}% vs last month
               </p>
@@ -86,7 +86,7 @@ export function DashboardOverviewPage() {
         error={error}
         data={data}
         loadingFallback={
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-24 w-full" />
             ))}
@@ -114,8 +114,10 @@ export function DashboardOverviewPage() {
                   <CardHeader>
                     <CardTitle>Revenue (last 6 months)</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <RevenueChart months={revenue.byMonth} currency={revenue.currency} />
+                  <CardContent className="overflow-x-auto">
+                    <div className="min-w-[300px]">
+                      <RevenueChart months={revenue.byMonth} currency={revenue.currency} />
+                    </div>
                   </CardContent>
                 </Card>
               )}

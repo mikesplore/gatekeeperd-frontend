@@ -28,11 +28,11 @@ export function ProjectsUpcoming({ projects }: { projects: Project[] }) {
         ) : (
           <ul className="space-y-2">
             {upcoming.map((p) => (
-              <li key={p.id} className="flex items-center justify-between text-sm">
-                <Link to={`/projects/${p.slug}`} className="font-medium hover:underline">
+              <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                <Link to={`/projects/${p.slug}`} className="font-medium hover:underline truncate min-w-0">
                   {p.name}
                 </Link>
-                <span className="text-muted-foreground">
+                <span className="text-muted-foreground shrink-0">
                   {formatDistanceToNow(new Date(p.dueDate!), { addSuffix: true })}
                 </span>
               </li>
@@ -61,7 +61,7 @@ export function ProjectsOverdue() {
           loadingFallback={
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
+                <Skeleton key={i} className="h-24 w-full" />
               ))}
             </div>
           }
@@ -88,12 +88,12 @@ export function ProjectsOverdue() {
                   return (
                     <li key={p.slug} className="rounded-md border p-3 text-sm">
                       <div className="flex items-start justify-between gap-2">
-                        <Link to={`/projects/${p.slug}`} className="font-medium hover:underline">
+                        <Link to={`/projects/${p.slug}`} className="font-medium hover:underline truncate min-w-0">
                           {p.name}
                         </Link>
                         <span className="shrink-0 font-semibold text-red-600">{p.daysOverdue}d late</span>
                       </div>
-                      <p className={blocksToday ? "mt-1 text-red-600" : "mt-1 text-amber-600"}>
+                      <p className={blocksToday ? "mt-1 text-red-600" : "mt-1 text-amber-600 break-words"}>
                         {graceLabel}
                       </p>
                       {p.amountDue > 0 && (
@@ -122,7 +122,7 @@ export function RevenueChart({
   const max = Math.max(...months.map((m) => m.amount), 1);
 
   return (
-    <div className="flex h-40 items-end gap-2">
+    <div className="flex h-40 items-end gap-1 sm:gap-2">
       {months.map((m) => (
         <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
           <div

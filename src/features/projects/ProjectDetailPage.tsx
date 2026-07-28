@@ -67,42 +67,46 @@ export function ProjectDetailPage() {
       {({ project, payments, audit_log }) => (
         <div className="space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <CardTitle className="text-2xl">{project.name}</CardTitle>
+                  <CardTitle className="text-xl sm:text-2xl">{project.name}</CardTitle>
                   <ProjectStatusBadge status={project.status} />
                 </div>
-                <p className="text-muted-foreground">{project.domain}</p>
+                <p className="text-sm text-muted-foreground break-all">{project.domain}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none">
                   <Pencil className="h-4 w-4" />
-                  Edit
+                  <span className="sm:hidden">Edit</span>
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
                 {project.status === "active" ? (
-                  <Button variant="destructive" size="sm" onClick={() => setBlockMode("block")}>
+                  <Button variant="destructive" size="sm" onClick={() => setBlockMode("block")} className="flex-1 sm:flex-none">
                     Block
                   </Button>
                 ) : (
-                  <Button size="sm" onClick={() => setBlockMode("unblock")}>
+                  <Button size="sm" onClick={() => setBlockMode("unblock")} className="flex-1 sm:flex-none">
                     Unblock
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="flex-1 sm:flex-none">
                   <Trash2 className="h-4 w-4" />
-                  Delete
+                  <span className="sm:hidden">Archive</span>
+                  <span className="hidden sm:inline">Archive</span>
                 </Button>
               </div>
             </CardHeader>
           </Card>
 
           <Tabs defaultValue={defaultTab}>
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
-              <TabsTrigger value="audit">Audit Log</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <TabsList className="w-full sm:w-auto">
+                <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
+                <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>
+                <TabsTrigger value="audit" className="flex-1 sm:flex-none">Audit Log</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="overview">
               <Card>
@@ -131,9 +135,9 @@ export function ProjectDetailPage() {
 
             <TabsContent value="payments">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle>Payment history</CardTitle>
-                  <Button size="sm" onClick={() => setPayOpen(true)}>
+                  <Button size="sm" onClick={() => setPayOpen(true)} className="w-full sm:w-auto">
                     <Link2 className="h-4 w-4" />
                     Generate payment link
                   </Button>
@@ -182,9 +186,9 @@ export function ProjectDetailPage() {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="space-y-0.5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm">{value}</p>
+      <p className="text-sm break-all">{value}</p>
     </div>
   );
 }

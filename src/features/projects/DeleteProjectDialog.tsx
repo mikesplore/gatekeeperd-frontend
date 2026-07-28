@@ -32,7 +32,7 @@ export function DeleteProjectDialog({
     if (!project) return;
     deleteProject.mutate(project.slug, {
       onSuccess: () => {
-        toast.success(`Deleted ${project.name}`);
+        toast.success(`Archived ${project.name}`);
         onOpenChange(false);
         onDeleted?.();
       },
@@ -44,11 +44,12 @@ export function DeleteProjectDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {project?.name}?</AlertDialogTitle>
+          <AlertDialogTitle>Archive {project?.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes the project from Gatekeeper, including its payment history and audit log.
-            The client container is not stopped or removed. The slug{" "}
-            <span className="font-mono">{project?.slug}</span> can be registered again later.
+            This archives the project in Gatekeeper — gating stops immediately, but payment history,
+            audit log, and payment events are kept for records. The client container is not stopped
+            or removed. The slug{" "}
+            <span className="font-mono">{project?.slug}</span> stays reserved while archived.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -58,7 +59,7 @@ export function DeleteProjectDialog({
             disabled={deleteProject.isPending}
             onClick={handleDelete}
           >
-            {deleteProject.isPending ? "Deleting…" : "Delete project"}
+            {deleteProject.isPending ? "Archiving…" : "Archive project"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -81,3 +81,40 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+@layer utilities {
+  /* Responsive table card layout for mobile */
+  .table-card {
+    @apply block md:hidden;
+  }
+  .table-card-row {
+    @apply mb-3 rounded-lg border bg-card p-3 text-sm shadow-sm;
+  }
+  .table-card-field {
+    @apply flex items-center justify-between gap-2 py-1;
+  }
+  .table-card-label {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+  .table-card-value {
+    @apply text-right;
+  }
+  .table-desktop {
+    @apply hidden md:table;
+  }
+  .table-desktop-header {
+    @apply hidden md:table-header-group;
+  }
+  .table-desktop-row {
+    @apply hidden md:table-row;
+  }
+  .table-desktop-cell {
+    @apply hidden md:table-cell;
+  }
+  .table-mobile-only {
+    @apply md:hidden;
+  }
+  .table-desktop-only {
+    @apply hidden md:block;
+  }
+}

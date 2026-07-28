@@ -63,66 +63,81 @@ export function PaymentsPage() {
         <CardHeader>
           <CardTitle className="text-base">Filters</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
-          <Select
-            value={status}
-            onValueChange={(v) => {
-              setStatus(v);
-              setOffset(0);
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardContent>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="w-full sm:w-auto">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block sm:hidden">Status</label>
+              <Select
+                value={status}
+                onValueChange={(v) => {
+                  setStatus(v);
+                  setOffset(0);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <Select
-            value={projectSlug}
-            onValueChange={(v) => {
-              setProjectSlug(v);
-              setOffset(0);
-            }}
-          >
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All projects</SelectItem>
-              {projects?.map((p) => (
-                <SelectItem key={p.id} value={p.slug}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <div className="w-full sm:w-auto">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block sm:hidden">Project</label>
+              <Select
+                value={projectSlug}
+                onValueChange={(v) => {
+                  setProjectSlug(v);
+                  setOffset(0);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue placeholder="Project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All projects</SelectItem>
+                  {projects?.map((p) => (
+                    <SelectItem key={p.id} value={p.slug}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setOffset(0);
-            }}
-            className="w-[160px]"
-            aria-label="From date"
-          />
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setOffset(0);
-            }}
-            className="w-[160px]"
-            aria-label="To date"
-          />
+            <div className="w-full sm:w-auto">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block sm:hidden">From date</label>
+              <Input
+                type="date"
+                value={from}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setOffset(0);
+                }}
+                className="w-full sm:w-[160px]"
+                aria-label="From date"
+              />
+            </div>
+
+            <div className="w-full sm:w-auto">
+              <label className="text-xs font-medium text-muted-foreground mb-1 block sm:hidden">To date</label>
+              <Input
+                type="date"
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setOffset(0);
+                }}
+                className="w-full sm:w-[160px]"
+                aria-label="To date"
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -132,11 +147,11 @@ export function PaymentsPage() {
             {(result) => (
               <>
                 <PaymentsTable payments={result.payments} />
-                <div className="mt-4 flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground text-center sm:text-left">
                     {rangeStart}–{rangeEnd} of {total}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex justify-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"

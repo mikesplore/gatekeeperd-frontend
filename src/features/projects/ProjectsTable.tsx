@@ -25,44 +25,75 @@ interface ProjectsTableProps {
 
 export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }: ProjectsTableProps) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Domain</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Client</TableHead>
-          <TableHead>Due Date</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead className="w-[50px]" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Domain</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead className="w-[50px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {projects.map((project) => (
+              <TableRow key={project.id}>
+                <TableCell className="font-medium">
+                  <Link to={`/projects/${project.slug}`} className="hover:underline">
+                    {project.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{project.domain}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{project.type}</Badge>
+                </TableCell>
+                <TableCell>
+                  <ProjectStatusBadge status={project.status} />
+                </TableCell>
+                <TableCell>{project.clientName ?? "—"}</TableCell>
+                <TableCell>
+                  {project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—"}
+                </TableCell>
+                <TableCell>
+                  {project.amountDue != null
+                    ? `${project.currency} ${project.amountDue.toLocaleString()}`
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  <ProjectActionsMenu
+                    project={project}
+                    onEdit={onEdit}
+                    onBlock={onBlock}
+                    onUnblock={onUnblock}
+                    onDelete={onDelete}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile card layout */}
+      <div className="md:hidden space-y-3">
         {projects.map((project) => (
-          <TableRow key={project.id}>
-            <TableCell className="font-medium">
-              <Link to={`/projects/${project.slug}`} className="hover:underline">
-                {project.name}
-              </Link>
-            </TableCell>
-            <TableCell className="text-muted-foreground">{project.domain}</TableCell>
-            <TableCell>
-              <Badge variant="secondary">{project.type}</Badge>
-            </TableCell>
-            <TableCell>
-              <ProjectStatusBadge status={project.status} />
-            </TableCell>
-            <TableCell>{project.clientName ?? "—"}</TableCell>
-            <TableCell>
-              {project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—"}
-            </TableCell>
-            <TableCell>
-              {project.amountDue != null
-                ? `${project.currency} ${project.amountDue.toLocaleString()}`
-                : "—"}
-            </TableCell>
-            <TableCell>
+          <div key={project.id} className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <Link
+                  to={`/projects/${project.slug}`}
+                  className="font-medium hover:underline block truncate"
+                >
+                  {project.name}
+                </Link>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">{project.domain}</p>
+              </div>
               <ProjectActionsMenu
                 project={project}
                 onEdit={onEdit}
@@ -70,11 +101,41 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
                 onUnblock={onUnblock}
                 onDelete={onDelete}
               />
-            </TableCell>
-          </TableRow>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div>
+                <span className="text-xs text-muted-foreground">Status</span>
+                <div className="mt-0.5">
+                  <ProjectStatusBadge status={project.status} />
+                </div>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Type</span>
+                <div className="mt-0.5">
+                  <Badge variant="secondary">{project.type}</Badge>
+                </div>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Client</span>
+                <p className="truncate">{project.clientName ?? "—"}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Due Date</span>
+                <p>{project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—"}</p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-xs text-muted-foreground">Amount</span>
+                <p className="font-medium">
+                  {project.amountDue != null
+                    ? `${project.currency} ${project.amountDue.toLocaleString()}`
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+    </>
   );
 }
 

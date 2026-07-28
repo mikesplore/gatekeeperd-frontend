@@ -29,34 +29,70 @@ interface ContainersTableProps {
 
 export function ContainersTable({ containers }: ContainersTableProps) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Image</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>State</TableHead>
-          <TableHead>Ports</TableHead>
-          <TableHead className="w-[50px]" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Image</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>State</TableHead>
+              <TableHead>Ports</TableHead>
+              <TableHead className="w-[50px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {containers.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell className="max-w-[200px] truncate text-muted-foreground">{c.image}</TableCell>
+                <TableCell>{c.status}</TableCell>
+                <TableCell>
+                  <ContainerStateBadge state={c.state} />
+                </TableCell>
+                <TableCell className="font-mono text-xs">{c.ports || "—"}</TableCell>
+                <TableCell>
+                  <ContainerActionsMenu container={c} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile card layout */}
+      <div className="md:hidden space-y-3">
         {containers.map((c) => (
-          <TableRow key={c.id}>
-            <TableCell className="font-medium">{c.name}</TableCell>
-            <TableCell className="max-w-[200px] truncate text-muted-foreground">{c.image}</TableCell>
-            <TableCell>{c.status}</TableCell>
-            <TableCell>
-              <ContainerStateBadge state={c.state} />
-            </TableCell>
-            <TableCell className="font-mono text-xs">{c.ports || "—"}</TableCell>
-            <TableCell>
+          <div key={c.id} className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{c.name}</p>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">{c.image}</p>
+              </div>
               <ContainerActionsMenu container={c} />
-            </TableCell>
-          </TableRow>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-xs text-muted-foreground">Status</span>
+                <p className="truncate">{c.status}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">State</span>
+                <div className="mt-0.5">
+                  <ContainerStateBadge state={c.state} />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <span className="text-xs text-muted-foreground">Ports</span>
+                <p className="font-mono text-xs truncate">{c.ports || "—"}</p>
+              </div>
+            </div>
+          </div>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+    </>
   );
 }
 

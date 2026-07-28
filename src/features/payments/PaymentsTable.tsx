@@ -17,46 +17,90 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Project</TableHead>
-          <TableHead>Reference</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Verified via</TableHead>
-          <TableHead>Paid at</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Project</TableHead>
+              <TableHead>Reference</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Verified via</TableHead>
+              <TableHead>Paid at</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {payments.map((payment) => (
+              <TableRow
+                key={payment.id}
+                className="cursor-pointer"
+                onClick={() => navigate(`/projects/${payment.projectSlug}?tab=payments`)}
+              >
+                <TableCell>
+                  <div>
+                    <p className="font-medium">{payment.projectName}</p>
+                    <p className="text-xs text-muted-foreground">{payment.projectSlug}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-xs">{payment.paystackReference}</TableCell>
+                <TableCell>
+                  {currency} {payment.amount.toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  <PaymentStatusBadge status={payment.gatewayStatus} />
+                </TableCell>
+                <TableCell className="capitalize text-muted-foreground">
+                  {payment.verifiedVia ?? "—"}
+                </TableCell>
+                <TableCell>
+                  {payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile card layout */}
+      <div className="md:hidden space-y-3">
         {payments.map((payment) => (
-          <TableRow
+          <div
             key={payment.id}
-            className="cursor-pointer"
+            className="rounded-lg border bg-card p-4 shadow-sm cursor-pointer active:bg-muted/50"
             onClick={() => navigate(`/projects/${payment.projectSlug}?tab=payments`)}
           >
-            <TableCell>
-              <div>
-                <p className="font-medium">{payment.projectName}</p>
-                <p className="text-xs text-muted-foreground">{payment.projectSlug}</p>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{payment.projectName}</p>
+                <p className="text-xs text-muted-foreground truncate">{payment.projectSlug}</p>
               </div>
-            </TableCell>
-            <TableCell className="font-mono text-xs">{payment.paystackReference}</TableCell>
-            <TableCell>
-              {currency} {payment.amount.toLocaleString()}
-            </TableCell>
-            <TableCell>
               <PaymentStatusBadge status={payment.gatewayStatus} />
-            </TableCell>
-            <TableCell className="capitalize text-muted-foreground">
-              {payment.verifiedVia ?? "—"}
-            </TableCell>
-            <TableCell>
-              {payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}
-            </TableCell>
-          </TableRow>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-xs text-muted-foreground">Amount</span>
+                <p className="font-medium">
+                  {currency} {payment.amount.toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Reference</span>
+                <p className="font-mono text-xs truncate">{payment.paystackReference}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Verified via</span>
+                <p className="capitalize">{payment.verifiedVia ?? "—"}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Paid at</span>
+                <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, HH:mm") : "—"}</p>
+              </div>
+            </div>
+          </div>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+    </>
   );
 }
