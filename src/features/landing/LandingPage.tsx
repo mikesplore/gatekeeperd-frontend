@@ -13,35 +13,35 @@ const features = [
   {
     title: "Automatic payment reminders",
     description:
-      "No more manually chasing clients. When a payment is approaching or overdue, Gatekeeper sends reminders automatically. You focus on the work, not the follow-ups.",
+      "Automated emails go out before and after due dates. No manual follow-ups required.",
     image: onlinePaymentsImg,
     imageAlt: "Online payments illustration",
   },
   {
     title: "Smart payment blocking",
     description:
-      "If a payment goes unpaid beyond the grace period, client access is silently redirected behind a payment wall. No code changes, and no confrontation from you.",
+      "Overdue projects are redirected to a secure payment wall until cleared. Zero code changes required.",
     image: firewallImg,
     imageAlt: "Firewall illustration showing blocked access",
   },
   {
     title: "Instant restoration on payment",
     description:
-      "The moment a payment is confirmed, access is restored automatically. Clients see a professional payment wall, not a broken site. Pay and get back to business in seconds.",
+      "Access restores within seconds of payment confirmation—no manual intervention needed.",
     image: relaxationImg,
     imageAlt: "Relaxation illustration showing peace of mind",
   },
   {
     title: "Infrastructure stays untouched",
     description:
-      "Containers keep running the whole time. Only client-facing access is gated, so nothing needs to restart when payment clears.",
+      "Containers run uninterrupted. Only the client gateway is gated, ensuring zero downtime.",
     image: containerShipImg,
     imageAlt: "Container ship illustration representing infrastructure",
   },
   {
     title: "Set it and forget it",
     description:
-      "Grace periods, reminders, auto-blocking, and reinstatement all run on their own once a project is registered. No manual intervention needed.",
+      "Configure project parameters once. Enforcement and reinstatement run entirely on autopilot",
     image: heavyLiftingImg,
     imageAlt: "Heavy lifting illustration showing automation",
   },
@@ -115,8 +115,7 @@ export function LandingPage() {
                 <span className="text-foreground">again</span>
               </h1>
               <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-                Stop arguing with clients over overdue payments. Gatekeeper handles the reminders, blocks access when
-                payments are late, and restores it the moment they pay. No awkward conversations. No code changes.
+                Automated reminders. Instant access gating. Automatic restoration upon payment. Let policy handle late clients so you don't have to.
               </p>
               {!token && (
                 <div className="mt-10 flex justify-center lg:justify-start">
@@ -206,10 +205,10 @@ export function LandingPage() {
               <ShieldCheck className="h-7 w-7 text-primary" />
             </div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Stop sending payment reminders
+              Put payment enforcement on autopilot
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Set your terms once. Gatekeeper handles the reminders, enforcement, and restoration from there.
+              Set project terms once and let Gatekeeper handle reminders and access gating.
             </p>
             <div className="mt-8 flex items-center justify-center gap-4">
               {token ? (
