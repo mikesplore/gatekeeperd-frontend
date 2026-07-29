@@ -45,7 +45,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
             {projects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell className="font-medium">
-                  <Link to={`/projects/${project.slug}`} className="hover:underline">
+                  <Link to={`/app/projects/${project.slug}`} className="hover:underline">
                     {project.name}
                   </Link>
                 </TableCell>
@@ -86,10 +86,10 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
           <div key={project.id} className="rounded-lg border bg-card p-4 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <Link
-                  to={`/projects/${project.slug}`}
-                  className="font-medium hover:underline block truncate"
-                >
+                  <Link
+                   to={`/app/projects/${project.slug}`}
+                   className="font-medium hover:underline block truncate"
+                 >
                   {project.name}
                 </Link>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{project.domain}</p>
@@ -163,7 +163,7 @@ function ProjectActionsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem asChild>
-          <Link to={`/projects/${project.slug}`}>View</Link>
+          <Link to={`/app/projects/${project.slug}`}>View</Link>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => { setOpen(false); onEdit(project); }}>Edit</DropdownMenuItem>
         <DropdownMenuSeparator />
