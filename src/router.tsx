@@ -9,6 +9,7 @@ import { NotFoundPage } from "@/features/NotFoundPage";
 import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
 import { ProjectsListPage } from "@/features/projects/ProjectsListPage";
 import { PaymentsPage } from "@/features/payments/PaymentsPage";
+import { NginxPage } from "@/features/nginx/NginxPage";
 
 export const router = createBrowserRouter([
   {
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
           { path: "projects/:slug", element: <ProjectDetailPage /> },
           { path: "payments", element: <PaymentsPage /> },
           { path: "containers", element: <ContainersPage /> },
+          { path: "nginx", element: <NginxPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

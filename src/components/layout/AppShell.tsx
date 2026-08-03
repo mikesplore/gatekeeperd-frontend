@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun } from "lucide-react";
+import { CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -21,6 +21,7 @@ const navItems = [
   { to: "/app/projects", label: "Projects", icon: Box },
   { to: "/app/payments", label: "Payments", icon: CreditCard },
   { to: "/app/containers", label: "Containers", icon: Container },
+  { to: "/app/nginx", label: "Nginx", icon: Server },
 ];
 
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {

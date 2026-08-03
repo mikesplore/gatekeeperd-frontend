@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useContainerAction } from "@/hooks/useProjects";
+import { useContainerAction, useDeleteContainer } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import type { ContainerInfo } from "@/types/container";
 
@@ -99,9 +99,11 @@ function ContainerStateBadge({ state }: { state: string }) {
 
 function ContainerActionsMenu({ container }: { container: ContainerInfo }) {
   const [confirmStop, setConfirmStop] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const start = useContainerAction("start");
   const stop = useContainerAction("stop");
   const restart = useContainerAction("restart");
+  const deleteContainer = useDeleteContainer();
 
   const runAction = (action: "start" | "stop" | "restart") => {
     const mutation = action === "start" ? start : action === "stop" ? stop : restart;
@@ -123,6 +125,12 @@ function ContainerActionsMenu({ container }: { container: ContainerInfo }) {
           <DropdownMenuItem onClick={() => runAction("start")}>Start</DropdownMenuItem>
           <DropdownMenuItem onClick={() => setConfirmStop(true)}>Stop</DropdownMenuItem>
           <DropdownMenuItem onClick={() => runAction("restart")}>Restart</DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => setConfirmDelete(true)}
+          >
+            Delete
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -145,6 +153,33 @@ function ContainerActionsMenu({ container }: { container: ContainerInfo }) {
               }}
             >
               Stop container
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {container.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the container from the Docker host. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleteContainer.isPending}
+              onClick={() => {
+                deleteContainer.mutate(container.name, {
+                  onSuccess: () => toast.success(`Container ${container.name} deleted`),
+                  onError: (err) => toast.error(getApiErrorMessage(err)),
+                });
+                setConfirmDelete(false);
+              }}
+            >
+              {deleteContainer.isPending ? "Deleting..." : "Delete container"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { api } from "@/lib/api";
 import type { AuditLogEntry } from "@/types/audit";
-import type { ContainerInfo } from "@/types/container";
+import type { ContainerInfo, CreateContainerPayload, CreateContainerResponse, DeleteImagePayload, DeleteImageResponse } from "@/types/container";
 import type {
   CreateProjectPayload,
   Project,
@@ -119,5 +119,29 @@ export function useContainerAction(action: "start" | "stop" | "restart") {
   return useMutation({
     mutationFn: (name: string) => api.post(`/admin/containers/${name}/${action}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+  });
+}
+
+export function useCreateContainer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateContainerPayload) =>
+      api.post<CreateContainerResponse>("/admin/containers/create", payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+  });
+}
+
+export function useDeleteContainer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.post(`/admin/containers/${name}/delete`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+  });
+}
+
+export function useDeleteImage() {
+  return useMutation({
+    mutationFn: (payload: DeleteImagePayload) =>
+      api.post<DeleteImageResponse>("/admin/images/delete", payload),
   });
 }
