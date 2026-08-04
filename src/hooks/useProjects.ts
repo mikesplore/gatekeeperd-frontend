@@ -2,11 +2,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { api } from "@/lib/api";
 import type { AuditLogEntry } from "@/types/audit";
-import type { ContainerInfo, CreateContainerPayload, CreateContainerResponse, DeleteImagePayload, DeleteImageResponse } from "@/types/container";
+import type {
+  ContainerInfo,
+  ContainerValidateResponse,
+  ContainerWizardContext,
+  CreateContainerPayload,
+  CreateContainerResponse,
+  DeleteImagePayload,
+  DeleteImageResponse,
+  ImageStatusPayload,
+  ImageStatusResponse,
+  PortsCheckPayload,
+  PortsCheckResponse,
+} from "@/types/container";
 import type {
   CreateProjectPayload,
   Project,
   ProjectDetailResponse,
+  ProjectWizardContext,
   UpdateProjectPayload,
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
@@ -16,6 +29,14 @@ export function useProjects() {
     queryKey: ["projects"],
     queryFn: async () => (await api.get<Project[]>("/admin/projects")).data,
     refetchInterval: 30_000,
+  });
+}
+
+export function useProjectWizardContext() {
+  return useQuery({
+    queryKey: ["projects", "wizard", "context"],
+    queryFn: async () =>
+      (await api.get<ProjectWizardContext>("/admin/projects/wizard/context")).data,
   });
 }
 
@@ -128,6 +149,35 @@ export function useCreateContainer() {
     mutationFn: (payload: CreateContainerPayload) =>
       api.post<CreateContainerResponse>("/admin/containers/create", payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+  });
+}
+
+export function useImageStatus() {
+  return useMutation({
+    mutationFn: (payload: ImageStatusPayload) =>
+      api.post<ImageStatusResponse>("/admin/images/status", payload),
+  });
+}
+
+export function usePortsCheck() {
+  return useMutation({
+    mutationFn: (payload: PortsCheckPayload) =>
+      api.post<PortsCheckResponse>("/admin/containers/wizard/ports/check", payload),
+  });
+}
+
+export function useContainerWizardContext() {
+  return useQuery({
+    queryKey: ["containers", "wizard", "context"],
+    queryFn: async () =>
+      (await api.get<ContainerWizardContext>("/admin/containers/wizard/context")).data,
+  });
+}
+
+export function useValidateCreateContainer() {
+  return useMutation({
+    mutationFn: (payload: CreateContainerPayload) =>
+      api.post<ContainerValidateResponse>("/admin/containers/wizard/validate", payload),
   });
 }
 

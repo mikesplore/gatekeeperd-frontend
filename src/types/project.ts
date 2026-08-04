@@ -39,3 +39,17 @@ export interface CreateProjectPayload {
 }
 
 export type UpdateProjectPayload = Partial<Omit<CreateProjectPayload, "slug">>;
+
+export interface ProjectWizardContainer {
+  id: string;
+  name: string;
+  image: string;
+  state: string;
+  ports: string;
+  suggestedSlug: string;
+}
+
+export interface ProjectWizardContext {
+  containers: ProjectWizardContainer[];
+  existingProjectSlugs: string[];
+}
