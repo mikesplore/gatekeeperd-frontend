@@ -5,7 +5,7 @@ import { QueryState } from "@/components/QueryState";
 import { GlobalActivityFeed } from "@/features/audit/GlobalActivityFeed";
 import { ProjectsOverdue, ProjectsUpcoming, RevenueChart } from "@/features/dashboard/DashboardWidgets";
 import { useRevenueReport } from "@/hooks/usePayments";
-import { useProjects } from "@/hooks/useProjects";
+import { useDashboardSummary, useProjects } from "@/hooks/useProjects";
 
 interface StatCardsProps {
   projects: import("@/types/project").Project[];
@@ -71,6 +71,7 @@ export function StatCards({ projects, revenueThisMonth, revenueLastMonth, curren
 
 export function DashboardOverviewPage() {
   const { data, isLoading, isError, error } = useProjects();
+  const summaryQuery = useDashboardSummary();
   const revenueQuery = useRevenueReport(6);
 
   return (
@@ -79,6 +80,23 @@ export function DashboardOverviewPage() {
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">Operational overview across all projects.</p>
       </div>
+
+      <QueryState
+        isLoading={summaryQuery.isLoading}
+        isError={summaryQuery.isError}
+        error={summaryQuery.error}
+        data={summaryQuery.data}
+        loadingFallback={<Skeleton className="h-28 w-full" />}
+      >
+        {(summary) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Payment events</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{Object.values(summary.payments).reduce((a, b) => a + b, 0)}</p><p className="text-xs text-muted-foreground">Across all providers</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Scribed outbox</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{summary.integrations.outboxPending + summary.integrations.outboxProcessing}</p><p className="text-xs text-muted-foreground">{summary.integrations.outboxDeadLetter} dead-lettered</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Nginx sites</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{summary.nginx.enabledSites}/{summary.nginx.availableSites}</p><p className="text-xs text-muted-foreground">Enabled / available</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">This month</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{summary.revenue.thisMonth}</p><p className="text-xs text-muted-foreground">Revenue reported by backend</p></CardContent></Card>
+          </div>
+        )}
+      </QueryState>
 
       <QueryState
         isLoading={isLoading}

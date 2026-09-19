@@ -23,6 +23,15 @@ import type {
   UpdateProjectPayload,
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
+import type { DashboardSummary } from "@/types/dashboard";
+
+export function useDashboardSummary() {
+  return useQuery({
+    queryKey: ["dashboard", "summary"],
+    queryFn: async () => (await api.get<DashboardSummary>("/admin/dashboard/summary")).data,
+    refetchInterval: 30_000,
+  });
+}
 
 export function useProjects() {
   return useQuery({
