@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
+import { api } from "@/lib/api";
 import { useDashboardSummary } from "@/hooks/useProjects";
 
 const navItems = [
@@ -59,6 +60,7 @@ export function AppShell() {
   const location = useLocation();
   const email = useAuthStore((s) => s.email);
   const logout = useAuthStore((s) => s.logout);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dark = useThemeStore((s) => s.dark);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
@@ -156,6 +158,7 @@ export function AppShell() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
+                    void api.post("/auth/revoke-refresh", { refreshToken });
                     logout();
                     window.location.href = "/login";
                   }}
