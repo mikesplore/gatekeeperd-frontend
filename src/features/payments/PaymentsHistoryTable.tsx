@@ -23,16 +23,16 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
   const openReceipt = async (payment: Payment) => {
     const receiptUrl = receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`);
     if (!receiptUrl) return;
-    const tab = window.open("about:blank", "_blank");
     setReceiptLoading(payment.id);
     try {
       const response = await api.get(receiptUrl, { responseType: "blob" });
       const url = URL.createObjectURL(response.data);
-      if (tab) tab.location.href = url;
-      else { const link = document.createElement("a"); link.href = url; link.target = "_blank"; link.click(); }
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `receipt-${payment.providerReference}.pdf`;
+      link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
-      tab?.close();
       toast.error("Unable to download receipt");
     } finally {
       setReceiptLoading(null);
@@ -54,7 +54,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
             { key: "status", header: "Status", render: (payment) => <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} /> },
             { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "Not set"}</span> },
             { key: "paidAt", header: "Paid at", render: (payment) => payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set" },
-            { key: "actions", header: "", render: (payment) => <>{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{receiptLoading === payment.id ? "Opening…" : "View receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</> },
+            { key: "actions", header: "", render: (payment) => <>{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{receiptLoading === payment.id ? "Downloading…" : "Download receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</> },
           ]}
         />
       </div>
@@ -89,7 +89,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
                 <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}</p>
               </div>
               {payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && (
-                <Button size="sm" variant="outline" className="col-span-2" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{receiptLoading === payment.id ? "Opening…" : "View receipt"}</Button>
+                <Button size="sm" variant="outline" className="col-span-2" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{receiptLoading === payment.id ? "Downloading…" : "Download receipt"}</Button>
               )}
               {payment.gatewayStatus !== "success" && <Button size="sm" variant="outline" className="col-span-2" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile payment</Button>}
             </div>
