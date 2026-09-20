@@ -25,6 +25,14 @@ export function useGitHubInstallUrl() {
   });
 }
 
+export function useUnlinkGitHub() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete("/admin/github/installation"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["github", "status"] }),
+  });
+}
+
 export function useDeployments() {
   return useQuery({
     queryKey: ["deployments"],
