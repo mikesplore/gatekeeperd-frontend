@@ -68,7 +68,7 @@ export function LoginPage() {
           />
           <h2 className="text-2xl font-bold tracking-tight">
             Welcome back to{" "}
-            <span className="text-primary">Gatekeeper</span>
+            <span className="text-primary">Gatekeeperd</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
             Your projects are waiting. Sign in to manage client access, track payments, and keep everything running smoothly.
