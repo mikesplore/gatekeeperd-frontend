@@ -19,10 +19,10 @@ export function ProjectsUpcoming({ projects }: { projects: Project[] }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Upcoming</CardTitle>
+      <CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-2">
+        <CardTitle className="text-base">Upcoming</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-[clamp(0.75rem,1.5vw,1rem)] pt-0">
         {upcoming.length === 0 ? (
           <p className="text-sm text-muted-foreground">No projects due within 7 days.</p>
         ) : (
@@ -49,10 +49,10 @@ export function ProjectsOverdue() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Overdue</CardTitle>
+      <CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-2">
+        <CardTitle className="text-base">Overdue</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-[clamp(0.75rem,1.5vw,1rem)] pt-0">
         <QueryState
           isLoading={isLoading}
           isError={isError}
@@ -61,7 +61,7 @@ export function ProjectsOverdue() {
           loadingFallback={
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full" />
+                <Skeleton key={i} className="aspect-[4/1] w-full" />
               ))}
             </div>
           }
@@ -122,7 +122,7 @@ export function RevenueChart({
   const max = Math.max(...months.map((m) => m.amount), 1);
 
   return (
-    <div className="flex h-40 items-end gap-1 sm:gap-2">
+    <div className="flex aspect-[3/1] w-full items-end gap-[clamp(0.25rem,1vw,0.5rem)]">
       {months.map((m) => (
         <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
           <div
