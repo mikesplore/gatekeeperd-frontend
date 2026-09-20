@@ -31,6 +31,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
           data={projects}
           getRowKey={(project) => project.id}
           pageSize={10}
+          searchPlaceholder="Search by name, domain, or client…"
           filters={[{ label: "Access", options: [{ label: "Active", value: "active" }, { label: "Blocked", value: "blocked" }, { label: "Manual block", value: "manual_block" }], getValue: (project) => project.status }]}
           columns={[
             { key: "name", header: "Name", searchable: true, render: (project) => <Link to={`/app/projects/${project.slug}`} className="font-medium hover:underline">{project.name}</Link> },
