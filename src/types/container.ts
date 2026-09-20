@@ -28,6 +28,7 @@ export interface VolumeMount {
   hostPath: string;
   containerPath: string;
   readOnly?: boolean;
+  volumeName?: string;
 }
 
 export interface CreateContainerPayload {
