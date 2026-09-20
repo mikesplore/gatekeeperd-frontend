@@ -9,6 +9,17 @@ export interface ContainerInfo {
   networks?: string[];
   volumes?: VolumeMount[];
   restartPolicy?: string;
+  imageId?: string;
+  command?: string;
+  entrypoint?: string[];
+  workingDirectory?: string;
+  user?: string;
+  environmentKeys?: string[];
+  labels?: Record<string, string>;
+  restartCount?: number;
+  oomKilled?: boolean;
+  health?: string;
+  ipAddresses?: Record<string, string>;
 }
 
 export interface VolumeMount {
