@@ -2,6 +2,29 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { CreateDeploymentPayload, DeploymentAuditEntry, DeploymentJob } from "@/types/deployment";
 
+export interface GitHubStatus {
+  configured: boolean;
+  connected: boolean;
+  appId?: number | null;
+  installationId?: number | null;
+  appSlug?: string | null;
+  accountLogin?: string | null;
+  accountType?: string | null;
+}
+
+export function useGitHubStatus() {
+  return useQuery({
+    queryKey: ["github", "status"],
+    queryFn: async () => (await api.get<GitHubStatus>("/admin/github/status")).data,
+  });
+}
+
+export function useGitHubInstallUrl() {
+  return useMutation({
+    mutationFn: async () => (await api.get<{ url: string }>("/admin/github/install-url")).data,
+  });
+}
+
 export function useDeployments() {
   return useQuery({
     queryKey: ["deployments"],
@@ -46,4 +69,3 @@ export function useDeploymentAction(action: "cancel" | "retry" | "rollback") {
     },
   });
 }
-
