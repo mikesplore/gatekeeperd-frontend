@@ -108,6 +108,8 @@ export function AppShell() {
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
   const currentNav = navItems.find(({ to }) => to !== "/app" && location.pathname.startsWith(to)) ?? navItems[0];
+  const detailSegment = location.pathname.match(/^\/app\/(containers|projects)\/([^/]+)/)?.[2];
+  const detailLabel = detailSegment ? decodeURIComponent(detailSegment) : null;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -134,7 +136,7 @@ export function AppShell() {
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
-            <h1 className="text-sm font-semibold sm:text-base">{currentNav.label}</h1>
+            <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><span>{currentNav.label}</span>{detailLabel && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{detailLabel}</span></>}</h1>
           </div>
           <div className="flex items-center gap-2">
             <DropdownMenu>

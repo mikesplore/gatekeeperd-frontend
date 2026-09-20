@@ -11,7 +11,7 @@ export function ContainerDetailPage() {
   const query = useContainer(decodeURIComponent(name));
   const logs = useContainerLogs(decodeURIComponent(name));
   return <div className="space-y-6">
-    <div className="flex items-center gap-3"><Button asChild variant="ghost" size="icon"><Link to="/app/containers"><ArrowLeft className="h-4 w-4" /></Link></Button><div><h1 className="text-lg font-semibold">{query.data?.name ?? "Container details"}</h1><p className="text-sm text-muted-foreground">Docker runtime information</p></div></div>
+    <div><Button asChild variant="ghost" size="sm"><Link to="/app/containers"><ArrowLeft className="h-4 w-4" />Back to containers</Link></Button></div>
     <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={query.data}>
       {(container) => <div className="grid gap-4 lg:grid-cols-2">
         <Card className="lg:col-span-2"><CardHeader><CardTitle>Runtime</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Info label="Image" value={container.image} mono /><Info label="Image ID" value={container.imageId ?? "Not available"} mono truncate /><Info label="Status" value={container.status} /><Info label="State" value={container.state} badge /><Info label="Health" value={container.health ?? "No healthcheck"} /><Info label="Restart policy" value={`${container.restartPolicy ?? "Unknown"} (${container.restartCount ?? 0} restarts)`} /><Info label="OOM killed" value={container.oomKilled ? "Yes" : "No"} /><Info label="Ports" value={container.ports || "Not set"} mono /></CardContent></Card>
