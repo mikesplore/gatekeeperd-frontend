@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import axios from "axios";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import type { AuditLogEntry } from "@/types/audit";
 import type {
   ContainerInfo,
@@ -42,6 +44,26 @@ export function useNotificationAction() {
     mutationFn: ({ id, state }: { id: string; state: "read" | "dismissed" | "archived" }) => api.post(`/admin/notifications/${id}/${state}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
+}
+
+export function useNotificationStream() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const controller = new AbortController();
+    const token = useAuthStore.getState().token;
+    if (!token) return () => controller.abort();
+    void fetch(`${api.defaults.baseURL}/admin/notifications/stream`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }).then(async response => {
+      if (!response.ok || !response.body) return;
+      const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
+      while (!controller.signal.aborted) {
+        const chunk = await reader.read(); if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        const events = buffer.split("\n\n"); buffer = events.pop() ?? "";
+        if (events.some(event => event.split("\n").some(line => line.startsWith("data:")))) qc.invalidateQueries({ queryKey: ["notifications"] });
+      }
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [qc]);
 }
 
 export function useIntegrationOutbox() {

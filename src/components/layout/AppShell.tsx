@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
 import { api } from "@/lib/api";
-import { useNotifications } from "@/hooks/useProjects";
+import { useNotificationStream, useNotifications } from "@/hooks/useProjects";
 
 const navGroups = [
   {
@@ -102,6 +102,7 @@ export function AppShell() {
   const dark = useThemeStore((s) => s.dark);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const notifications = useNotifications(10);
+  useNotificationStream();
   const notificationItems = notifications.data ?? [];
   const notificationCount = notificationItems.length;
 
