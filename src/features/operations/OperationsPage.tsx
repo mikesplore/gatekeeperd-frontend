@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryState } from "@/components/QueryState";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { useDashboardSummary, useIntegrationOutbox, useReplayIntegrationEvent } from "@/hooks/useProjects";
 
 function Breakdown({ values }: { values: Record<string, number> }) {
@@ -33,6 +34,6 @@ export function OperationsPage() {
         {Object.keys(data.metrics).length > 0 && <Card><CardHeader><CardTitle className="text-sm">Backend metrics</CardTitle></CardHeader><CardContent><Breakdown values={data.metrics} /></CardContent></Card>}
       </>}
     </QueryState>
-    <Card><CardHeader><CardTitle>Queued integration events</CardTitle></CardHeader><CardContent>{outbox.data?.length ? <div className="space-y-3">{outbox.data.map((event) => <div key={event.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{event.eventType}</p><p className="truncate font-mono text-xs text-muted-foreground">{event.idempotencyKey}</p><p className="text-xs text-muted-foreground">Attempts: {event.attempts}</p></div><Button size="sm" variant="outline" disabled={replay.isPending} onClick={async () => { try { await replay.mutateAsync(event.id); toast.success("Event queued for replay"); } catch { toast.error("Unable to replay event"); } }}>Replay</Button></div>)}</div> : <p className="text-sm text-muted-foreground">No undelivered integration events.</p>}</CardContent></Card>
+    <Card><CardHeader><CardTitle>Queued integration events</CardTitle></CardHeader><CardContent>{outbox.data?.length ? <div className="space-y-3">{outbox.data.map((event) => { const replaying = replay.isPending && replay.variables === event.id; return <div key={event.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{event.eventType}</p><p className="truncate font-mono text-xs text-muted-foreground">{event.idempotencyKey}</p><p className="text-xs text-muted-foreground">Attempts: {event.attempts}</p></div><Button size="sm" variant="outline" disabled={replay.isPending} onClick={async () => { try { await replay.mutateAsync(event.id); toast.success("Event replay completed"); } catch { toast.error("Unable to replay event"); } }}>{replaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {replaying ? "Replaying…" : "Replay"}</Button></div>; })}</div> : <p className="text-sm text-muted-foreground">No undelivered integration events.</p>}</CardContent></Card>
   </div>;
 }
