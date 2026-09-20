@@ -7,6 +7,7 @@ import type {
   NginxStatus,
   NginxConfigInspection,
   NginxTestResult,
+  NginxBackup,
   NginxWizardContext,
 } from "@/types/nginx";
 
@@ -42,6 +43,26 @@ export function useNginxBlockUpdate(slug: string, action: "preview" | "apply") {
       ),
     onSuccess: () => {
       if (action === "apply") qc.invalidateQueries({ queryKey: ["nginx", "config", slug] });
+    },
+  });
+}
+
+export function useNginxVersions(slug: string) {
+  return useQuery({
+    queryKey: ["nginx", "versions", slug],
+    queryFn: async () => (await api.get<NginxBackup[]>(`/admin/nginx/config/${slug}/versions`)).data,
+    enabled: !!slug,
+  });
+}
+
+export function useNginxRollback(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (backup: string) => api.post(`/admin/nginx/config/${slug}/rollback/${encodeURIComponent(backup)}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["nginx", "config", slug] });
+      qc.invalidateQueries({ queryKey: ["nginx", "versions", slug] });
+      qc.invalidateQueries({ queryKey: ["nginx", "status", slug] });
     },
   });
 }

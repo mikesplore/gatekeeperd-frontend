@@ -17,6 +17,8 @@ import {
   useNginxConfig,
   useNginxDiagnostics,
   useNginxBlockUpdate,
+  useNginxVersions,
+  useNginxRollback,
 } from "@/hooks/useNginx";
 import { useProjects } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
@@ -117,6 +119,8 @@ export function NginxPage() {
   const diagnostics = useNginxDiagnostics();
   const previewBlock = useNginxBlockUpdate(selectedSlug, "preview");
   const applyBlock = useNginxBlockUpdate(selectedSlug, "apply");
+  const versionsQuery = useNginxVersions(selectedSlug);
+  const rollback = useNginxRollback(selectedSlug);
   const [editingBlock, setEditingBlock] = useState<number | null>(null);
   const [blockContent, setBlockContent] = useState("");
   const [previewedConfig, setPreviewedConfig] = useState<string | null>(null);
@@ -392,6 +396,17 @@ export function NginxPage() {
                               {previewedConfig && <pre className="max-h-48 overflow-auto rounded-md bg-muted p-3 text-xs">{previewedConfig}</pre>}
                             </div>
                           )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {versionsQuery.data?.length ? (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">Configuration versions</p>
+                      {versionsQuery.data.map((version) => (
+                        <div key={version.name} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div><p className="font-mono text-xs">{version.name}</p><p className="text-xs text-muted-foreground">{new Date(version.createdAt).toLocaleString()} · {version.sizeBytes.toLocaleString()} bytes</p></div>
+                          <Button size="sm" variant="outline" disabled={rollback.isPending} onClick={() => { if (confirm(`Roll back to ${version.name}?`)) rollback.mutate(version.name); }}>Rollback</Button>
                         </div>
                       ))}
                     </div>

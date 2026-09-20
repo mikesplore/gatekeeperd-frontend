@@ -32,6 +32,12 @@ export interface NginxTestResult {
   checkedAt: string;
 }
 
+export interface NginxBackup {
+  name: string;
+  createdAt: string;
+  sizeBytes: number;
+}
+
 export interface NginxWizardContext {
   slug: string;
   domain: string;
