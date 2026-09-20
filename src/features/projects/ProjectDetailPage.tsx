@@ -4,11 +4,12 @@ import { format } from "date-fns";
 import { Link2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useProjectDetail } from "@/hooks/useProjects";
+import { useProjectDetail, useTransferProject } from "@/hooks/useProjects";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
@@ -28,6 +29,10 @@ export function ProjectDetailPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [deploymentMode, setDeploymentMode] = useState("client_hosted");
+  const [serviceMode, setServiceMode] = useState("production");
+  const transferProject = useTransferProject(slug);
 
   const defaultTab = searchParams.get("tab") === "payments" ? "payments" : "overview";
 
@@ -84,6 +89,9 @@ export function ProjectDetailPage() {
                   <span className="sm:hidden">Edit</span>
                   <span className="hidden sm:inline">Edit</span>
                 </Button>
+                {project.lifecycleStatus !== "archived" && (
+                  <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="flex-1 sm:flex-none">Transfer</Button>
+                )}
                 {project.status === "active" ? (
                   <Button variant="destructive" size="sm" onClick={() => setBlockMode("block")} className="flex-1 sm:flex-none">
                     Block
@@ -185,6 +193,16 @@ export function ProjectDetailPage() {
             onOpenChange={setDeleteOpen}
             onDeleted={() => navigate("/projects")}
           />
+          <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Transfer project</DialogTitle><DialogDescription>Set the hosting and service state for this project after transfer.</DialogDescription></DialogHeader>
+              <div className="grid gap-4 py-2 sm:grid-cols-2">
+                <label className="space-y-1 text-sm">Deployment mode<select value={deploymentMode} onChange={(event) => setDeploymentMode(event.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2"><option value="client_hosted">Client hosted</option><option value="external_hosted">External hosted</option><option value="developer_hosted">Developer hosted</option></select></label>
+                <label className="space-y-1 text-sm">Service mode<select value={serviceMode} onChange={(event) => setServiceMode(event.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2"><option value="production">Production</option><option value="testing">Testing</option><option value="development">Development</option></select></label>
+              </div>
+              <DialogFooter><Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button><Button disabled={transferProject.isPending} onClick={async () => { await transferProject.mutateAsync({ deploymentMode, serviceMode }); setTransferOpen(false); }}>Transfer project</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </QueryState>

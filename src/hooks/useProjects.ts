@@ -122,6 +122,18 @@ export function useDeleteProject() {
   });
 }
 
+export function useTransferProject(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { deploymentMode: string; serviceMode: string }) =>
+      api.post(`/admin/projects/${slug}/transfer`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["project", slug] });
+    },
+  });
+}
+
 export function useProjectDetail(slug: string) {
   return useQuery({
     queryKey: ["project", slug],
