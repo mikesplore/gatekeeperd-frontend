@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { Link2, Pencil, Trash2 } from "lucide-react";
@@ -93,7 +93,7 @@ export function ProjectDetailPage() {
                   <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="flex-1 sm:flex-none">Transfer</Button>
                 )}
                 {project.status === "active" ? (
-                  <Button variant="destructive" size="sm" onClick={() => setBlockMode("block")} className="flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" onClick={() => setBlockMode("block")} className="flex-1 border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700 sm:flex-none">
                     Block
                   </Button>
                 ) : (
@@ -135,14 +135,16 @@ export function ProjectDetailPage() {
                     <div className="grid gap-4 sm:grid-cols-4">
                       <InfoRow label="Readiness" value={healthQuery.data.readiness.replace(/_/g, " ")} />
                       <InfoRow label="Container" value={healthQuery.data.containerHealth ?? "unknown"} />
-                      <InfoRow label="Nginx" value={healthQuery.data.nginxEnabled ? "enabled" : "disabled"} />
-                      <InfoRow label="Certificate" value={healthQuery.data.certificateInstalled ? "installed" : "missing"} />
+                      <InfoRow label="Nginx" value={<HealthBadge active={healthQuery.data.nginxEnabled} onLabel="Enabled" offLabel="Disabled" />} />
+                      <InfoRow label="Certificate" value={<HealthBadge active={healthQuery.data.certificateInstalled} onLabel="Installed" offLabel="Missing" />} />
                     </div>
                   ) : <p className="text-sm text-muted-foreground">Health data unavailable.</p>}
                 </CardContent>
               </Card>
+              <div className="grid gap-4 lg:grid-cols-2">
               <Card>
-                <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
+                <CardHeader><CardTitle>Client &amp; Billing</CardTitle></CardHeader>
+                <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
                   <InfoRow label="Client" value={project.clientName ?? "—"} />
                   <InfoRow label="Client email" value={project.clientEmail ?? "—"} />
                   <InfoRow
@@ -158,11 +160,16 @@ export function ProjectDetailPage() {
                     value={project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—"}
                   />
                   <InfoRow label="Grace period" value={`${project.gracePeriodDays} days`} />
-                  <InfoRow label="Container" value={project.containerName} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle>Subscription &amp; Policy</CardTitle></CardHeader>
+                <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
                   <InfoRow label="Type" value={project.type} />
                   <InfoRow label="Block reason" value={project.blockReason ?? "—"} />
                 </CardContent>
               </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="payments">
@@ -234,13 +241,17 @@ export function ProjectDetailPage() {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="space-y-0.5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-sm break-all">{value}</p>
+      <p className="text-sm font-medium text-foreground break-all">{value}</p>
     </div>
   );
+}
+
+function HealthBadge({ active, onLabel, offLabel }: { active: boolean; onLabel: string; offLabel: string }) {
+  return <Badge variant="outline" className={active ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : "border-amber-500/40 text-amber-700 dark:text-amber-400"}><span className={active ? "mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" : "mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500"} />{active ? onLabel : offLabel}</Badge>;
 }
 
 function StateCard({ label, value }: { label: string; value: string }) {
