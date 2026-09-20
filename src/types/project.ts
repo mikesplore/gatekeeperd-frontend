@@ -16,6 +16,10 @@ export interface Project {
   clientName?: string;
   clientEmail?: string;
   amountDue?: number;
+  baseAmount?: number;
+  additionalCharges: number;
+  discounts: number;
+  successfulPayments: number;
   remainingBalance?: number;
   currency: string;
   dueDate?: string;
@@ -28,7 +32,10 @@ export interface ProjectDetailResponse {
   project: Project;
   payments: import("./payment").Payment[];
   audit_log: import("./audit").AuditLogEntry[];
+  adjustments: ProjectAdjustment[];
 }
+
+export interface ProjectAdjustment { id: string; projectId: string; type: "ADDITIONAL_CHARGE" | "DISCOUNT"; amount: number; reason: string; actor: string; createdAt: string }
 
 export interface ProjectHealthResponse {
   project: Project;

@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useProjectDetail, useProjectHealth, useProjectInvoice, useTransferProject } from "@/hooks/useProjects";
+import { useAddProjectAdjustment, useProjectDetail, useProjectHealth, useProjectInvoice, useTransferProject } from "@/hooks/useProjects";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
@@ -20,6 +20,8 @@ import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
 import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function ProjectDetailPage() {
   const { slug = "" } = useParams();
@@ -34,9 +36,11 @@ export function ProjectDetailPage() {
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [deploymentMode, setDeploymentMode] = useState("client_hosted");
   const [serviceMode, setServiceMode] = useState("production");
   const transferProject = useTransferProject(slug);
+  const addAdjustment = useAddProjectAdjustment(slug);
 
   const defaultTab = searchParams.get("tab") === "payments" ? "payments" : "overview";
 
@@ -91,6 +95,7 @@ export function ProjectDetailPage() {
                   <span className="sm:hidden">Edit</span>
                   <span className="hidden sm:inline">Edit</span>
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setAdjustmentOpen(true)}>Add charge / discount</Button>
                 {project.lifecycleStatus !== "archived" && (
                   <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="flex-1 sm:flex-none">Transfer</Button>
                 )}
@@ -147,6 +152,10 @@ export function ProjectDetailPage() {
               <Card className="h-full">
                 <CardHeader><CardTitle>Client &amp; Billing</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
+                  <InfoRow label="Original charge" value={project.baseAmount != null ? `${project.currency} ${project.baseAmount.toLocaleString()}` : "Not set"} />
+                  <InfoRow label="Additional charges" value={`${project.currency} ${project.additionalCharges.toLocaleString()}`} />
+                  <InfoRow label="Discounts" value={`${project.currency} ${project.discounts.toLocaleString()}`} />
+                  <InfoRow label="Successful payments" value={`${project.currency} ${project.successfulPayments.toLocaleString()}`} />
                   <InfoRow label="Client" value={project.clientName ?? "Not set"} />
                   <InfoRow label="Client email" value={project.clientEmail ?? "Not set"} />
                   <InfoRow
@@ -225,6 +234,13 @@ export function ProjectDetailPage() {
           </Tabs>
 
           <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
+          <Dialog open={adjustmentOpen} onOpenChange={setAdjustmentOpen}>
+            <AdjustmentDialogBody
+              pending={addAdjustment.isPending}
+              onSubmit={async (payload) => { await addAdjustment.mutateAsync(payload); setAdjustmentOpen(false); }}
+              onCancel={() => setAdjustmentOpen(false)}
+            />
+          </Dialog>
           <GeneratePaymentLinkDialog project={project} open={payOpen} onOpenChange={setPayOpen} />
           <CaptureCashPaymentDialog project={project} open={cashPayOpen} onOpenChange={setCashPayOpen} />
           <BlockUnblockDialog project={project} mode={blockMode} onClose={() => setBlockMode(null)} />
@@ -248,6 +264,13 @@ export function ProjectDetailPage() {
       )}
     </QueryState>
   );
+}
+
+function AdjustmentDialogBody({ pending, onSubmit, onCancel }: { pending: boolean; onSubmit: (payload: { type: "ADDITIONAL_CHARGE" | "DISCOUNT"; amount: number; reason: string }) => Promise<void>; onCancel: () => void }) {
+  const [type, setType] = useState<"ADDITIONAL_CHARGE" | "DISCOUNT">("ADDITIONAL_CHARGE");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  return <DialogContent><DialogHeader><DialogTitle>Add charge or discount</DialogTitle><DialogDescription>Adjust the project ledger without changing its original charge or payment history.</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="space-y-2"><Label>Adjustment type</Label><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="ADDITIONAL_CHARGE">Additional charge</option><option value="DISCOUNT">Discount</option></select></div><div className="space-y-2"><Label htmlFor="adjustment-amount">Amount</Label><Input id="adjustment-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></div><div className="space-y-2"><Label htmlFor="adjustment-reason">Reason</Label><Input id="adjustment-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. Added reporting feature" /></div></div><DialogFooter><Button variant="outline" onClick={onCancel}>Cancel</Button><Button disabled={pending || !(Number(amount) > 0) || !reason.trim()} onClick={() => onSubmit({ type, amount: Number(amount), reason: reason.trim() })}>{pending ? "Saving…" : "Save adjustment"}</Button></DialogFooter></DialogContent>;
 }
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
