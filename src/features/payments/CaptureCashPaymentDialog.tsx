@@ -46,7 +46,7 @@ export function CaptureCashPaymentDialog({ project, open, onOpenChange }: { proj
         </SidePanelHeader>
         <form onSubmit={submit} className="space-y-4 px-6 py-6 text-sm [&_label]:text-xs [&_input]:h-8">
           <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            Partial payments are supported. Payments are applied to the remaining balance, and the project activates when fully paid.
+            Partial payments apply to the balance. Access activates when paid in full.
           </div>
           <div className="space-y-2">
             <Label htmlFor="cash-amount">Amount ({project.currency})</Label>
