@@ -131,7 +131,7 @@ export function ProjectDetailPage() {
                   <InfoRow label="Grace period" value={`${project.gracePeriodDays} days`} />
                   <InfoRow label="Container" value={project.containerName} />
                   <InfoRow label="Type" value={project.type} />
-                  <InfoRow label="Deployment mode" value={project.deploymentMode.replaceAll("_", " ")} />
+                  <InfoRow label="Deployment mode" value={project.deploymentMode.replace(/_/g, " ")} />
                   <InfoRow label="Lifecycle" value={project.lifecycleStatus} />
                   <InfoRow label="Access/service mode" value={project.serviceMode} />
                   <InfoRow label="Block reason" value={project.blockReason ?? "—"} />

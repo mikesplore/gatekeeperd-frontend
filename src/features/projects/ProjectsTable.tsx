@@ -57,7 +57,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
                   <ProjectStatusBadge status={project.status} />
                   <div className="mt-1 flex flex-wrap gap-1">
                     <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>
-                    <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replaceAll("_", " ")}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge>
                   </div>
                 </TableCell>
                 <TableCell>{project.clientName ?? "—"}</TableCell>

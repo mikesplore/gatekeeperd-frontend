@@ -17,7 +17,7 @@ function Breakdown({ values }: { values: Record<string, number> }) {
     <div className="space-y-2">
       {entries.map(([label, value]) => (
         <div key={label} className="flex items-center justify-between gap-4 text-sm">
-          <span className="capitalize text-muted-foreground">{label.replaceAll("_", " ")}</span>
+          <span className="capitalize text-muted-foreground">{label.replace(/_/g, " ")}</span>
           <span className="font-medium">{value.toLocaleString()}</span>
         </div>
       ))}
