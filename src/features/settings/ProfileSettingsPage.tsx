@@ -47,6 +47,7 @@ export function ProfileSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
+  const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
   const account = useQuery({
     queryKey: ["auth", "me"],
     queryFn: async () =>
@@ -80,6 +81,9 @@ export function ProfileSettingsPage() {
         currentPassword: disablePassword,
         code: disableCode,
       }),
+  });
+  const regenerate2fa = useMutation({
+    mutationFn: async () => (await api.post<{ recoveryCodes: string[] }>("/auth/2fa/recovery-codes/regenerate", { currentPassword: disablePassword, code: disableCode })).data,
   });
   useEffect(() => {
     if (account.data?.displayName !== undefined)
@@ -284,6 +288,10 @@ export function ProfileSettingsPage() {
                     >
                       Disable 2FA
                     </Button>
+                    <Button variant="ghost" disabled={regenerate2fa.isPending || !disablePassword || !disableCode} onClick={async () => { try { setRegeneratedCodes((await regenerate2fa.mutateAsync()).recoveryCodes); toast.success("Recovery codes regenerated"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>
+                      {regenerate2fa.isPending ? "Regenerating…" : "Regenerate recovery codes"}
+                    </Button>
+                    {regeneratedCodes && <div className="max-w-md rounded-md border p-3"><p className="text-sm font-medium">New recovery codes</p><p className="text-xs text-muted-foreground">Previous codes are no longer valid. Save these now.</p><div className="mt-2 grid grid-cols-2 gap-1 font-mono text-xs">{regeneratedCodes.map(code => <span key={code}>{code}</span>)}</div></div>}
                   </div>
                 </>
               ) : !setup ? (
