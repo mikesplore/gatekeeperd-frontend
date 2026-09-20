@@ -15,7 +15,7 @@ export function ForgotPasswordPage() {
     try { await api.post("/auth/forgot-password", { email }); setSent(true); }
     catch (err) { setError(getApiErrorMessage(err)); }
   };
-  return <AuthCard title="Forgot password?" description={sent ? "If that email is registered, a reset link is on its way." : "Enter your admin email and we’ll send a secure reset link."}>
+  return <AuthCard title={sent ? "Check your email" : "Forgot password?"} description={sent ? "If that email is registered, a reset link is on its way." : "Enter your admin email and we’ll send a secure reset link."}>
     {sent ? <Link to="/login" className="text-sm text-primary hover:underline">Return to sign in</Link> : <form onSubmit={submit} className="space-y-4"><div className="space-y-2"><Label htmlFor="reset-email">Email</Label><Input id="reset-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>{error && <p className="text-sm text-destructive">{error}</p>}<Button className="w-full">Send reset link</Button><Link to="/login" className="block text-center text-sm text-muted-foreground hover:text-foreground">Back to sign in</Link></form>}
   </AuthCard>;
 }
