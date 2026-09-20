@@ -108,7 +108,7 @@ export function AppShell() {
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
   const currentNav = navItems.find(({ to }) => to !== "/app" && location.pathname.startsWith(to)) ?? navItems[0];
-  const detailSegment = location.pathname.match(/^\/app\/(containers|projects)\/([^/]+)/)?.[2];
+  const detailSegment = location.pathname.match(/^\/app\/(containers|projects|networks)\/([^/]+)/)?.[2];
   const detailLabel = detailSegment ? decodeURIComponent(detailSegment) : null;
 
   return (
