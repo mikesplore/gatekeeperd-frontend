@@ -40,7 +40,7 @@ export function StatCards({ projects, revenueThisMonth, revenueLastMonth, curren
       {items.map((item) => (
         <Card key={item.label}>
           <CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-1">
-            <CardTitle className="truncate text-sm font-medium text-muted-foreground">{item.label}</CardTitle>
+            <CardTitle className="truncate text-sm font-medium text-foreground/75">{item.label}</CardTitle>
           </CardHeader>
           <CardContent className="p-[clamp(0.75rem,1.5vw,1rem)] pt-0">
             <p className={`text-[clamp(1rem,2.5vw,1.5rem)] font-bold ${item.className ?? ""}`}>{item.value}</p>
@@ -50,7 +50,7 @@ export function StatCards({ projects, revenueThisMonth, revenueLastMonth, curren
       {revenueThisMonth != null && (
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-1">
-            <CardTitle className="truncate text-sm font-medium text-muted-foreground">Revenue this month</CardTitle>
+            <CardTitle className="truncate text-sm font-medium text-foreground/75">Revenue this month</CardTitle>
           </CardHeader>
           <CardContent className="p-[clamp(0.75rem,1.5vw,1rem)] pt-0">
             <p className="text-[clamp(1rem,2.5vw,1.5rem)] font-bold">
@@ -112,9 +112,15 @@ export function DashboardOverviewPage() {
                     <CardTitle className="text-base">Revenue (last 6 months)</CardTitle>
                   </CardHeader>
                   <CardContent className="overflow-x-auto p-[clamp(0.75rem,1.5vw,1rem)] pt-0">
-                    <div className="min-w-full max-h-40">
-                      <RevenueChart months={revenue.byMonth} currency={revenue.currency} />
-                    </div>
+                    {revenue.byMonth.every((month) => month.amount === 0) ? (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        Revenue data will appear once transactions are processed.
+                      </p>
+                    ) : (
+                      <div className="min-w-full max-h-40">
+                        <RevenueChart months={revenue.byMonth} currency={revenue.currency} />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}

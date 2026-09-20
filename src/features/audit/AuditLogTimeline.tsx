@@ -20,6 +20,16 @@ const actionLabels: Record<AuditAction, string> = {
   project_updated: "Project updated",
 };
 
+function humanizeReason(reason?: string) {
+  if (!reason) return undefined;
+  const installation = reason.match(/event=installation\s+repository=([^\s]+)\s+queued=(\d+)/i);
+  if (installation) {
+    const repository = installation[1] === "unknown" ? "a GitHub repository" : installation[1];
+    return `GitHub app installed on ${repository}${installation[2] === "0" ? "" : `; ${installation[2]} deployment${installation[2] === "1" ? "" : "s"} queued`}.`;
+  }
+  return reason;
+}
+
 interface AuditLogTimelineProps {
   entries: AuditLogEntry[];
 }
@@ -44,7 +54,7 @@ export function AuditLogTimeline({ entries }: AuditLogTimelineProps) {
                 {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}
               </span>
             </div>
-            {entry.reason && <p className="text-sm text-muted-foreground">{entry.reason}</p>}
+            {humanizeReason(entry.reason) && <p className="text-sm text-muted-foreground">{humanizeReason(entry.reason)}</p>}
           </div>
         </div>
       ))}

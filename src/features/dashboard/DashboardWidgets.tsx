@@ -17,8 +17,10 @@ export function ProjectsUpcoming({ projects }: { projects: Project[] }) {
     return due >= today && due <= in7;
   });
 
+  if (upcoming.length === 0) return null;
+
   return (
-    <Card>
+    <Card className="h-fit">
       <CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-2">
         <CardTitle className="text-base">Upcoming</CardTitle>
       </CardHeader>
@@ -47,8 +49,10 @@ export function ProjectsUpcoming({ projects }: { projects: Project[] }) {
 export function ProjectsOverdue() {
   const { data, isLoading, isError, error } = useOverdueProjects();
 
+  if (!isLoading && !isError && data?.length === 0) return null;
+
   return (
-    <Card>
+    <Card className="h-fit">
       <CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-2">
         <CardTitle className="text-base">Overdue</CardTitle>
       </CardHeader>
