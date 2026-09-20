@@ -125,9 +125,9 @@ export function ProjectDetailPage() {
               <Card className="mb-4">
                 <CardHeader><CardTitle>Operational state</CardTitle><p className="text-sm text-muted-foreground">Access, deployment, and lifecycle are tracked separately.</p></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-3">
-                  <StateCard label="Access" value={project.status} />
-                  <StateCard label="Deployment" value={project.deploymentMode.replace(/_/g, " ")} />
-                  <StateCard label="Lifecycle" value={project.lifecycleStatus} />
+                  <StateCard label="Access" value={formatStatus(project.status)} />
+                  <StateCard label="Deployment" value={formatStatus(project.deploymentMode)} />
+                  <StateCard label="Lifecycle" value={formatStatus(project.lifecycleStatus)} />
                 </CardContent>
               </Card>
               <Card className="mb-4">
@@ -143,8 +143,8 @@ export function ProjectDetailPage() {
                   ) : <p className="text-sm text-muted-foreground">Health data unavailable.</p>}
                 </CardContent>
               </Card>
-              <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
+              <div className="grid items-stretch gap-4 lg:grid-cols-2">
+              <Card className="h-full">
                 <CardHeader><CardTitle>Client &amp; Billing</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
                   <InfoRow label="Client" value={project.clientName ?? "—"} />
@@ -164,7 +164,7 @@ export function ProjectDetailPage() {
                   <InfoRow label="Grace period" value={`${project.gracePeriodDays} days`} />
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="h-full">
                 <CardHeader><CardTitle>Subscription &amp; Policy</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
                   <InfoRow label="Type" value={project.type} />
@@ -179,22 +179,25 @@ export function ProjectDetailPage() {
               {invoiceQuery.data && <Card className="mb-4"><CardHeader><CardTitle>Invoice {invoiceQuery.data.invoice.number}</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-4 sm:grid-cols-4"><InfoRow label="Status" value={invoiceQuery.data.invoice.status.replace(/_/g, " ")} /><InfoRow label="Total" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.amount}`} /><InfoRow label="Paid" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.paid}`} /><InfoRow label="Balance" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.balance}`} /></div><div className="space-y-2"><p className="text-sm font-medium">Scribed payments</p>{invoiceQuery.data.payments.length === 0 ? <p className="text-sm text-muted-foreground">No invoice payments recorded.</p> : invoiceQuery.data.payments.map((payment) => <div key={payment.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-medium">{payment.currency} {payment.amount}</p><p className="font-mono text-xs text-muted-foreground">{payment.provider} · {payment.provider_reference}</p><p className="text-xs text-muted-foreground">Receipt: {payment.receipt_number}</p></div>{payment.receipt_url && <Button asChild size="sm" variant="outline"><a href={payment.receipt_url} target="_blank" rel="noreferrer">Open receipt</a></Button>}</div>)}</div></CardContent></Card>}
               <Card>
                 <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle>Payment history</CardTitle>
-                  <Button size="sm" onClick={() => setPayOpen(true)} className="w-full sm:w-auto">
-                    <Link2 className="h-4 w-4" />
-                    Generate payment link
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setCashPayOpen(true)} className="w-full sm:w-auto">
-                    Record cash payment
-                  </Button>
+                  <div>
+                    <CardTitle>Payment history</CardTitle>
+                    {project.amountDue != null && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Remaining balance: <span className="font-semibold text-foreground">{project.currency} {Math.max(0, project.amountDue - payments.filter((payment) => payment.gatewayStatus === "success").reduce((sum, payment) => sum + payment.amount, 0)).toLocaleString()}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
+                    <Button size="sm" onClick={() => setPayOpen(true)}>
+                      <Link2 className="h-4 w-4" />
+                      Generate payment link
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setCashPayOpen(true)}>
+                      Record cash payment
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {project.amountDue != null && (
-                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                      <span className="text-muted-foreground">Remaining balance: </span>
-                      <span className="font-semibold">{project.currency} {Math.max(0, project.amountDue - payments.filter((payment) => payment.gatewayStatus === "success").reduce((sum, payment) => sum + payment.amount, 0)).toLocaleString()}</span>
-                    </div>
-                  )}
                   {reversalAlert && (
                     <Alert variant="destructive">
                       <AlertTitle>Payment reversed</AlertTitle>
@@ -254,6 +257,12 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
       <p className="text-sm font-medium text-foreground break-all">{value}</p>
     </div>
   );
+}
+
+function formatStatus(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function HealthBadge({ active, onLabel, offLabel }: { active: boolean; onLabel: string; offLabel: string }) {
