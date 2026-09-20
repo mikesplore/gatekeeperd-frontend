@@ -150,11 +150,11 @@ export function ProjectDetailPage() {
                   <InfoRow label="Client" value={project.clientName ?? "—"} />
                   <InfoRow label="Client email" value={project.clientEmail ?? "—"} />
                   <InfoRow
-                    label="Amount due"
+                    label="Remaining balance"
                     value={
                       project.amountDue != null
-                        ? `${project.currency} ${project.amountDue.toLocaleString()}`
-                        : "—"
+                        ? `${project.currency} ${Math.max(0, project.amountDue - payments.filter((payment) => payment.gatewayStatus === "success").reduce((sum, payment) => sum + payment.amount, 0)).toLocaleString()}`
+                        : `${project.currency} 0`
                     }
                   />
                   <InfoRow
