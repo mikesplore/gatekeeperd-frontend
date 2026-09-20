@@ -5,6 +5,7 @@ import { QueryState } from "@/components/QueryState";
 import { GlobalActivityFeed } from "@/features/audit/GlobalActivityFeed";
 import { ProjectsOverdue, ProjectsUpcoming, RevenueChart } from "@/features/dashboard/DashboardWidgets";
 import { useRevenueReport } from "@/hooks/usePayments";
+import { useProjects } from "@/hooks/useProjects";
 
 interface StatCardsProps {
   projects: import("@/types/project").Project[];
