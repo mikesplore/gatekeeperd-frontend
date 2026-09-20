@@ -11,9 +11,10 @@ interface PaymentsHistoryTableProps {
   payments: Payment[];
   currency: string;
   projectSlug?: string;
+  receiptUrls?: Record<string, string>;
 }
 
-export function PaymentsHistoryTable({ payments, currency, projectSlug }: PaymentsHistoryTableProps) {
+export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptUrls = {} }: PaymentsHistoryTableProps) {
   const reconcile = useReconcilePayment();
   if (payments.length === 0) {
     return <p className="py-8 text-center text-sm text-muted-foreground">No payments yet.</p>;
@@ -31,7 +32,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug }: Paymen
             { key: "status", header: "Status", render: (payment) => <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} /> },
             { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "—"}</span> },
             { key: "paidAt", header: "Paid at", render: (payment) => payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—" },
-            { key: "actions", header: "", render: (payment) => <>{payment.gatewayStatus === "success" && projectSlug && <Button asChild size="sm" variant="outline"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</> },
+            { key: "actions", header: "", render: (payment) => <>{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button asChild size="sm" variant="outline"><a href={receiptUrls[payment.providerReference] || `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</> },
           ]}
         />
       </div>
@@ -65,8 +66,8 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug }: Paymen
                 <span className="text-xs text-muted-foreground">Paid at</span>
                 <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}</p>
               </div>
-              {payment.gatewayStatus === "success" && projectSlug && (
-                <Button asChild size="sm" variant="outline" className="col-span-2"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>
+              {payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && (
+                <Button asChild size="sm" variant="outline" className="col-span-2"><a href={receiptUrls[payment.providerReference] || `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>
               )}
               {payment.gatewayStatus !== "success" && <Button size="sm" variant="outline" className="col-span-2" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile payment</Button>}
             </div>
