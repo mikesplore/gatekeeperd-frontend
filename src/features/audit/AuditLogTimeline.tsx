@@ -48,13 +48,13 @@ export function AuditLogTimeline({ entries }: AuditLogTimelineProps) {
           </div>
           <div className="flex-1 space-y-1 pb-4 border-b last:border-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">{actionLabels[entry.action]}</span>
-              <span className="text-xs text-muted-foreground">by {entry.actor}</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm font-medium">{actionLabels[entry.action]}</span>
+              <span className="text-[11px] text-muted-foreground">by {entry.actor}</span>
+              <span className="text-[11px] text-muted-foreground">
                 {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}
               </span>
             </div>
-            {humanizeReason(entry.reason) && <p className="text-sm text-muted-foreground">{humanizeReason(entry.reason)}</p>}
+            {humanizeReason(entry.reason) && <p className="text-xs text-muted-foreground">{humanizeReason(entry.reason)}</p>}
           </div>
         </div>
       ))}
