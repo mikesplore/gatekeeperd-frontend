@@ -13,6 +13,7 @@ import { useProjectDetail, useProjectHealth, useProjectInvoice, useTransferProje
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
+import { CaptureCashPaymentDialog } from "@/features/payments/CaptureCashPaymentDialog";
 import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
 import { BlockUnblockDialog } from "@/features/projects/BlockUnblockDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
@@ -29,6 +30,7 @@ export function ProjectDetailPage() {
   const invoiceQuery = useProjectInvoice(slug);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [cashPayOpen, setCashPayOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -182,6 +184,9 @@ export function ProjectDetailPage() {
                     <Link2 className="h-4 w-4" />
                     Generate payment link
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setCashPayOpen(true)} className="w-full sm:w-auto">
+                    Record cash payment
+                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {project.amountDue != null && (
@@ -218,6 +223,7 @@ export function ProjectDetailPage() {
 
           <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
           <GeneratePaymentLinkDialog project={project} open={payOpen} onOpenChange={setPayOpen} />
+          <CaptureCashPaymentDialog project={project} open={cashPayOpen} onOpenChange={setCashPayOpen} />
           <BlockUnblockDialog project={project} mode={blockMode} onClose={() => setBlockMode(null)} />
           <DeleteProjectDialog
             project={project}

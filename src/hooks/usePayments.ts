@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   GatewayStatus,
@@ -6,6 +6,26 @@ import type {
   PaymentsListResponse,
   RevenueReport,
 } from "@/types/payment";
+export interface CaptureCashPaymentPayload {
+  amount: number;
+  currency?: string;
+  paidAt?: string;
+  receiptNumber?: string;
+  notes?: string;
+}
+
+export function useCaptureCashPayment(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CaptureCashPaymentPayload) =>
+      (await api.post(`/admin/projects/${projectSlug}/payments/cash`, payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectSlug] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["revenue"] });
+    },
+  });
+}
 
 export function useAllPayments(filters: {
   status?: GatewayStatus;
