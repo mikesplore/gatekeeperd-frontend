@@ -205,15 +205,26 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
                   className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="">-- Select a container --</option>
-                  {wizardContext?.containers.map((c) => {
-                    const alreadyUsed = wizardContext.existingProjectSlugs.includes(c.suggestedSlug);
-                    return (
-                      <option key={c.id} value={c.name}>
-                        {c.name} ({c.image}){alreadyUsed ? " — already linked" : ""}
-                      </option>
-                    );
-                  })}
+                  {wizardContext?.containers.filter((c) => !wizardContext.existingProjectSlugs.includes(c.suggestedSlug)).map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name} ({c.image})
+                    </option>
+                  ))}
+                  {wizardContext?.containers.some((c) => wizardContext.existingProjectSlugs.includes(c.suggestedSlug)) && (
+                    <optgroup label="Already linked">
+                      {wizardContext.containers.filter((c) => wizardContext.existingProjectSlugs.includes(c.suggestedSlug)).map((c) => (
+                        <option key={c.id} value={c.name} disabled>
+                          {c.name} ({c.image}) — already linked
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
+                {wizardContext?.containers.every((c) => wizardContext.existingProjectSlugs.includes(c.suggestedSlug)) && (
+                  <p className="text-xs text-amber-600">
+                    All available containers are already linked. Create another container before registering a new project.
+                  </p>
+                )}
                 {selectedContainer && (
                   <div className="flex items-center gap-2 text-xs">
                     <Badge
