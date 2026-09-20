@@ -254,7 +254,10 @@ export function useContainerAction(action: "start" | "stop" | "restart") {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => api.post(`/admin/containers/${name}/${action}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["containers"] });
+      await qc.refetchQueries({ queryKey: ["containers"], type: "active" });
+    },
   });
 }
 
@@ -263,7 +266,10 @@ export function useCreateContainer() {
   return useMutation({
     mutationFn: (payload: CreateContainerPayload) =>
       api.post<CreateContainerResponse>("/admin/containers/create", payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["containers"] });
+      await qc.refetchQueries({ queryKey: ["containers"], type: "active" });
+    },
   });
 }
 
