@@ -184,7 +184,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
           </SidePanelDescription>
         </SidePanelHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-6 py-6">
-          {/* Container selection — container-first flow */}
+          {/* Container selection: container-first flow */}
           <div className="space-y-4">
             <div className="border-b pb-2">
               <h3 className="text-sm font-semibold">Container setup</h3>
@@ -214,7 +214,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
                     <optgroup label="Already linked">
                       {wizardContext.containers.filter((c) => wizardContext.existingProjectSlugs.includes(c.suggestedSlug)).map((c) => (
                         <option key={c.id} value={c.name} disabled>
-                          {c.name} ({c.image}) — already linked
+                          {c.name} ({c.image}) (already linked)
                         </option>
                       ))}
                     </optgroup>
