@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/common/DataTable";
 import { ProjectStatusBadge } from "./ProjectStatusBadge";
 import type { Project } from "@/types/project";
 
@@ -26,62 +26,23 @@ interface ProjectsTableProps {
 export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }: ProjectsTableProps) {
   return (
     <>
-      {/* Desktop table */}
       <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Domain</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead className="w-[50px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {projects.map((project) => (
-              <TableRow key={project.id}>
-                <TableCell className="font-medium">
-                  <Link to={`/app/projects/${project.slug}`} className="hover:underline">
-                    {project.name}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{project.domain}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{project.type}</Badge>
-                </TableCell>
-                <TableCell>
-                  <ProjectStatusBadge status={project.status} />
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>
-                    <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge>
-                  </div>
-                </TableCell>
-                <TableCell>{project.clientName ?? "—"}</TableCell>
-                <TableCell>
-                  {project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—"}
-                </TableCell>
-                <TableCell>
-                  {project.amountDue != null
-                    ? `${project.currency} ${project.amountDue.toLocaleString()}`
-                    : "—"}
-                </TableCell>
-                <TableCell>
-                  <ProjectActionsMenu
-                    project={project}
-                    onEdit={onEdit}
-                    onBlock={onBlock}
-                    onUnblock={onUnblock}
-                    onDelete={onDelete}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable
+          data={projects}
+          getRowKey={(project) => project.id}
+          pageSize={10}
+          filters={[{ label: "Status", options: [{ label: "Active", value: "active" }, { label: "Blocked", value: "blocked" }, { label: "Manual block", value: "manual_block" }], getValue: (project) => project.status }]}
+          columns={[
+            { key: "name", header: "Name", searchable: true, render: (project) => <Link to={`/app/projects/${project.slug}`} className="font-medium hover:underline">{project.name}</Link> },
+            { key: "domain", header: "Domain", searchable: true, render: (project) => <span className="text-muted-foreground">{project.domain}</span> },
+            { key: "type", header: "Type", render: (project) => <Badge variant="secondary">{project.type}</Badge> },
+            { key: "status", header: "Status", render: (project) => <><ProjectStatusBadge status={project.status} /><div className="mt-1 flex flex-wrap gap-1"><Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge><Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge></div></> },
+            { key: "client", header: "Client", searchable: true, render: (project) => project.clientName ?? "—" },
+            { key: "due", header: "Due date", render: (project) => project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—" },
+            { key: "amount", header: "Amount", render: (project) => project.amountDue != null ? `${project.currency} ${project.amountDue.toLocaleString()}` : "—" },
+            { key: "actions", header: "", render: (project) => <ProjectActionsMenu project={project} onEdit={onEdit} onBlock={onBlock} onUnblock={onUnblock} onDelete={onDelete} /> },
+          ]}
+        />
       </div>
 
       {/* Mobile card layout */}
