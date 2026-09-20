@@ -36,6 +36,14 @@ export function useNotifications(limit = 25) {
   });
 }
 
+export function useNotificationAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, state }: { id: string; state: "read" | "dismissed" | "archived" }) => api.post(`/admin/notifications/${id}/${state}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
 export function useIntegrationOutbox() {
   return useQuery({
     queryKey: ["integrations", "outbox"],
