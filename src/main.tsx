@@ -47,7 +47,19 @@ createRoot(document.getElementById("root")!).render(
       <ThemeBootstrap>
         <SessionBootstrap>
           <RouterProvider router={router} />
-          <Toaster richColors closeButton position="top-right" />
+          <Toaster
+            richColors
+            closeButton
+            position="top-right"
+            toastOptions={{
+              classNames: {
+                toast: "!min-h-0 !w-[min(22rem,calc(100vw-2rem))] !gap-2 !px-3 !py-2.5 text-sm",
+                title: "text-sm font-medium",
+                description: "text-xs",
+                closeButton: "!h-5 !w-5",
+              },
+            }}
+          />
         </SessionBootstrap>
       </ThemeBootstrap>
     </QueryClientProvider>
