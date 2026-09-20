@@ -22,6 +22,8 @@ export interface ContainerInfo {
   ipAddresses?: Record<string, string>;
 }
 
+export interface ContainerLogsResponse { container: string; tail: number; logs: string }
+
 export interface VolumeMount {
   hostPath: string;
   containerPath: string;

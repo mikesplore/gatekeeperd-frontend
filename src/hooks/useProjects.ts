@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import type { AuditLogEntry } from "@/types/audit";
 import type {
   ContainerInfo,
+  ContainerLogsResponse,
   ContainerValidateResponse,
   ContainerWizardContext,
   CreateContainerPayload,
@@ -254,6 +255,14 @@ export function useContainer(name: string) {
   return useQuery({
     queryKey: ["container", name],
     queryFn: async () => (await api.get<ContainerInfo>(`/admin/containers/${encodeURIComponent(name)}`)).data,
+    enabled: Boolean(name),
+  });
+}
+
+export function useContainerLogs(name: string, tail = 100) {
+  return useQuery({
+    queryKey: ["container", name, "logs", tail],
+    queryFn: async () => (await api.get<ContainerLogsResponse>(`/admin/containers/${encodeURIComponent(name)}/logs`, { params: { tail } })).data,
     enabled: Boolean(name),
   });
 }
