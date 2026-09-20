@@ -55,6 +55,7 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
 }
 
 export function AppShell() {
+  const location = useLocation();
   const email = useAuthStore((s) => s.email);
   const logout = useAuthStore((s) => s.logout);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -62,6 +63,7 @@ export function AppShell() {
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
+  const currentNav = navItems.find(({ to }) => to !== "/app" && location.pathname.startsWith(to)) ?? navItems[0];
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -88,6 +90,7 @@ export function AppShell() {
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
+            <h1 className="text-sm font-semibold sm:text-base">{currentNav.label}</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
