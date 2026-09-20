@@ -237,38 +237,58 @@ export function NginxPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-muted-foreground">Manage nginx site configurations and SSL certificates for client projects.</p>
-      </div>
+    <div className="space-y-8">
+      <section className="rounded-2xl border bg-card px-6 py-7 shadow-sm sm:px-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl space-y-2">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              <Server className="h-4 w-4" /> Infrastructure
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Nginx sites</h1>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Inspect, validate, and safely operate project server blocks without leaving Gatekeeperd.
+            </p>
+          </div>
+          <div className="w-full lg:max-w-sm">
+            <Label htmlFor="nginx-project" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project workspace</Label>
+            {projectsLoading ? <Skeleton className="mt-2 h-10 w-full" /> : (
+              <select
+                id="nginx-project"
+                value={selectedSlug}
+                onChange={(e) => {
+                  setSelectedSlug(e.target.value);
+                  const project = projects?.find((p) => p.slug === e.target.value);
+                  setSelectedProject(project?.domain ?? "");
+                }}
+                className="mt-2 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select a project…</option>
+                {projects?.map((project) => <option key={project.id} value={project.slug}>{project.name} · {project.slug}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Project</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {projectsLoading ? (
-            <Skeleton className="h-10 w-full" />
-          ) : (
-            <select
-              value={selectedSlug}
-              onChange={(e) => {
-                setSelectedSlug(e.target.value);
-                const project = projects?.find((p) => p.slug === e.target.value);
-                setSelectedProject(project?.domain ?? "");
-              }}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">-- Select a project --</option>
-              {projects?.map((project) => (
-                <option key={project.id} value={project.slug}>
-                  {project.name} ({project.slug})
-                </option>
-              ))}
-            </select>
-          )}
-        </CardContent>
-      </Card>
+      {!selectedSlug && !projectsLoading && (
+        <Card className="border-dashed">
+          <CardContent className="flex min-h-56 flex-col items-center justify-center text-center">
+            <div className="mb-4 rounded-full bg-primary/10 p-3 text-primary"><Server className="h-6 w-6" /></div>
+            <h2 className="font-semibold">Choose a project to begin</h2>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">The selected project’s Nginx status, certificate, configuration, managed blocks, diagnostics, and rollback history will appear here.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedSlug && (
+        <div className="flex items-center justify-between border-b pb-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected site</p>
+            <h2 className="text-lg font-semibold">{selectedProjectData?.name ?? selectedSlug}</h2>
+          </div>
+          <Badge variant="outline" className="font-mono text-xs">{selectedDomain || selectedSlug}</Badge>
+        </div>
+      )}
 
       {selectedSlug && (
         <QueryState
