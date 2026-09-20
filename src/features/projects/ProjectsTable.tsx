@@ -50,7 +50,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
       {/* Mobile card layout */}
       <div className="md:hidden space-y-3">
         {projects.map((project) => (
-          <div key={project.id} className="rounded-lg border bg-card p-4 shadow-sm">
+          <div key={project.id} className="rounded-lg border bg-card p-3 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                   <Link
@@ -69,7 +69,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
                 onDelete={onDelete}
               />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
               <div>
                 <span className="text-xs text-muted-foreground">Access</span>
                 <div className="mt-0.5">

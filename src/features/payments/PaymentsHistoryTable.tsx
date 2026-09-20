@@ -39,14 +39,14 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug }: Paymen
       {/* Mobile card layout */}
       <div className="md:hidden space-y-3">
         {payments.map((payment) => (
-          <div key={payment.id} className="rounded-lg border bg-card p-4 shadow-sm">
+          <div key={payment.id} className="rounded-lg border bg-card p-3 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-xs truncate">{payment.paystackReference}</p>
               </div>
               <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="mt-2 grid grid-cols-2 gap-1.5 text-sm">
               <div>
                 <span className="text-xs text-muted-foreground">Amount</span>
                 <p className="font-medium">

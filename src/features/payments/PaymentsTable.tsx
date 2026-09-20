@@ -71,7 +71,7 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
         {payments.map((payment) => (
           <div
             key={payment.id}
-            className="rounded-lg border bg-card p-4 shadow-sm cursor-pointer active:bg-muted/50"
+            className="rounded-lg border bg-card p-3 shadow-sm cursor-pointer active:bg-muted/50"
             onClick={() => navigate(`/projects/${payment.projectSlug}?tab=payments`)}
           >
             <div className="flex items-start justify-between gap-2">
@@ -81,7 +81,7 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
               </div>
               <PaymentStatusBadge status={payment.gatewayStatus} />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="mt-2 grid grid-cols-2 gap-1.5 text-sm">
               <div>
                 <span className="text-xs text-muted-foreground">Amount</span>
                 <p className="font-medium">
