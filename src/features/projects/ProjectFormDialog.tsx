@@ -189,14 +189,14 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
     <SidePanel open={open} onOpenChange={onOpenChange}>
       <SidePanelContent>
         <SidePanelHeader className="border-b px-6 py-5 pr-14">
-          <SidePanelTitle>{isEdit ? "Edit project" : "New project"}</SidePanelTitle>
-          <SidePanelDescription>
+          <SidePanelTitle className="text-base">{isEdit ? "Edit project" : "New project"}</SidePanelTitle>
+          <SidePanelDescription className="text-xs">
             {isEdit
               ? "Update project details."
               : "Register a new client project in Gatekeeper. The container must already exist."}
           </SidePanelDescription>
         </SidePanelHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-6 py-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-6 py-6 text-sm [&_label]:text-xs [&_input]:h-8">
           {/* Container selection: container-first flow */}
           <div className="space-y-4">
             <div className="border-b pb-2">
@@ -215,7 +215,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
                   id="containerName"
                   value={containerName ?? ""}
                   onChange={(e) => handleContainerSelect(e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="h-8 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
                 >
                   <option value="">-- Select a container --</option>
                   {wizardContext?.containers.filter((c) => !wizardContext.existingProjectSlugs.includes(c.suggestedSlug)).map((c) => (
@@ -288,7 +288,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
             <div className="space-y-2">
               <Label>Type</Label>
               <Select value={type} onValueChange={(v) => setValue("type", v as "frontend" | "backend")}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
