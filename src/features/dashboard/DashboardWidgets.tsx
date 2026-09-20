@@ -122,7 +122,7 @@ export function RevenueChart({
   const max = Math.max(...months.map((m) => m.amount), 1);
 
   return (
-    <div className="flex aspect-[3/1] w-full items-end gap-[clamp(0.25rem,1vw,0.5rem)]">
+    <div className="flex h-[clamp(7rem,14vw,10rem)] w-full items-end gap-[clamp(0.25rem,1vw,0.5rem)]">
       {months.map((m) => (
         <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
           <div

@@ -112,7 +112,7 @@ export function DashboardOverviewPage() {
                     <CardTitle className="text-base">Revenue (last 6 months)</CardTitle>
                   </CardHeader>
                   <CardContent className="overflow-x-auto p-[clamp(0.75rem,1.5vw,1rem)] pt-0">
-                    <div className="min-w-full">
+                    <div className="min-w-full max-h-40">
                       <RevenueChart months={revenue.byMonth} currency={revenue.currency} />
                     </div>
                   </CardContent>
@@ -125,7 +125,7 @@ export function DashboardOverviewPage() {
                 <ProjectsUpcoming projects={projects} />
                 <ProjectsOverdue />
               </div>
-              <GlobalActivityFeed limit={20} />
+              <GlobalActivityFeed limit={6} />
             </div>
           </>
         )}

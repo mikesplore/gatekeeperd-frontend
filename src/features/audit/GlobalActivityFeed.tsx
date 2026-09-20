@@ -12,7 +12,12 @@ export function GlobalActivityFeed({ limit = 20 }: { limit?: number }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent activity</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>Recent activity</CardTitle>
+          <Link to="/app/audit" className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline">
+            View all
+          </Link>
+        </div>
       </CardHeader>
       <CardContent>
         <QueryState
@@ -28,7 +33,11 @@ export function GlobalActivityFeed({ limit = 20 }: { limit?: number }) {
             </div>
           }
         >
-          {(entries) => <AuditLogTimeline entries={entries} />}
+          {(entries) => (
+            <div className="max-h-[clamp(16rem,32vw,24rem)] overflow-y-auto pr-1">
+              <AuditLogTimeline entries={entries} />
+            </div>
+          )}
         </QueryState>
       </CardContent>
     </Card>
