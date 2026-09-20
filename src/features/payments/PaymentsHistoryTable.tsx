@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/common/DataTable";
 import type { Payment } from "@/types/payment";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { Badge } from "@/components/ui/badge";
@@ -23,46 +23,17 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug }: Paymen
     <>
       {/* Desktop table */}
       <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Provider / reference</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Verified via</TableHead>
-              <TableHead>Paid at</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell>
-                  <Badge variant="outline" className="capitalize">{payment.provider}</Badge>
-                  <p className="mt-1 font-mono text-xs">{payment.providerReference}</p>
-                </TableCell>
-                <TableCell>
-                  {currency} {payment.amount.toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} />
-                </TableCell>
-                <TableCell className="capitalize text-muted-foreground">
-                  {payment.verifiedVia ?? "—"}
-                </TableCell>
-                <TableCell>
-                  {payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}
-                </TableCell>
-                <TableCell>
-                  {payment.gatewayStatus === "success" && projectSlug && (
-                    <Button asChild size="sm" variant="outline"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">Receipt</a></Button>
-                  )}
-                  {payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable data={payments} getRowKey={(payment) => payment.id}
+          filters={[{ label: "Provider", options: [...new Set(payments.map((payment) => payment.provider))].map((value) => ({ label: value, value })), getValue: (payment) => payment.provider }, { label: "Status", options: [...new Set(payments.map((payment) => payment.gatewayStatus ?? payment.status))].map((value) => ({ label: value, value })), getValue: (payment) => payment.gatewayStatus ?? payment.status }]}
+          columns={[
+            { key: "reference", header: "Provider / reference", searchable: true, searchValue: (payment) => `${payment.provider} ${payment.providerReference}`, render: (payment) => <><Badge variant="outline" className="capitalize">{payment.provider}</Badge><p className="mt-1 font-mono text-xs">{payment.providerReference}</p></> },
+            { key: "amount", header: "Amount", searchable: true, searchValue: (payment) => String(payment.amount), render: (payment) => `${currency} ${payment.amount.toLocaleString()}` },
+            { key: "status", header: "Status", render: (payment) => <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} /> },
+            { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "—"}</span> },
+            { key: "paidAt", header: "Paid at", render: (payment) => payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—" },
+            { key: "actions", header: "", render: (payment) => <>{payment.gatewayStatus === "success" && projectSlug && <Button asChild size="sm" variant="outline"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">Receipt</a></Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</> },
+          ]}
+        />
       </div>
 
       {/* Mobile card layout */}

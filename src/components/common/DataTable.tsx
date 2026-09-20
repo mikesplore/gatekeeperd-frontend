@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-export interface DataTableColumn<T> { key: string; header: string; searchable?: boolean; render: (row: T) => ReactNode; }
+export interface DataTableColumn<T> { key: string; header: string; searchable?: boolean; searchValue?: (row: T) => string; render: (row: T) => ReactNode; }
 export interface DataTableFilter<T> { label: string; options: { label: string; value: string }[]; getValue: (row: T) => string; }
 
 export function DataTable<T>({ data, columns, filters = [], getRowKey, emptyMessage = "No records found.", pageSize = 10 }: { data: T[]; columns: DataTableColumn<T>[]; filters?: DataTableFilter<T>[]; getRowKey: (row: T) => string; emptyMessage?: string; pageSize?: number }) {
@@ -11,7 +11,7 @@ export function DataTable<T>({ data, columns, filters = [], getRowKey, emptyMess
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const filtered = useMemo(() => data.filter((row) => {
-    const matchesQuery = !query.trim() || columns.filter((column) => column.searchable).some((column) => String(column.render(row)).toLowerCase().includes(query.toLowerCase()));
+    const matchesQuery = !query.trim() || columns.filter((column) => column.searchable).some((column) => (column.searchValue?.(row) ?? String(column.render(row))).toLowerCase().includes(query.toLowerCase()));
     const matchesFilters = filters.every((filter) => !filterValues[filter.label] || filter.getValue(row) === filterValues[filter.label]);
     return matchesQuery && matchesFilters;
   }), [columns, data, filterValues, filters, query]);

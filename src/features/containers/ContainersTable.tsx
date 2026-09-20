@@ -18,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/common/DataTable";
 import { useContainerAction, useDeleteContainer } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import type { ContainerInfo } from "@/types/container";
@@ -32,34 +32,17 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     <>
       {/* Desktop table */}
       <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Image</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>State</TableHead>
-              <TableHead>Ports</TableHead>
-              <TableHead className="w-[50px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {containers.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell className="max-w-[200px] truncate text-muted-foreground">{c.image}</TableCell>
-                <TableCell>{c.status}</TableCell>
-                <TableCell>
-                  <ContainerStateBadge state={c.state} />
-                </TableCell>
-                <TableCell className="font-mono text-xs">{c.ports || "—"}</TableCell>
-                <TableCell>
-                  <ContainerActionsMenu container={c} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable data={containers} getRowKey={(container) => container.id}
+          filters={[{ label: "State", options: [...new Set(containers.map((container) => container.state))].map((value) => ({ label: value, value })), getValue: (container) => container.state }]}
+          columns={[
+            { key: "name", header: "Name", searchable: true, searchValue: (container) => container.name, render: (container) => <span className="font-medium">{container.name}</span> },
+            { key: "image", header: "Image", searchable: true, searchValue: (container) => container.image, render: (container) => <span className="max-w-[200px] truncate text-muted-foreground">{container.image}</span> },
+            { key: "status", header: "Status", render: (container) => container.status },
+            { key: "state", header: "State", render: (container) => <ContainerStateBadge state={container.state} /> },
+            { key: "ports", header: "Ports", render: (container) => <span className="font-mono text-xs">{container.ports || "—"}</span> },
+            { key: "actions", header: "", render: (container) => <ContainerActionsMenu container={container} /> },
+          ]}
+        />
       </div>
 
       {/* Mobile card layout */}
