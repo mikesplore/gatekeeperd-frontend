@@ -80,8 +80,6 @@ export function ProjectDetailPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <CardTitle className="text-xl sm:text-2xl">{project.name}</CardTitle>
                   <ProjectStatusBadge status={project.status} />
-                  <Badge variant="outline">{project.lifecycleStatus}</Badge>
-                  <Badge variant="secondary">{project.serviceMode}</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground break-all">{project.domain}</p>
               </div>
@@ -123,6 +121,14 @@ export function ProjectDetailPage() {
 
             <TabsContent value="overview">
               <Card className="mb-4">
+                <CardHeader><CardTitle>Operational state</CardTitle><p className="text-sm text-muted-foreground">Access, deployment, and lifecycle are tracked separately.</p></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-3">
+                  <StateCard label="Access" value={project.status} />
+                  <StateCard label="Deployment" value={project.deploymentMode.replace(/_/g, " ")} />
+                  <StateCard label="Lifecycle" value={project.lifecycleStatus} />
+                </CardContent>
+              </Card>
+              <Card className="mb-4">
                 <CardHeader><CardTitle>Runtime health</CardTitle></CardHeader>
                 <CardContent>
                   {healthQuery.isLoading ? <Skeleton className="h-16 w-full" /> : healthQuery.data ? (
@@ -154,11 +160,7 @@ export function ProjectDetailPage() {
                   <InfoRow label="Grace period" value={`${project.gracePeriodDays} days`} />
                   <InfoRow label="Container" value={project.containerName} />
                   <InfoRow label="Type" value={project.type} />
-                  <InfoRow label="Deployment mode" value={project.deploymentMode.replace(/_/g, " ")} />
-                  <InfoRow label="Lifecycle" value={project.lifecycleStatus} />
-                  <InfoRow label="Access/service mode" value={project.serviceMode} />
                   <InfoRow label="Block reason" value={project.blockReason ?? "—"} />
-                  <InfoRow label="Slug" value={project.slug} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -237,6 +239,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="space-y-0.5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm break-all">{value}</p>
+    </div>
+  );
+}
+
+function StateCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-2 text-sm font-semibold capitalize">{value}</p>
     </div>
   );
 }
