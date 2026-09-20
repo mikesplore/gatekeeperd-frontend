@@ -42,7 +42,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
             { key: "deployment", header: "Deployment", render: (project) => <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge> },
             { key: "client", header: "Client", searchable: true, render: (project) => project.clientName ?? "—" },
             { key: "due", header: "Due date", render: (project) => project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—" },
-            { key: "amount", header: "Amount", render: (project) => project.amountDue != null ? `${project.currency} ${project.amountDue.toLocaleString()}` : "—" },
+            { key: "amount", header: "Remaining", render: (project) => project.remainingBalance != null ? `${project.currency} ${project.remainingBalance.toLocaleString()}` : project.amountDue != null ? `${project.currency} ${project.amountDue.toLocaleString()}` : "—" },
             { key: "actions", header: "", render: (project) => <ProjectActionsMenu project={project} onEdit={onEdit} onBlock={onBlock} onUnblock={onUnblock} onDelete={onDelete} /> },
           ]}
         />
@@ -103,10 +103,12 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
                 <p>{project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—"}</p>
               </div>
               <div className="col-span-2">
-                <span className="text-xs text-muted-foreground">Amount</span>
+                <span className="text-xs text-muted-foreground">Remaining</span>
                 <p className="font-medium">
-                  {project.amountDue != null
-                    ? `${project.currency} ${project.amountDue.toLocaleString()}`
+                  {project.remainingBalance != null
+                    ? `${project.currency} ${project.remainingBalance.toLocaleString()}`
+                    : project.amountDue != null
+                      ? `${project.currency} ${project.amountDue.toLocaleString()}`
                     : "—"}
                 </p>
               </div>

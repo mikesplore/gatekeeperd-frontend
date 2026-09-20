@@ -16,6 +16,7 @@ export interface Project {
   clientName?: string;
   clientEmail?: string;
   amountDue?: number;
+  remainingBalance?: number;
   currency: string;
   dueDate?: string;
   gracePeriodDays: number;
