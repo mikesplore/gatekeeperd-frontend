@@ -24,6 +24,23 @@ import type {
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
 import type { DashboardSummary } from "@/types/dashboard";
+import type { IntegrationOutboxEvent } from "@/types/dashboard";
+
+export function useIntegrationOutbox() {
+  return useQuery({
+    queryKey: ["integrations", "outbox"],
+    queryFn: async () => (await api.get<IntegrationOutboxEvent[]>("/admin/integrations/outbox")).data,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useReplayIntegrationEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/admin/integrations/outbox/${id}/replay`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", "outbox"] }),
+  });
+}
 
 export function useDashboardSummary() {
   return useQuery({

@@ -12,3 +12,11 @@ export interface DashboardSummary {
   nginx: { availableSites: number; enabledSites: number };
   metrics: Record<string, number>;
 }
+
+export interface IntegrationOutboxEvent {
+  id: string;
+  eventType: string;
+  idempotencyKey: string;
+  payload: string;
+  attempts: number;
+}

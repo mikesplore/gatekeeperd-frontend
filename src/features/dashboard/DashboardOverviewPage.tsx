@@ -5,7 +5,9 @@ import { QueryState } from "@/components/QueryState";
 import { GlobalActivityFeed } from "@/features/audit/GlobalActivityFeed";
 import { ProjectsOverdue, ProjectsUpcoming, RevenueChart } from "@/features/dashboard/DashboardWidgets";
 import { useRevenueReport } from "@/hooks/usePayments";
-import { useDashboardSummary, useProjects } from "@/hooks/useProjects";
+import { useDashboardSummary, useIntegrationOutbox, useProjects, useReplayIntegrationEvent } from "@/hooks/useProjects";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 function Breakdown({ values }: { values: Record<string, number> }) {
   const entries = Object.entries(values);
@@ -91,6 +93,8 @@ export function DashboardOverviewPage() {
   const { data, isLoading, isError, error } = useProjects();
   const summaryQuery = useDashboardSummary();
   const revenueQuery = useRevenueReport(6);
+  const outboxQuery = useIntegrationOutbox();
+  const replayEvent = useReplayIntegrationEvent();
 
   return (
     <div className="space-y-6">
@@ -141,6 +145,28 @@ export function DashboardOverviewPage() {
                 <CardContent><Breakdown values={summary.metrics} /></CardContent>
               </Card>
             )}
+            <Card className="mt-4">
+              <CardHeader><CardTitle className="text-sm">Queued integration events</CardTitle></CardHeader>
+              <CardContent>
+                {outboxQuery.data?.length ? (
+                  <div className="space-y-3">
+                    {outboxQuery.data.map((event) => (
+                      <div key={event.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{event.eventType}</p>
+                          <p className="truncate font-mono text-xs text-muted-foreground">{event.idempotencyKey}</p>
+                          <p className="text-xs text-muted-foreground">Attempts: {event.attempts}</p>
+                        </div>
+                        <Button size="sm" variant="outline" disabled={replayEvent.isPending} onClick={async () => {
+                          try { await replayEvent.mutateAsync(event.id); toast.success("Event queued for replay"); }
+                          catch { toast.error("Unable to replay event"); }
+                        }}>Replay</Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-muted-foreground">No undelivered integration events.</p>}
+              </CardContent>
+            </Card>
           </>
         )}
       </QueryState>
