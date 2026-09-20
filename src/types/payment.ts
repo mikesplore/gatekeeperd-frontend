@@ -53,6 +53,11 @@ export interface PaymentLinkResponse {
   payment_link: string;
 }
 
+export interface ProjectInvoiceStatus {
+  invoice: { id: number; number: string; status: string; amount: string; currency: string; paid: string; balance: string };
+  payments: { id: number; provider: string; provider_reference: string; amount: string; currency: string; paid_at: string; receipt_number: string; receipt_url: string }[];
+}
+
 export interface PaymentsListResponse {
   payments: PaymentRecord[];
   total: number;

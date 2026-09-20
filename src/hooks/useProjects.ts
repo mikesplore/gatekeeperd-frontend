@@ -24,6 +24,7 @@ import type {
   UpdateProjectPayload,
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
+import type { ProjectInvoiceStatus } from "@/types/payment";
 import type { DashboardSummary } from "@/types/dashboard";
 import type { IntegrationOutboxEvent } from "@/types/dashboard";
 
@@ -168,6 +169,27 @@ export function useInitiateMpesaPayment() {
   return useMutation({
     mutationFn: ({ slug, phone }: { slug: string; phone: string }) =>
       api.post<{ provider: string; reference: string; status: string }>(`/mpesa/pay?project=${encodeURIComponent(slug)}&phone=${encodeURIComponent(phone)}`),
+  });
+}
+
+export function useProjectInvoice(slug: string) {
+  return useQuery({
+    queryKey: ["project", slug, "invoice"],
+    queryFn: async () => (await api.get<ProjectInvoiceStatus>(`/admin/projects/${slug}/invoice`)).data,
+    enabled: !!slug,
+  });
+}
+
+export function useReconcilePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/admin/payments/${id}/reconcile`),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["project"] });
+      qc.invalidateQueries({ queryKey: ["payment", id] });
+    },
   });
 }
 

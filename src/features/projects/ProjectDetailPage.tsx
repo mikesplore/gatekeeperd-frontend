@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useProjectDetail, useProjectHealth, useTransferProject } from "@/hooks/useProjects";
+import { useProjectDetail, useProjectHealth, useProjectInvoice, useTransferProject } from "@/hooks/useProjects";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
@@ -26,6 +26,7 @@ export function ProjectDetailPage() {
   const [searchParams] = useSearchParams();
   const { data, isLoading, isError, error } = useProjectDetail(slug);
   const healthQuery = useProjectHealth(slug);
+  const invoiceQuery = useProjectInvoice(slug);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
@@ -163,6 +164,7 @@ export function ProjectDetailPage() {
             </TabsContent>
 
             <TabsContent value="payments">
+              {invoiceQuery.data && <Card className="mb-4"><CardHeader><CardTitle>Invoice {invoiceQuery.data.invoice.number}</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-4"><InfoRow label="Status" value={invoiceQuery.data.invoice.status.replace(/_/g, " ")} /><InfoRow label="Total" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.amount}`} /><InfoRow label="Paid" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.paid}`} /><InfoRow label="Balance" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.balance}`} /></CardContent></Card>}
               <Card>
                 <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle>Payment history</CardTitle>

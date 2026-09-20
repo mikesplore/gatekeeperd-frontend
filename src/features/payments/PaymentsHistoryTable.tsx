@@ -4,6 +4,8 @@ import type { Payment } from "@/types/payment";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useReconcilePayment } from "@/hooks/useProjects";
 
 interface PaymentsHistoryTableProps {
   payments: Payment[];
@@ -12,6 +14,7 @@ interface PaymentsHistoryTableProps {
 }
 
 export function PaymentsHistoryTable({ payments, currency, projectSlug }: PaymentsHistoryTableProps) {
+  const reconcile = useReconcilePayment();
   if (payments.length === 0) {
     return <p className="py-8 text-center text-sm text-muted-foreground">No payments yet.</p>;
   }
@@ -54,6 +57,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug }: Paymen
                   {payment.gatewayStatus === "success" && projectSlug && (
                     <Button asChild size="sm" variant="outline"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">Receipt</a></Button>
                   )}
+                  {payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: () => toast.success("Payment reconciliation queued"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}
                 </TableCell>
               </TableRow>
             ))}
@@ -93,6 +97,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug }: Paymen
               {payment.gatewayStatus === "success" && projectSlug && (
                 <Button asChild size="sm" variant="outline" className="col-span-2"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>
               )}
+              {payment.gatewayStatus !== "success" && <Button size="sm" variant="outline" className="col-span-2" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: () => toast.success("Payment reconciliation queued"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile payment</Button>}
             </div>
           </div>
         ))}
