@@ -10,6 +10,7 @@ import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
 import { ProjectsListPage } from "@/features/projects/ProjectsListPage";
 import { PaymentsPage } from "@/features/payments/PaymentsPage";
 import { NginxPage } from "@/features/nginx/NginxPage";
+import { OperationsPage } from "@/features/operations/OperationsPage";
 
 export const router = createBrowserRouter([
   {
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
           { path: "payments", element: <PaymentsPage /> },
           { path: "containers", element: <ContainersPage /> },
           { path: "nginx", element: <NginxPage /> },
+          { path: "operations", element: <OperationsPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
       },
