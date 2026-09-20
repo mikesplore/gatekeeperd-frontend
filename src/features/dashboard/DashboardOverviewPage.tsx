@@ -131,7 +131,7 @@ export function DashboardOverviewPage() {
                 <ProjectsUpcoming projects={projects} />
                 <ProjectsOverdue />
               </div>
-              <GlobalActivityFeed limit={6} />
+              <GlobalActivityFeed limit={5} />
             </div>
           </>
         )}
