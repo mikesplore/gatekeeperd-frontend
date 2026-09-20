@@ -3,13 +3,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { Payment } from "@/types/payment";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface PaymentsHistoryTableProps {
   payments: Payment[];
   currency: string;
+  projectSlug?: string;
 }
 
-export function PaymentsHistoryTable({ payments, currency }: PaymentsHistoryTableProps) {
+export function PaymentsHistoryTable({ payments, currency, projectSlug }: PaymentsHistoryTableProps) {
   if (payments.length === 0) {
     return <p className="py-8 text-center text-sm text-muted-foreground">No payments yet.</p>;
   }
@@ -26,6 +28,7 @@ export function PaymentsHistoryTable({ payments, currency }: PaymentsHistoryTabl
               <TableHead>Status</TableHead>
               <TableHead>Verified via</TableHead>
               <TableHead>Paid at</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -46,6 +49,11 @@ export function PaymentsHistoryTable({ payments, currency }: PaymentsHistoryTabl
                 </TableCell>
                 <TableCell>
                   {payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}
+                </TableCell>
+                <TableCell>
+                  {payment.gatewayStatus === "success" && projectSlug && (
+                    <Button asChild size="sm" variant="outline"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">Receipt</a></Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -82,6 +90,9 @@ export function PaymentsHistoryTable({ payments, currency }: PaymentsHistoryTabl
                 <span className="text-xs text-muted-foreground">Paid at</span>
                 <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}</p>
               </div>
+              {payment.gatewayStatus === "success" && projectSlug && (
+                <Button asChild size="sm" variant="outline" className="col-span-2"><a href={`/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>
+              )}
             </div>
           </div>
         ))}

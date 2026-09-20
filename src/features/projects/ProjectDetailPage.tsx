@@ -159,7 +159,7 @@ export function ProjectDetailPage() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  <PaymentsHistoryTable payments={payments} currency={project.currency} />
+                  <PaymentsHistoryTable payments={payments} currency={project.currency} projectSlug={project.slug} />
                 </CardContent>
               </Card>
             </TabsContent>
