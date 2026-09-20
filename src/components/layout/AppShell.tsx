@@ -18,24 +18,49 @@ import { useThemeStore } from "@/store/themeStore";
 import { api } from "@/lib/api";
 import { useDashboardSummary } from "@/hooks/useProjects";
 
-const navItems = [
-  { to: "/app", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/app/projects", label: "Projects", icon: Box },
-  { to: "/app/payments", label: "Payments", icon: CreditCard },
-  { to: "/app/containers", label: "Containers", icon: Container },
-  { to: "/app/nginx", label: "Nginx", icon: Server },
-  { to: "/app/operations", label: "Operations", icon: Activity },
-  { to: "/app/deployments", label: "Deployments", icon: Rocket },
-  { to: "/app/networks", label: "Networks", icon: Network },
-  { to: "/app/volumes", label: "Volumes", icon: Database },
+const navGroups = [
+  {
+    label: "Overview",
+    items: [{ to: "/app", label: "Dashboard", icon: LayoutDashboard }],
+  },
+  {
+    label: "Manage",
+    items: [
+      { to: "/app/projects", label: "Projects", icon: Box },
+      { to: "/app/payments", label: "Payments", icon: CreditCard },
+    ],
+  },
+  {
+    label: "Delivery",
+    items: [
+      { to: "/app/deployments", label: "Deployments", icon: Rocket },
+      { to: "/app/nginx", label: "Nginx", icon: Server },
+    ],
+  },
+  {
+    label: "Infrastructure",
+    items: [
+      { to: "/app/containers", label: "Containers", icon: Container },
+      { to: "/app/networks", label: "Networks", icon: Network },
+      { to: "/app/volumes", label: "Volumes", icon: Database },
+    ],
+  },
+  {
+    label: "System",
+    items: [{ to: "/app/operations", label: "Operations", icon: Activity }],
+  },
 ];
+
+const navItems = navGroups.flatMap(group => group.items);
 
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
   const location = useLocation();
 
   return (
-    <nav className="flex flex-col gap-1 p-2">
-      {navItems.map(({ to, label, icon: Icon }) => {
+    <nav className="space-y-4 p-2">
+      {navGroups.map(group => <div key={group.label} className="space-y-1">
+        {!collapsed && <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">{group.label}</p>}
+        {group.items.map(({ to, label, icon: Icon }) => {
         const active =
           to === "/app"
             ? location.pathname === "/app"
@@ -55,6 +80,7 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
           </Link>
         );
       })}
+      </div>)}
     </nav>
   );
 }
