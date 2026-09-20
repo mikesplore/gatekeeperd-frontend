@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -102,11 +103,13 @@ export function AppShell() {
   const dark = useThemeStore((s) => s.dark);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const notifications = useNotifications(10);
+  const profile = useQuery({ queryKey: ["auth", "me"], queryFn: async () => (await api.get<{ displayName?: string }>("/auth/me")).data, staleTime: 60_000 });
   useNotificationStream();
   const notificationItems = notifications.data?.data ?? [];
   const notificationCount = notificationItems.length;
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
+  const profileName = profile.data?.displayName?.trim() || email || "Admin";
   const currentNav = navItems.find(({ to }) => to !== "/app" && location.pathname.startsWith(to)) ?? navItems[0];
   const detailSegment = location.pathname.match(/^\/app\/(containers|projects|networks)\/([^/]+)/)?.[2];
   const detailLabel = detailSegment ? decodeURIComponent(detailSegment) : null;
@@ -175,11 +178,12 @@ export function AppShell() {
                   <Avatar className="h-7 w-7">
                     <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden text-sm sm:inline">{email}</span>
+                  <span className="hidden text-sm sm:inline">{profileName}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem disabled>{email}</DropdownMenuItem>
+                <DropdownMenuItem disabled>{profileName}</DropdownMenuItem>
+                {profileName !== email && <DropdownMenuItem disabled>{email}</DropdownMenuItem>}
                 <DropdownMenuItem asChild><Link to="/app/settings/profile"><Settings className="h-4 w-4" />Profile settings</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
