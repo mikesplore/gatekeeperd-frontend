@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Bell, CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database } from "lucide-react";
+import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -47,7 +47,14 @@ const navGroups = [
   },
   {
     label: "System",
-    items: [{ to: "/app/operations", label: "Operations", icon: Activity }],
+    items: [
+      { to: "/app/operations", label: "Operations", icon: Activity },
+      { to: "/app/audit", label: "Audit log", icon: FileClock },
+    ],
+  },
+  {
+    label: "Account",
+    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }],
   },
 ];
 
