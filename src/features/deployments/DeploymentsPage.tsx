@@ -3,7 +3,6 @@ import { Activity, GitBranch, RefreshCw, RotateCcw, Square, Terminal } from "luc
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { QueryState } from "@/components/QueryState";
@@ -14,6 +13,27 @@ import { useNetworks, useVolumes } from "@/hooks/useDockerResources";
 import type { CreateDeploymentPayload, DeploymentJob } from "@/types/deployment";
 
 const initialForm: CreateDeploymentPayload = { repository: "", gitRef: "main", registry: "docker.io", imageName: "", imageTag: "latest", network: "bridge", restartPolicy: "unless-stopped", hostPort: undefined, containerPort: undefined, createNetworkIfMissing: false };
+type EnvRow = { key: string; value: string; secret: boolean };
+type VolumeRow = { volumeName: string; containerPath: string; readOnly: boolean };
+
+function parseEnvFile(contents: string): EnvRow[] {
+  const rows: EnvRow[] = [];
+  for (const raw of contents.split(/\r?\n/)) {
+    let line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (line.startsWith("export ")) line = line.slice(7).trim();
+    const separator = line.indexOf("=");
+    if (separator <= 0) continue;
+    const key = line.slice(0, separator).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    let value = line.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    const secret = /(PASSWORD|PASSWD|SECRET|TOKEN|PRIVATE|API_KEY|DATABASE_URL)/i.test(key);
+    const existing = rows.findIndex(row => row.key === key);
+    if (existing >= 0) rows[existing] = { key, value, secret }; else rows.push({ key, value, secret });
+  }
+  return rows;
+}
 
 function statusVariant(status: DeploymentJob["status"]): "default" | "secondary" | "destructive" | "outline" {
   if (status === "succeeded") return "default";
@@ -26,8 +46,8 @@ export function DeploymentsPage() {
   const deployments = useDeployments();
   const create = useCreateDeployment();
   const [form, setForm] = useState(initialForm);
-  const [envRows, setEnvRows] = useState([{ key: "", value: "", secret: false }]);
-  const [volumesJson, setVolumesJson] = useState("[]");
+  const [envRows, setEnvRows] = useState<EnvRow[]>([{ key: "", value: "", secret: false }]);
+  const [volumeRows, setVolumeRows] = useState<VolumeRow[]>([]);
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const cancel = useDeploymentAction("cancel");
@@ -40,11 +60,12 @@ export function DeploymentsPage() {
     event.preventDefault();
     try {
       if (!form.repository || !form.gitRef || !form.registry || !form.imageName || !form.imageTag) throw new Error("Complete the source and image steps before queueing the deployment");
-      const env = Object.fromEntries(envRows.filter(row => row.key.trim()).map(row => [row.key.trim(), row.value]));
-      const volumes = JSON.parse(volumesJson) as { hostPath: string; containerPath: string; readOnly?: boolean }[];
-      if (!env || Array.isArray(env) || typeof env !== "object" || !Array.isArray(volumes)) throw new Error("Runtime environment must be an object and volumes must be an array");
-      await create.mutateAsync({ ...form, env, volumes });
-      setForm(initialForm); setEnvRows([{ key: "", value: "", secret: false }]); setVolumesJson("[]"); setStep(0); toast.success("Deployment queued");
+      const validRows = envRows.filter(row => row.key.trim());
+      const env = Object.fromEntries(validRows.filter(row => !row.secret).map(row => [row.key.trim(), row.value]));
+      const secretEnv = Object.fromEntries(validRows.filter(row => row.secret).map(row => [row.key.trim(), row.value]));
+      const mountVolumes = volumeRows.filter(row => row.volumeName && row.containerPath).map(row => ({ hostPath: row.volumeName, containerPath: row.containerPath, readOnly: row.readOnly }));
+      await create.mutateAsync({ ...form, env, secretEnv, volumes: mountVolumes });
+      setForm(initialForm); setEnvRows([{ key: "", value: "", secret: false }]); setVolumeRows([]); setStep(0); toast.success("Deployment queued");
     }
     catch (error) { toast.error(getApiErrorMessage(error)); }
   };
@@ -58,7 +79,7 @@ export function DeploymentsPage() {
           {step === 0 && <><div className="space-y-1"><Label>Repository</Label><Input required placeholder="owner/repository" value={form.repository} onChange={e => setForm({...form, repository: e.target.value})} /></div><div className="space-y-1"><Label>Branch or ref</Label><Input required value={form.gitRef} onChange={e => setForm({...form, gitRef: e.target.value})} /></div><p className="sm:col-span-2 text-xs text-muted-foreground">The backend GitHub App will clone this repository using its installation credentials.</p></>}
           {step === 1 && <><div className="space-y-1"><Label>Registry</Label><Input required value={form.registry} onChange={e => setForm({...form, registry: e.target.value})} /></div><div className="space-y-1"><Label>Image name</Label><Input required placeholder="owner/app" value={form.imageName} onChange={e => setForm({...form, imageName: e.target.value})} /></div><div className="space-y-1"><Label>Tag</Label><Input required value={form.imageTag} onChange={e => setForm({...form, imageTag: e.target.value})} /></div></>}
           {step === 2 && <><div className="space-y-1"><Label>Network</Label><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.network ?? "bridge"} onChange={e => setForm({...form, network: e.target.value})}><option value="bridge">bridge (default)</option>{networks.data?.filter(n => n.name !== "bridge").map(n => <option key={n.name} value={n.name}>{n.name} · {n.driver}</option>)}</select>{networks.data?.length === 0 && <p className="text-xs text-muted-foreground">No custom networks exist. Create one in the Networks tab or enable creation.</p>}</div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.createNetworkIfMissing ?? false} onChange={e => setForm({...form, createNetworkIfMissing: e.target.checked})} />Create network if missing</label><div className="space-y-1"><Label>Restart policy</Label><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.restartPolicy ?? "unless-stopped"} onChange={e => setForm({...form, restartPolicy: e.target.value})}><option>no</option><option>always</option><option>unless-stopped</option><option>on-failure</option></select></div><div className="space-y-1"><Label>Host port</Label><Input type="number" placeholder="Optional" value={form.hostPort ?? ""} onChange={e => setForm({...form, hostPort: e.target.value ? Number(e.target.value) : undefined})} /></div><div className="space-y-1"><Label>Container port</Label><Input type="number" placeholder="Optional" value={form.containerPort ?? ""} onChange={e => setForm({...form, containerPort: e.target.value ? Number(e.target.value) : undefined})} /></div></>}
-          {step === 3 && <><div className="space-y-2 sm:col-span-2"><Label>Environment variables</Label>{envRows.map((row, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]"><Input placeholder="KEY" value={row.key} onChange={e => setEnvRows(rows => rows.map((item, i) => i === index ? {...item, key: e.target.value} : item))} /><Input placeholder="Value" type={row.secret ? "password" : "text"} value={row.value} onChange={e => setEnvRows(rows => rows.map((item, i) => i === index ? {...item, value: e.target.value} : item))} /><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={row.secret} onChange={e => setEnvRows(rows => rows.map((item, i) => i === index ? {...item, secret: e.target.checked} : item))} />Secret</label><Button type="button" variant="ghost" size="sm" onClick={() => setEnvRows(rows => rows.filter((_, i) => i !== index))}>Remove</Button></div>)}<Button type="button" variant="outline" size="sm" onClick={() => setEnvRows(rows => [...rows, { key: "", value: "", secret: false }])}>Add variable</Button></div><div className="space-y-1 sm:col-span-2"><Label>Volume</Label><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" defaultValue="" onChange={e => { if (e.target.value) setVolumesJson(JSON.stringify([{ hostPath: e.target.value, containerPath: "/app/data" }], null, 2)); }}><option value="">No volume selected</option>{volumes.data?.map(v => <option key={v.name} value={v.name}>{v.name} · {v.driver}</option>)}</select><p className="text-xs text-muted-foreground">No suitable volume? Create one in the Volumes tab, then return here.</p></div><div className="space-y-1 sm:col-span-2"><Label>Mount configuration</Label><Textarea className="font-mono text-xs" value={volumesJson} onChange={e => setVolumesJson(e.target.value)} placeholder={'[{"hostPath":"app-data","containerPath":"/app/data"}]'} /></div><p className="sm:col-span-2 text-xs text-muted-foreground">Secret values are masked in the form and are never written to deployment logs.</p></>}
+          {step === 3 && <><div className="space-y-2 sm:col-span-2"><div className="flex items-center justify-between"><Label>Environment variables</Label><label className="cursor-pointer text-xs text-primary">Import .env file<input className="hidden" type="file" accept=".env,text/plain" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; try { const rows = parseEnvFile(await file.text()); if (!rows.length) throw new Error("No valid variables found in the file"); setEnvRows(rows); toast.success(`${rows.length} variables imported`); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { e.target.value = ""; } }} /></label></div>{envRows.map((row, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]"><Input placeholder="KEY" value={row.key} onChange={e => setEnvRows(rows => rows.map((item, i) => i === index ? {...item, key: e.target.value} : item))} /><Input placeholder="Value" type={row.secret ? "password" : "text"} value={row.value} onChange={e => setEnvRows(rows => rows.map((item, i) => i === index ? {...item, value: e.target.value} : item))} /><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={row.secret} onChange={e => setEnvRows(rows => rows.map((item, i) => i === index ? {...item, secret: e.target.checked} : item))} />Secret</label><Button type="button" variant="ghost" size="sm" onClick={() => setEnvRows(rows => rows.filter((_, i) => i !== index))}>Remove</Button></div>)}<Button type="button" variant="outline" size="sm" onClick={() => setEnvRows(rows => [...rows, { key: "", value: "", secret: false }])}>Add variable</Button><p className="text-xs text-muted-foreground">Imported values stay in this form and secret values are encrypted by the backend.</p></div><div className="space-y-2 sm:col-span-2"><div className="flex items-center justify-between"><Label>Named volume mounts</Label><Button type="button" variant="outline" size="sm" onClick={() => setVolumeRows(rows => [...rows, { volumeName: volumes.data?.[0]?.name ?? "", containerPath: "/app/data", readOnly: false }])}>Add mount</Button></div>{volumeRows.map((row, index) => <div key={index} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto_auto]"><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" value={row.volumeName} onChange={e => setVolumeRows(rows => rows.map((item, i) => i === index ? {...item, volumeName: e.target.value} : item))}><option value="">Select a named volume</option>{volumes.data?.map(v => <option key={v.name} value={v.name}>{v.name} · {v.driver}</option>)}</select><Input placeholder="Container path e.g. /var/lib/app" value={row.containerPath} onChange={e => setVolumeRows(rows => rows.map((item, i) => i === index ? {...item, containerPath: e.target.value} : item))} /><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={row.readOnly} onChange={e => setVolumeRows(rows => rows.map((item, i) => i === index ? {...item, readOnly: e.target.checked} : item))} />Read-only</label><Button type="button" variant="ghost" size="sm" onClick={() => setVolumeRows(rows => rows.filter((_, i) => i !== index))}>Remove</Button></div>)}{!volumes.data?.length && <p className="text-xs text-muted-foreground">No named volumes are available. Create one in the Volumes tab before adding a mount.</p>}</div></>}
           {step === 4 && <div className="space-y-2 text-sm sm:col-span-2"><p><span className="text-muted-foreground">Source:</span> {form.repository || "Not set"} @ {form.gitRef}</p><p><span className="text-muted-foreground">Image:</span> {form.registry}/{form.imageName}:{form.imageTag}</p><p><span className="text-muted-foreground">Runtime:</span> {form.network} · {form.restartPolicy} · {form.hostPort && form.containerPort ? `${form.hostPort}:${form.containerPort}` : "No published port"}</p><p><span className="text-muted-foreground">Storage:</span> environment and volume configuration ready to submit</p></div>}
         </div>
         <div className="mt-6 flex justify-between"><Button type="button" variant="outline" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>Back</Button>{step < 4 ? <Button type="button" onClick={() => setStep(Math.min(4, step + 1))}>Continue</Button> : <Button type="submit" disabled={create.isPending}>{create.isPending ? "Queueing…" : "Queue deployment"}</Button>}</div>
