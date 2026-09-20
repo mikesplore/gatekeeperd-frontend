@@ -103,7 +103,7 @@ export function AppShell() {
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const notifications = useNotifications(10);
   useNotificationStream();
-  const notificationItems = notifications.data ?? [];
+  const notificationItems = notifications.data?.data ?? [];
   const notificationCount = notificationItems.length;
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
