@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server } from "lucide-react";
+import { Activity, Bell, CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
+import { useDashboardSummary } from "@/hooks/useProjects";
 
 const navItems = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
@@ -61,6 +62,10 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dark = useThemeStore((s) => s.dark);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const { data: dashboardSummary } = useDashboardSummary();
+  const deadLetters = dashboardSummary?.integrations.outboxDeadLetter ?? 0;
+  const pendingIntegrations = (dashboardSummary?.integrations.outboxPending ?? 0) + (dashboardSummary?.integrations.outboxProcessing ?? 0);
+  const notificationCount = deadLetters + pendingIntegrations;
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
   const currentNav = navItems.find(({ to }) => to !== "/app" && location.pathname.startsWith(to)) ?? navItems[0];
@@ -93,6 +98,47 @@ export function AppShell() {
             <h1 className="text-sm font-semibold sm:text-base">{currentNav.label}</h1>
           </div>
           <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+                  <Bell className="h-4 w-4" />
+                  {notificationCount > 0 && (
+                    <span className={cn(
+                      "absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white",
+                      deadLetters > 0 ? "bg-destructive" : "bg-primary",
+                    )}>
+                      {notificationCount > 99 ? "99+" : notificationCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="px-2 py-2">
+                  <p className="text-sm font-semibold">Notifications</p>
+                  <p className="text-xs text-muted-foreground">Operational events from Gatekeeperd</p>
+                </div>
+                <DropdownMenuSeparator />
+                {deadLetters > 0 && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/app/operations" className="flex-col items-start gap-1 py-3">
+                      <span className="font-medium text-destructive">{deadLetters} failed integration {deadLetters === 1 ? "event" : "events"}</span>
+                      <span className="text-xs text-muted-foreground">Review and replay dead-letter events.</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {pendingIntegrations > 0 && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/app/operations" className="flex-col items-start gap-1 py-3">
+                      <span className="font-medium">{pendingIntegrations} integration {pendingIntegrations === 1 ? "event" : "events"} in progress</span>
+                      <span className="text-xs text-muted-foreground">Pending delivery to connected services.</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {notificationCount === 0 && (
+                  <div className="px-2 py-4 text-sm text-muted-foreground">No active notifications.</div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
