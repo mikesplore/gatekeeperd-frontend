@@ -221,7 +221,7 @@ export function ProjectDetailPage() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  <PaymentsHistoryTable payments={payments} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, `/admin/projects/${project.slug}/invoice/receipts/${payment.id}`]))} />
+                  <PaymentsHistoryTable payments={payments} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, `/admin/projects/${project.slug}/invoice/receipts/${payment.id}`]))} receiptNames={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, payment.receipt_number]))} />
                 </CardContent>
               </Card>
             </TabsContent>

@@ -15,9 +15,10 @@ interface PaymentsHistoryTableProps {
   currency: string;
   projectSlug?: string;
   receiptUrls?: Record<string, string>;
+  receiptNames?: Record<string, string>;
 }
 
-export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptUrls = {} }: PaymentsHistoryTableProps) {
+export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptUrls = {}, receiptNames = {} }: PaymentsHistoryTableProps) {
   const reconcile = useReconcilePayment();
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
   const openReceipt = async (payment: Payment) => {
@@ -29,7 +30,8 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
       const url = URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `receipt-${payment.providerReference}.pdf`;
+      const receiptName = receiptNames[payment.providerReference] || `receipt-${payment.providerReference}`;
+      link.download = `${receiptName.replace(/[^a-zA-Z0-9._-]/g, "-")}.pdf`;
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
