@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Bell, CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings } from "lucide-react";
+import { Activity, Bell, CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,6 +26,8 @@ const navItems = [
   { to: "/app/nginx", label: "Nginx", icon: Server },
   { to: "/app/operations", label: "Operations", icon: Activity },
   { to: "/app/deployments", label: "Deployments", icon: Rocket },
+  { to: "/app/networks", label: "Networks", icon: Network },
+  { to: "/app/volumes", label: "Volumes", icon: Database },
 ];
 
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
