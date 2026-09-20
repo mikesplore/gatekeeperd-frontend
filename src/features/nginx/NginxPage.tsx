@@ -406,7 +406,7 @@ export function NginxPage() {
                   <div>
                     <h3 className="text-sm font-semibold tracking-wide">Project Overview</h3>
                     <p className="text-xs text-muted-foreground">
-                      Confirm the details Gatekeeper detected for this project.
+                      Confirm the details Gatekeeperd detected for this project.
                     </p>
                   </div>
                   <Separator />

@@ -78,7 +78,7 @@ export function LoginPage() {
           <CardHeader className="text-center sm:text-left">
             <div className="flex items-center justify-center gap-2 font-bold text-xl mb-2 sm:hidden">
               <ShieldCheck className="h-6 w-6 text-primary" />
-              Gatekeeper
+              Gatekeeperd
             </div>
             <CardTitle className="text-2xl">Sign in</CardTitle>
             <CardDescription>Enter your credentials to access the dashboard.</CardDescription>

@@ -70,7 +70,7 @@ export function AppShell() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
-        <div className="flex h-14 items-center border-b border-sidebar-border px-4 font-semibold">Gatekeeper</div>
+        <div className="flex h-14 items-center border-b border-sidebar-border px-4 font-semibold">Gatekeeperd</div>
         <SidebarNav onNav={() => setSidebarOpen(false)} />
       </aside>
 

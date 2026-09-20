@@ -645,7 +645,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
               <div>
                 <h3 className="text-sm font-semibold tracking-wide">Review & Confirm</h3>
                 <p className="text-xs text-muted-foreground">
-                  Validated by Gatekeeper — no changes were applied yet.
+                  Validated by Gatekeeperd — no changes were applied yet.
                 </p>
               </div>
               <Separator />
