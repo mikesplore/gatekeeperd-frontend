@@ -27,7 +27,7 @@ const features = [
   {
     title: "Instant restoration on payment",
     description:
-      "Access restores within seconds of payment confirmation—no manual intervention needed.",
+      "Access restores within seconds of payment confirmation. No manual intervention needed.",
     image: relaxationImg,
     imageAlt: "Relaxation illustration showing peace of mind",
   },

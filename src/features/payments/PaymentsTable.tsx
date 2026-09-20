@@ -55,10 +55,10 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
                   <PaymentStatusBadge status={payment.gatewayStatus} />
                 </TableCell>
                 <TableCell className="capitalize text-muted-foreground">
-                  {payment.verifiedVia ?? "—"}
+                  {payment.verifiedVia ?? "Not set"}
                 </TableCell>
                 <TableCell>
-                  {payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}
+                  {payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}
                 </TableCell>
               </TableRow>
             ))}
@@ -98,11 +98,11 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Verified via</span>
-                <p className="capitalize">{payment.verifiedVia ?? "—"}</p>
+                <p className="capitalize">{payment.verifiedVia ?? "Not set"}</p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Paid at</span>
-                <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, HH:mm") : "—"}</p>
+                <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, HH:mm") : "Not set"}</p>
               </div>
             </div>
           </div>

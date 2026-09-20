@@ -113,7 +113,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`text-sm break-all ${mono ? "font-mono text-xs" : ""}`}>{value || "—"}</p>
+      <p className={`text-sm break-all ${mono ? "font-mono text-xs" : ""}`}>{value || "Not set"}</p>
     </div>
   );
 }
@@ -292,9 +292,9 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
         }
         setWizardStep(3);
         if (res.data.warnings.length > 0) {
-          toast.warning("Warnings found — review before creating");
+          toast.warning("Warnings found. Review before creating");
         } else {
-          toast.success("Configuration validated — review below");
+          toast.success("Configuration validated. Review below");
         }
       } catch (err) {
         toast.error(getApiErrorMessage(err));
@@ -338,7 +338,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
     >
       <SidePanelContent className="sm:max-w-2xl">
         <SidePanelHeader className="border-b px-6 py-4 text-left">
-          <SidePanelTitle>Create Container — Wizard</SidePanelTitle>
+          <SidePanelTitle>Create Container: Wizard</SidePanelTitle>
           <SidePanelDescription>
             Configure and create a Docker container, step by step.
           </SidePanelDescription>
@@ -362,7 +362,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                   <Label htmlFor="name">Name</Label>
                   <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-app (optional with project slug)" />
                   <p className="text-xs text-muted-foreground">
-                    Optional if a project slug is provided — Gatekeeper will auto-name using the slug.
+                    Optional if a project slug is provided. Gatekeeper will auto-name using the slug.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -392,7 +392,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                   {imageNotLocal && (
                     <p className="text-xs text-amber-600 flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
-                      Image not found locally — it will be pulled from the registry when pull is enabled.
+                      Image not found locally. It will be pulled from the registry when pull is enabled.
                     </p>
                   )}
                 </div>
@@ -470,7 +470,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                     {wizardContext && !wizardContext.internalNetworkExists && (
                       <p className="text-xs text-amber-600 flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />
-                        Internal network "{wizardContext.internalNetwork}" does not exist yet — it will be created if needed.
+                      Internal network "{wizardContext.internalNetwork}" does not exist yet. It will be created if needed.
                       </p>
                     )}
                   </>
@@ -646,7 +646,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
               <div>
                 <h3 className="text-sm font-semibold tracking-wide">Review & Confirm</h3>
                 <p className="text-xs text-muted-foreground">
-                  Validated by Gatekeeperd — no changes were applied yet.
+                  Validated by Gatekeeperd. No changes were applied yet.
                 </p>
               </div>
               <Separator />

@@ -1,7 +1,7 @@
 import axios, { type AxiosError } from "axios";
 import { useAuthStore } from "@/store/authStore";
 
-/** Uniform backend error shape — every API failure returns this. */
+/** Uniform backend error shape: every API failure returns this. */
 export interface ApiErrorBody {
   error: string;
   message: string;

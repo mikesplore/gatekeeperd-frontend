@@ -54,7 +54,7 @@ export function ProjectDetailPage() {
       <Alert variant="destructive">
         <AlertTitle>Project not found</AlertTitle>
         <AlertDescription>
-          {getApiErrorMessage(error)} — check the slug or return to{" "}
+          {getApiErrorMessage(error)}. Check the slug or return to{" "}
           <Link to="/projects" className="underline">projects</Link>.
         </AlertDescription>
       </Alert>
@@ -147,8 +147,8 @@ export function ProjectDetailPage() {
               <Card className="h-full">
                 <CardHeader><CardTitle>Client &amp; Billing</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
-                  <InfoRow label="Client" value={project.clientName ?? "—"} />
-                  <InfoRow label="Client email" value={project.clientEmail ?? "—"} />
+                  <InfoRow label="Client" value={project.clientName ?? "Not set"} />
+                  <InfoRow label="Client email" value={project.clientEmail ?? "Not set"} />
                   <InfoRow
                     label="Remaining balance"
                     value={
@@ -159,7 +159,7 @@ export function ProjectDetailPage() {
                   />
                   <InfoRow
                     label="Due date"
-                    value={project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—"}
+                    value={project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "Not set"}
                   />
                   <InfoRow label="Grace period" value={`${project.gracePeriodDays} days`} />
                 </CardContent>
@@ -168,7 +168,7 @@ export function ProjectDetailPage() {
                 <CardHeader><CardTitle>Subscription &amp; Policy</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
                   <InfoRow label="Type" value={project.type} />
-                  <InfoRow label="Block reason" value={project.blockReason ?? "—"} />
+                  <InfoRow label="Block reason" value={project.blockReason ?? "Not set"} />
                 </CardContent>
               </Card>
               </div>

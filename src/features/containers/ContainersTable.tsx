@@ -39,7 +39,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
             { key: "image", header: "Image", searchable: true, searchValue: (container) => container.image, render: (container) => <span className="max-w-[200px] truncate text-muted-foreground">{container.image}</span> },
             { key: "status", header: "Status", render: (container) => container.status },
             { key: "state", header: "State", render: (container) => <ContainerStateBadge state={container.state} /> },
-            { key: "ports", header: "Ports", render: (container) => <span className="font-mono text-xs">{container.ports || "—"}</span> },
+            { key: "ports", header: "Ports", render: (container) => <span className="font-mono text-xs">{container.ports || "Not set"}</span> },
             { key: "actions", header: "", render: (container) => <ContainerActionsMenu container={container} /> },
           ]}
         />

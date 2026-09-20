@@ -22,7 +22,7 @@ export function ContainersPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Docker unavailable</AlertTitle>
           <AlertDescription>
-            Docker socket unreachable — container management is temporarily unavailable.
+            Docker socket unreachable. Container management is temporarily unavailable.
             {getApiErrorMessage(error) !== "Something went wrong. Please try again." && (
               <> {getApiErrorMessage(error)}</>
             )}

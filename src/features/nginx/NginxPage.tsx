@@ -98,7 +98,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`text-sm break-all ${mono ? "font-mono text-xs" : ""}`}>{value || "—"}</p>
+      <p className={`text-sm break-all ${mono ? "font-mono text-xs" : ""}`}>{value || "Not set"}</p>
     </div>
   );
 }
@@ -193,7 +193,7 @@ export function NginxPage() {
       const res = await validateEnable.mutateAsync(payload);
       setPreviewConfig(res.data.config);
       if (res.data.sslEnabled) {
-        toast.success("Configuration validated — SSL enabled");
+        toast.success("Configuration validated. SSL enabled");
       } else {
         toast.success("Configuration validated");
       }
@@ -472,7 +472,7 @@ export function NginxPage() {
       <Dialog open={enableDialogOpen} onOpenChange={setEnableDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Enable Nginx Site — Wizard</DialogTitle>
+            <DialogTitle>Enable Nginx Site: Wizard</DialogTitle>
             <DialogDescription>
               Configure nginx to serve this project, step by step.
             </DialogDescription>
@@ -601,7 +601,7 @@ export function NginxPage() {
                   <div>
                     <h3 className="text-sm font-semibold tracking-wide">SSL Certificate</h3>
                     <p className="text-xs text-muted-foreground">
-                      Certificate selection is optional — Gatekeeper reuses an installed certificate for the domain when possible.
+                      Certificate selection is optional. Gatekeeper reuses an installed certificate for the domain when possible.
                     </p>
                   </div>
                   <Separator />
@@ -656,7 +656,7 @@ export function NginxPage() {
                             </button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            Optional override. Only needed when selecting a certificate explicitly — requires both the certificate and key paths.
+                            Optional override. Only needed when selecting a certificate explicitly. Requires both the certificate and key paths.
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -672,7 +672,7 @@ export function NginxPage() {
                             </button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            Optional override. Only needed when selecting a certificate explicitly — requires both the certificate and key paths.
+                            Optional override. Only needed when selecting a certificate explicitly. Requires both the certificate and key paths.
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -705,7 +705,7 @@ export function NginxPage() {
                   <div>
                     <h3 className="text-sm font-semibold tracking-wide">Review & Confirm</h3>
                     <p className="text-xs text-muted-foreground">
-                      The configuration below was validated by Gatekeeper — no changes were applied yet.
+                      The configuration below was validated by Gatekeeper. No changes were applied yet.
                     </p>
                   </div>
                   <Separator />

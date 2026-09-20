@@ -30,8 +30,8 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
             { key: "reference", header: "Provider / reference", searchable: true, searchValue: (payment) => `${payment.provider} ${payment.providerReference}`, render: (payment) => <><Badge variant="outline" className="capitalize">{payment.provider}</Badge><p className="mt-1 font-mono text-xs">{payment.providerReference}</p></> },
             { key: "amount", header: "Amount", searchable: true, searchValue: (payment) => String(payment.amount), render: (payment) => `${currency} ${payment.amount.toLocaleString()}` },
             { key: "status", header: "Status", render: (payment) => <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} /> },
-            { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "—"}</span> },
-            { key: "paidAt", header: "Paid at", render: (payment) => payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—" },
+            { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "Not set"}</span> },
+            { key: "paidAt", header: "Paid at", render: (payment) => payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set" },
             { key: "actions", header: "", render: (payment) => <>{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button asChild size="sm" variant="outline"><a href={receiptUrls[payment.providerReference] || `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: (result) => toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"), onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</> },
           ]}
         />
@@ -60,11 +60,11 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Verified via</span>
-                <p className="capitalize">{payment.verifiedVia ?? "—"}</p>
+                <p className="capitalize">{payment.verifiedVia ?? "Not set"}</p>
               </div>
               <div className="col-span-2">
                 <span className="text-xs text-muted-foreground">Paid at</span>
-                <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "—"}</p>
+                <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}</p>
               </div>
               {payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && (
                 <Button asChild size="sm" variant="outline" className="col-span-2"><a href={receiptUrls[payment.providerReference] || `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer">View receipt</a></Button>

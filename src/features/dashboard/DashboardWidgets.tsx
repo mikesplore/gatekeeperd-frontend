@@ -82,7 +82,7 @@ export function ProjectsOverdue() {
                   );
                   const blocksToday = autoBlock <= today;
                   const graceLabel = blocksToday
-                    ? `${p.gracePeriodDays} of ${p.gracePeriodDays} grace days used — blocks today`
+                    ? `${p.gracePeriodDays} of ${p.gracePeriodDays} grace days used. Blocks today`
                     : `${graceUsed} of ${p.gracePeriodDays} grace days used`;
 
                   return (
