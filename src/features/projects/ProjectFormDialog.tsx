@@ -120,13 +120,26 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   };
 
   const onSubmit = (values: ProjectFormValues) => {
-    const { slug: _slug, ...editableValues } = values;
-    const payload = {
-      ...(isEdit ? editableValues : values),
+    const normalized = {
+      name: values.name,
+      domain: values.domain,
+      containerName: values.containerName,
+      type: values.type,
       clientName: values.clientName || undefined,
       clientEmail: values.clientEmail || undefined,
+      amountDue: values.amountDue,
       dueDate: values.dueDate || undefined,
+      gracePeriodDays: values.gracePeriodDays,
     };
+    const payload = isEdit
+      ? Object.fromEntries(
+          Object.entries(normalized).filter(([key, value]) => {
+            const original = project?.[key as keyof Project];
+            const comparableOriginal = key === "dueDate" && typeof original === "string" ? original.slice(0, 10) : original;
+            return value !== comparableOriginal;
+          }),
+        )
+      : { ...values, ...normalized };
 
     const mutation = isEdit ? update : create;
     mutation.mutate(payload, {
