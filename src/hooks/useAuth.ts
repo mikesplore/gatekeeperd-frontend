@@ -12,13 +12,16 @@ export function useLogin() {
         email,
         password,
       });
+      if (loginData.requiresTwoFactor) return loginData;
       const { data: me } = await api.get<AuthUser>("/auth/me", {
         headers: { Authorization: `Bearer ${loginData.token}` },
       });
       return { token: loginData.token, refreshToken: loginData.refreshToken, ...me };
     },
-    onSuccess: ({ token, refreshToken, email, role }) => {
-      login(token, refreshToken, email, role);
+    onSuccess: (result) => {
+      if (result.requiresTwoFactor) return;
+      const authenticated = result as LoginResponse & AuthUser;
+      login(authenticated.token!, authenticated.refreshToken!, authenticated.email, authenticated.role);
     },
   });
 }

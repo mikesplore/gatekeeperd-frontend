@@ -5,6 +5,8 @@ export interface AuthUser {
 }
 
 export interface LoginResponse {
-  token: string;
-  refreshToken: string;
+  token?: string;
+  refreshToken?: string;
+  requiresTwoFactor?: boolean;
+  challengeToken?: string;
 }

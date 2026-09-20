@@ -1,4 +1,6 @@
 import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { api } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link, Navigate } from "react-router-dom";
@@ -22,6 +24,9 @@ type LoginForm = z.infer<typeof loginSchema>;
 export function LoginPage() {
   const token = useAuthStore((s) => s.token);
   const login = useLogin();
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -35,8 +40,11 @@ export function LoginPage() {
     return <Navigate to="/app" replace />;
   }
 
+  if (challenge) return <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4"><Card className="w-full max-w-md"><CardHeader><CardTitle>Two-factor verification</CardTitle><CardDescription>Enter the 6-digit code from Google Authenticator, or a recovery code.</CardDescription></CardHeader><CardContent><form className="space-y-4" onSubmit={async event => { event.preventDefault(); setVerifyError(null); try { const { data } = await api.post<{ token: string; refreshToken: string }>("/auth/2fa/verify", { challengeToken: challenge, code }); const me = await api.get<{ email: string; role: string }>("/auth/me", { headers: { Authorization: `Bearer ${data.token}` } }); useAuthStore.getState().login(data.token, data.refreshToken, me.data.email, me.data.role); } catch (error) { setVerifyError(getApiErrorMessage(error)); } }}><Label htmlFor="two-factor-code">Authentication code</Label><Input id="two-factor-code" inputMode="numeric" autoComplete="one-time-code" autoFocus value={code} onChange={event => setCode(event.target.value)} maxLength={20} /><p className="text-xs text-muted-foreground">Recovery codes may be used once.</p>{verifyError && <p className="text-sm text-destructive">{verifyError}</p>}<Button className="w-full" disabled={!code.trim()}>Verify</Button><Button type="button" variant="ghost" className="w-full" onClick={() => setChallenge(null)}>Back to sign in</Button></form></CardContent></Card></div>;
+
   const onSubmit = (data: LoginForm) => {
     login.mutate(data, {
+      onSuccess: result => { if (result.requiresTwoFactor && result.challengeToken) setChallenge(result.challengeToken); },
       onError: (err) => {
         if (isInvalidCredentials(err)) {
           setError("password", { message: getApiErrorMessage(err) });
