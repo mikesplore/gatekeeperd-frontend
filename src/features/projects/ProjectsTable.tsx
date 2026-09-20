@@ -31,12 +31,13 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
           data={projects}
           getRowKey={(project) => project.id}
           pageSize={10}
-          filters={[{ label: "Status", options: [{ label: "Active", value: "active" }, { label: "Blocked", value: "blocked" }, { label: "Manual block", value: "manual_block" }], getValue: (project) => project.status }]}
+          filters={[{ label: "Access", options: [{ label: "Active", value: "active" }, { label: "Blocked", value: "blocked" }, { label: "Manual block", value: "manual_block" }], getValue: (project) => project.status }]}
           columns={[
             { key: "name", header: "Name", searchable: true, render: (project) => <Link to={`/app/projects/${project.slug}`} className="font-medium hover:underline">{project.name}</Link> },
             { key: "domain", header: "Domain", searchable: true, render: (project) => <span className="text-muted-foreground">{project.domain}</span> },
             { key: "type", header: "Type", render: (project) => <Badge variant="secondary">{project.type}</Badge> },
-            { key: "status", header: "Status", render: (project) => <><ProjectStatusBadge status={project.status} />{project.lifecycleStatus !== project.status && <div className="mt-1"><Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge></div>}</> },
+            { key: "access", header: "Access", render: (project) => <ProjectStatusBadge status={project.status} /> },
+            { key: "lifecycle", header: "Lifecycle", render: (project) => <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge> },
             { key: "deployment", header: "Deployment", render: (project) => <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge> },
             { key: "client", header: "Client", searchable: true, render: (project) => project.clientName ?? "—" },
             { key: "due", header: "Due date", render: (project) => project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—" },
@@ -70,13 +71,16 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
             </div>
             <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div>
-                <span className="text-xs text-muted-foreground">Status</span>
+                <span className="text-xs text-muted-foreground">Access</span>
                 <div className="mt-0.5">
                   <ProjectStatusBadge status={project.status} />
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {project.lifecycleStatus !== project.status && <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>}
-                    <Badge variant="secondary" className="text-[10px]">{project.serviceMode}</Badge>
-                  </div>
+                </div>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Lifecycle</span>
+                <div className="mt-0.5 flex flex-wrap gap-1">
+                  <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{project.serviceMode}</Badge>
                 </div>
               </div>
               <div>
