@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Payment } from "@/types/payment";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
+import { Badge } from "@/components/ui/badge";
 
 interface PaymentsHistoryTableProps {
   payments: Payment[];
@@ -20,7 +21,7 @@ export function PaymentsHistoryTable({ payments, currency }: PaymentsHistoryTabl
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Reference</TableHead>
+              <TableHead>Provider / reference</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Verified via</TableHead>
@@ -30,7 +31,10 @@ export function PaymentsHistoryTable({ payments, currency }: PaymentsHistoryTabl
           <TableBody>
             {payments.map((payment) => (
               <TableRow key={payment.id}>
-                <TableCell className="font-mono text-xs">{payment.paystackReference}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize">{payment.provider}</Badge>
+                  <p className="mt-1 font-mono text-xs">{payment.providerReference}</p>
+                </TableCell>
                 <TableCell>
                   {currency} {payment.amount.toLocaleString()}
                 </TableCell>
@@ -65,6 +69,10 @@ export function PaymentsHistoryTable({ payments, currency }: PaymentsHistoryTabl
                 <p className="font-medium">
                   {currency} {payment.amount.toLocaleString()}
                 </p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Provider</span>
+                <p className="capitalize">{payment.provider}</p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Verified via</span>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { PaymentRecord } from "@/types/payment";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
+import { Badge } from "@/components/ui/badge";
 
 interface PaymentsTableProps {
   payments: PaymentRecord[];
@@ -24,6 +25,7 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
           <TableHeader>
             <TableRow>
               <TableHead>Project</TableHead>
+              <TableHead>Provider</TableHead>
               <TableHead>Reference</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
@@ -44,6 +46,7 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
                     <p className="text-xs text-muted-foreground">{payment.projectSlug}</p>
                   </div>
                 </TableCell>
+                <TableCell><Badge variant="outline" className="capitalize">{payment.provider}</Badge></TableCell>
                 <TableCell className="font-mono text-xs">{payment.paystackReference}</TableCell>
                 <TableCell>
                   {currency} {payment.amount.toLocaleString()}
@@ -84,6 +87,10 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
                 <p className="font-medium">
                   {currency} {payment.amount.toLocaleString()}
                 </p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Provider</span>
+                <p className="capitalize">{payment.provider}</p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Reference</span>
