@@ -15,10 +15,10 @@ export function useLogin() {
       const { data: me } = await api.get<AuthUser>("/auth/me", {
         headers: { Authorization: `Bearer ${loginData.token}` },
       });
-      return { token: loginData.token, ...me };
+      return { token: loginData.token, refreshToken: loginData.refreshToken, ...me };
     },
-    onSuccess: ({ token, email, role }) => {
-      login(token, email, role);
+    onSuccess: ({ token, refreshToken, email, role }) => {
+      login(token, refreshToken, email, role);
     },
   });
 }

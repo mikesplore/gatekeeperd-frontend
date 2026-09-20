@@ -28,10 +28,20 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (res) => res,
-  (err: AxiosError<ApiErrorBody>) => {
+  async (err: AxiosError<ApiErrorBody>) => {
     if (err.response?.status === 401) {
-      useAuthStore.getState().logout();
-      window.location.href = "/login";
+      const state = useAuthStore.getState();
+      const original = err.config;
+      if (state.refreshToken && original && !original.url?.includes("/auth/refresh") && !(original as typeof original & { _retry?: boolean })._retry) {
+        (original as typeof original & { _retry?: boolean })._retry = true;
+        try {
+          const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken: state.refreshToken });
+          useAuthStore.setState({ token: response.data.token, refreshToken: response.data.refreshToken });
+          original.headers.Authorization = `Bearer ${response.data.token}`;
+          return api(original);
+        } catch { /* fall through to logout */ }
+      }
+      useAuthStore.getState().logout(); window.location.href = "/login";
     }
     return Promise.reject(err);
   },
