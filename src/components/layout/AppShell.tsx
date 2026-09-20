@@ -136,7 +136,7 @@ export function AppShell() {
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
-            <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><span>{currentNav.label}</span>{detailLabel && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{detailLabel}</span></>}</h1>
+            <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to={currentNav.to} className="transition-colors hover:text-primary">{currentNav.label}</Link>{detailLabel && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{detailLabel}</span></>}</h1>
           </div>
           <div className="flex items-center gap-2">
             <DropdownMenu>
