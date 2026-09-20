@@ -246,7 +246,6 @@ export function NginxPage() {
             </p>
           </div>
           <div className="w-full lg:max-w-xs">
-            <Label htmlFor="nginx-project" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project workspace</Label>
             {projectsLoading ? <Skeleton className="mt-2 h-10 w-full" /> : (
               <select
                 id="nginx-project"
