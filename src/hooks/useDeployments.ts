@@ -12,6 +12,17 @@ export interface GitHubStatus {
   accountType?: string | null;
 }
 
+export interface GitHubRepository { full_name: string; private: boolean }
+
+export function useGitHubRepositories(query: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["github", "repositories", query],
+    queryFn: async () => (await api.get<GitHubRepository[]>("/admin/github/repositories", { params: { q: query } })).data,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useGitHubStatus() {
   return useQuery({
     queryKey: ["github", "status"],
