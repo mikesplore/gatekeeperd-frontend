@@ -8,6 +8,30 @@ export interface NginxStatus {
   domain: string;
 }
 
+export interface NginxConfigInspection {
+  slug: string;
+  configPath: string;
+  enabledPath: string;
+  available: boolean;
+  enabled: boolean;
+  isSymlink: boolean;
+  content?: string | null;
+  blocks: { type: string; header: string; content: string }[];
+  modifiedAt?: string | null;
+  sizeBytes?: number | null;
+  managed: boolean;
+  drifted: boolean;
+  actualSha256?: string | null;
+  managedSha256?: string | null;
+}
+
+export interface NginxTestResult {
+  valid: boolean;
+  exitCode: number;
+  output: string;
+  checkedAt: string;
+}
+
 export interface NginxWizardContext {
   slug: string;
   domain: string;

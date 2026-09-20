@@ -5,6 +5,8 @@ import type {
   EnableNginxPayload,
   EnableNginxResponse,
   NginxStatus,
+  NginxConfigInspection,
+  NginxTestResult,
   NginxWizardContext,
 } from "@/types/nginx";
 
@@ -13,6 +15,20 @@ export function useNginxStatus(slug: string) {
     queryKey: ["nginx", "status", slug],
     queryFn: async () => (await api.get<NginxStatus>(`/admin/nginx/status/${slug}`)).data,
     enabled: !!slug,
+  });
+}
+
+export function useNginxConfig(slug: string) {
+  return useQuery({
+    queryKey: ["nginx", "config", slug],
+    queryFn: async () => (await api.get<NginxConfigInspection>(`/admin/nginx/config/${slug}`)).data,
+    enabled: !!slug,
+  });
+}
+
+export function useNginxDiagnostics() {
+  return useMutation({
+    mutationFn: async () => (await api.post<NginxTestResult>("/admin/nginx/test")).data,
   });
 }
 

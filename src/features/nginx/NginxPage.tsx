@@ -14,6 +14,8 @@ import {
   useRemoveNginx,
   useInstallCertificate,
   useCertificateStatus,
+  useNginxConfig,
+  useNginxDiagnostics,
 } from "@/hooks/useNginx";
 import { useProjects } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
@@ -110,6 +112,8 @@ export function NginxPage() {
   const selectedDomain = selectedProjectData?.domain ?? "";
 
   const { data: nginxStatus, isLoading: statusLoading, refetch: refetchStatus } = useNginxStatus(selectedSlug);
+  const { data: nginxConfig, refetch: refetchConfig } = useNginxConfig(selectedSlug);
+  const diagnostics = useNginxDiagnostics();
   const { data: wizardContext, refetch: refetchWizardContext } = useNginxWizardContext(selectedSlug);
   const validateEnable = useValidateNginxEnable(selectedSlug);
   const enableNginx = useEnableNginx();
@@ -326,6 +330,42 @@ export function NginxPage() {
                       </>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle>Configuration inspection</CardTitle>
+                    <div className="flex items-center gap-2">
+                      {nginxConfig?.drifted && <Badge variant="destructive">Drift detected</Badge>}
+                      <Button variant="outline" size="sm" onClick={() => refetchConfig()}>Refresh</Button>
+                      <Button variant="outline" size="sm" onClick={() => diagnostics.mutate()} disabled={diagnostics.isPending}>
+                        {diagnostics.isPending ? "Testing…" : "Run nginx -t"}
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {nginxConfig ? (
+                    <>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <InfoRow label="Available" value={nginxConfig.available ? "Yes" : "No"} />
+                        <InfoRow label="Enabled" value={nginxConfig.enabled ? "Yes" : "No"} />
+                        <InfoRow label="Managed" value={nginxConfig.managed ? "Yes" : "No"} />
+                      </div>
+                      <pre className="max-h-96 overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">{nginxConfig.content || "No configuration content available."}</pre>
+                    </>
+                  ) : <p className="text-sm text-muted-foreground">No configuration inspection available.</p>}
+                  {diagnostics.data && (
+                    <div className="rounded-md border p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">Last nginx -t result</p>
+                        <Badge variant={diagnostics.data.valid ? "default" : "destructive"}>{diagnostics.data.valid ? "Valid" : "Invalid"}</Badge>
+                      </div>
+                      <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{diagnostics.data.output}</pre>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
