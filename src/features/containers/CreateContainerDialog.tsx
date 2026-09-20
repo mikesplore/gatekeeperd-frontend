@@ -129,7 +129,12 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
 
   const [name, setName] = useState("");
   const [projectSlug, setProjectSlug] = useState("");
+  const [preset, setPreset] = useState<"generic" | "postgres">("generic");
   const [image, setImage] = useState("");
+  const [postgresDatabase, setPostgresDatabase] = useState("app");
+  const [postgresUser, setPostgresUser] = useState("app");
+  const [postgresPassword, setPostgresPassword] = useState("");
+  const [postgresVolume, setPostgresVolume] = useState("postgres-data");
   const [network, setNetwork] = useState(wizardContext?.internalNetwork || "bridge");
   const [restartPolicy, setRestartPolicy] = useState("unless-stopped");
   const [pullImage, setPullImage] = useState(true);
@@ -145,7 +150,12 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
   const resetForm = () => {
     setName("");
     setProjectSlug("");
+    setPreset("generic");
     setImage("");
+    setPostgresDatabase("app");
+    setPostgresUser("app");
+    setPostgresPassword("");
+    setPostgresVolume("postgres-data");
     setImageChecked(false);
     setImageNotLocal(false);
     setNetwork(wizardContext?.internalNetwork || "bridge");
@@ -164,6 +174,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
   };
 
   const buildPayload = (): CreateContainerPayload => {
+    const effectiveImage = preset === "postgres" ? (image || "postgres:16") : image;
     const portMap: Record<string, number> = {};
     for (const p of ports) {
       if (p.host && p.container) {
@@ -182,14 +193,21 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
       }
     }
 
+    const effectiveEnv = preset === "postgres"
+      ? { ...envMap, POSTGRES_DB: postgresDatabase, POSTGRES_USER: postgresUser, POSTGRES_PASSWORD: postgresPassword }
+      : envMap;
+    const effectiveVolumes = preset === "postgres"
+      ? [{ hostPath: postgresVolume, containerPath: "/var/lib/postgresql/data", readOnly: false, volumeName: postgresVolume }, ...volumes.filter((v) => v.hostPath && v.containerPath)]
+      : volumes.filter((v) => v.hostPath && v.containerPath);
     return {
+      preset,
       name: name || undefined,
       projectSlug: projectSlug || undefined,
-      image,
+      image: effectiveImage,
       ports: Object.keys(portMap).length > 0 ? portMap : undefined,
-      env: Object.keys(envMap).length > 0 ? envMap : undefined,
+      env: Object.keys(effectiveEnv).length > 0 ? effectiveEnv : undefined,
       network,
-      volumes: volumes.filter((v) => v.hostPath && v.containerPath),
+      volumes: effectiveVolumes,
       restartPolicy: restartPolicy as "no" | "always" | "unless-stopped" | "on-failure",
       pullImage,
       pullViaCli,
@@ -264,7 +282,11 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
 
   const handleNext = async () => {
     if (wizardStep === 0) {
-      if (!image) {
+      if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume)) {
+        toast.error("PostgreSQL database, user, password, and volume are required");
+        return;
+      }
+      if (preset === "generic" && !image) {
         toast.error("Image is required");
         return;
       }
@@ -309,8 +331,12 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
   };
 
   const handleCreate = async () => {
-    if (!image) {
+    if (preset === "generic" && !image) {
       toast.error("Image is required");
+      return;
+    }
+    if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume)) {
+      toast.error("PostgreSQL database, user, password, and volume are required");
       return;
     }
     if (!name && !projectSlug) {
@@ -362,6 +388,14 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
               </div>
               <Separator />
               <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="preset">Service preset</Label>
+                  <select id="preset" value={preset} onChange={(e) => { const next = e.target.value as "generic" | "postgres"; setPreset(next); if (next === "postgres") setImage("postgres:16"); }} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="generic">Generic container</option>
+                    <option value="postgres">PostgreSQL database</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">PostgreSQL automatically receives its required environment variables and persistent data mount.</p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
                   <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-app (optional with project slug)" />
@@ -381,11 +415,18 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                     Links this container to a project. If name is blank, the container is auto-named from this slug.
                   </p>
                 </div>
+                {preset === "postgres" && <>
+                  <div className="space-y-2"><Label htmlFor="postgresDatabase">Database name</Label><Input id="postgresDatabase" value={postgresDatabase} onChange={(e) => setPostgresDatabase(e.target.value)} /></div>
+                  <div className="space-y-2"><Label htmlFor="postgresUser">Database user</Label><Input id="postgresUser" value={postgresUser} onChange={(e) => setPostgresUser(e.target.value)} /></div>
+                  <div className="space-y-2"><Label htmlFor="postgresPassword">Database password</Label><Input id="postgresPassword" type="password" value={postgresPassword} onChange={(e) => setPostgresPassword(e.target.value)} autoComplete="new-password" /></div>
+                  <div className="space-y-2"><Label htmlFor="postgresVolume">Named data volume</Label><Input id="postgresVolume" value={postgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} /><p className="text-xs text-muted-foreground">Mounted at /var/lib/postgresql/data.</p></div>
+                </>}
                 <div className="space-y-2">
                   <Label htmlFor="image">Image *</Label>
                   <Input
                     id="image"
                     value={image}
+                    disabled={preset === "postgres"}
                     onChange={(e) => {
                       setImage(e.target.value);
                       setImageChecked(false);

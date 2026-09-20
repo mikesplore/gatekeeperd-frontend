@@ -32,6 +32,7 @@ export interface VolumeMount {
 }
 
 export interface CreateContainerPayload {
+  preset?: "generic" | "postgres";
   name?: string;
   projectSlug?: string;
   image: string;
