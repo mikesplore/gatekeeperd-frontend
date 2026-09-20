@@ -31,10 +31,18 @@ import type { ProjectInvoiceStatus } from "@/types/payment";
 import type { DashboardSummary } from "@/types/dashboard";
 import type { IntegrationOutboxEvent, NotificationItem } from "@/types/dashboard";
 
-export function useNotifications(limit = 25) {
+export type PaginatedNotificationResponse = {
+  data: NotificationItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
+
+export function useNotifications(limit = 25, offset = 0) {
   return useQuery({
-    queryKey: ["notifications", limit],
-    queryFn: async () => (await api.get<NotificationItem[]>("/admin/notifications", { params: { limit } })).data,
+    queryKey: ["notifications", limit, offset],
+    queryFn: async () => (await api.get<PaginatedNotificationResponse>("/admin/notifications", { params: { limit, offset } })).data,
     refetchInterval: 30_000,
   });
 }
