@@ -120,8 +120,9 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   };
 
   const onSubmit = (values: ProjectFormValues) => {
+    const { slug: _slug, ...editableValues } = values;
     const payload = {
-      ...values,
+      ...(isEdit ? editableValues : values),
       clientName: values.clientName || undefined,
       clientEmail: values.clientEmail || undefined,
       dueDate: values.dueDate || undefined,
