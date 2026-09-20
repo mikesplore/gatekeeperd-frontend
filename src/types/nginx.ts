@@ -6,6 +6,8 @@ export interface NginxStatus {
   sslEnabled: boolean;
   certificateDomain: string | null;
   domain: string;
+  certificateExpiresAt?: string | null;
+  certificateDaysRemaining?: number | null;
 }
 
 export interface NginxConfigInspection {

@@ -320,6 +320,15 @@ export function NginxPage() {
                     {nginxStatus.certificateDomain && (
                       <InfoRow label="Certificate Domain" value={nginxStatus.certificateDomain} />
                     )}
+                    {nginxStatus.sslEnabled && nginxStatus.certificateExpiresAt && (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Certificate expiry</p>
+                        <Badge variant={(nginxStatus.certificateDaysRemaining ?? 999) <= 14 ? "destructive" : "default"}>
+                          {new Date(nginxStatus.certificateExpiresAt).toLocaleDateString()}
+                          {nginxStatus.certificateDaysRemaining != null ? ` · ${nginxStatus.certificateDaysRemaining} days remaining` : ""}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2 pt-4 border-t mt-4">
