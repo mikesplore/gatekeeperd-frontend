@@ -17,6 +17,7 @@ import { BlockUnblockDialog } from "@/features/projects/BlockUnblockDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
 import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
+import { Badge } from "@/components/ui/badge";
 
 export function ProjectDetailPage() {
   const { slug = "" } = useParams();
@@ -72,6 +73,8 @@ export function ProjectDetailPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <CardTitle className="text-xl sm:text-2xl">{project.name}</CardTitle>
                   <ProjectStatusBadge status={project.status} />
+                  <Badge variant="outline">{project.lifecycleStatus}</Badge>
+                  <Badge variant="secondary">{project.serviceMode}</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground break-all">{project.domain}</p>
               </div>
@@ -128,6 +131,10 @@ export function ProjectDetailPage() {
                   <InfoRow label="Grace period" value={`${project.gracePeriodDays} days`} />
                   <InfoRow label="Container" value={project.containerName} />
                   <InfoRow label="Type" value={project.type} />
+                  <InfoRow label="Deployment mode" value={project.deploymentMode.replaceAll("_", " ")} />
+                  <InfoRow label="Lifecycle" value={project.lifecycleStatus} />
+                  <InfoRow label="Access/service mode" value={project.serviceMode} />
+                  <InfoRow label="Block reason" value={project.blockReason ?? "—"} />
                   <InfoRow label="Slug" value={project.slug} />
                 </CardContent>
               </Card>

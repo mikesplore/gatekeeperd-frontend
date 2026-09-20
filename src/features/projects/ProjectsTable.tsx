@@ -55,6 +55,10 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
                 </TableCell>
                 <TableCell>
                   <ProjectStatusBadge status={project.status} />
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replaceAll("_", " ")}</Badge>
+                  </div>
                 </TableCell>
                 <TableCell>{project.clientName ?? "—"}</TableCell>
                 <TableCell>
@@ -107,6 +111,10 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
                 <span className="text-xs text-muted-foreground">Status</span>
                 <div className="mt-0.5">
                   <ProjectStatusBadge status={project.status} />
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{project.serviceMode}</Badge>
+                  </div>
                 </div>
               </div>
               <div>

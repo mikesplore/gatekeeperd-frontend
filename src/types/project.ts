@@ -9,6 +9,10 @@ export interface Project {
   containerName: string;
   type: ProjectType;
   status: ProjectStatus;
+  blockReason?: string;
+  deploymentMode: "developer_hosted" | "client_hosted" | "external_hosted";
+  serviceMode: "development" | "testing" | "production";
+  lifecycleStatus: "active" | "transferred" | "archived" | "cancelled";
   clientName?: string;
   clientEmail?: string;
   amountDue?: number;
