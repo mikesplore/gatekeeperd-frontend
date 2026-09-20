@@ -54,10 +54,7 @@ export function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Payments</h1>
-        <p className="text-muted-foreground">All payment activity across projects.</p>
-      </div>
+      <p className="text-muted-foreground">All payment activity across projects.</p>
 
       <Card>
         <CardHeader>

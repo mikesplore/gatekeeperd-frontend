@@ -16,7 +16,7 @@ export function OperationsPage() {
   const replay = useReplayIntegrationEvent();
 
   return <div className="space-y-6">
-    <div><h1 className="text-2xl font-bold tracking-tight">Operations</h1><p className="text-muted-foreground">Infrastructure, payment, and integration health.</p></div>
+    <p className="text-muted-foreground">Infrastructure, payment, and integration health.</p>
     <QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} data={summary.data} loadingFallback={<Skeleton className="h-64 w-full" />}>
       {(data) => <>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -79,7 +79,6 @@ function PageHeader({ onNew }: { onNew?: () => void }) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Containers</h1>
         <p className="text-muted-foreground">Inspect and control Docker containers on the host.</p>
       </div>
       {onNew && (

@@ -239,7 +239,6 @@ export function NginxPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Nginx Management</h1>
         <p className="text-muted-foreground">Manage nginx site configurations and SSL certificates for client projects.</p>
       </div>
 
