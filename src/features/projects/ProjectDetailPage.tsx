@@ -153,7 +153,7 @@ export function ProjectDetailPage() {
                     label="Remaining balance"
                     value={
                       project.amountDue != null
-                        ? `${project.currency} ${Math.max(0, project.amountDue - payments.filter((payment) => payment.gatewayStatus === "success").reduce((sum, payment) => sum + payment.amount, 0)).toLocaleString()}`
+                        ? `${project.currency} ${(project.remainingBalance ?? 0).toLocaleString()}`
                         : `${project.currency} 0`
                     }
                   />
@@ -183,7 +183,7 @@ export function ProjectDetailPage() {
                     <CardTitle>Payment history</CardTitle>
                     {project.amountDue != null && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Remaining balance: <span className="font-semibold text-foreground">{project.currency} {Math.max(0, project.amountDue - payments.filter((payment) => payment.gatewayStatus === "success").reduce((sum, payment) => sum + payment.amount, 0)).toLocaleString()}</span>
+                        Remaining balance: <span className="font-semibold text-foreground">{project.currency} {(project.remainingBalance ?? 0).toLocaleString()}</span>
                       </p>
                     )}
                   </div>
