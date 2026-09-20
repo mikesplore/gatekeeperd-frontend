@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useProjectDetail, useTransferProject } from "@/hooks/useProjects";
+import { useProjectDetail, useProjectHealth, useTransferProject } from "@/hooks/useProjects";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
@@ -25,6 +25,7 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data, isLoading, isError, error } = useProjectDetail(slug);
+  const healthQuery = useProjectHealth(slug);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
@@ -120,6 +121,19 @@ export function ProjectDetailPage() {
             </div>
 
             <TabsContent value="overview">
+              <Card className="mb-4">
+                <CardHeader><CardTitle>Runtime health</CardTitle></CardHeader>
+                <CardContent>
+                  {healthQuery.isLoading ? <Skeleton className="h-16 w-full" /> : healthQuery.data ? (
+                    <div className="grid gap-4 sm:grid-cols-4">
+                      <InfoRow label="Readiness" value={healthQuery.data.readiness.replace(/_/g, " ")} />
+                      <InfoRow label="Container" value={healthQuery.data.containerHealth ?? "unknown"} />
+                      <InfoRow label="Nginx" value={healthQuery.data.nginxEnabled ? "enabled" : "disabled"} />
+                      <InfoRow label="Certificate" value={healthQuery.data.certificateInstalled ? "installed" : "missing"} />
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground">Health data unavailable.</p>}
+                </CardContent>
+              </Card>
               <Card>
                 <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
                   <InfoRow label="Client" value={project.clientName ?? "—"} />

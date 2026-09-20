@@ -19,6 +19,7 @@ import type {
   CreateProjectPayload,
   Project,
   ProjectDetailResponse,
+  ProjectHealthResponse,
   ProjectWizardContext,
   UpdateProjectPayload,
 } from "@/types/project";
@@ -140,6 +141,15 @@ export function useProjectDetail(slug: string) {
     queryFn: async () =>
       (await api.get<ProjectDetailResponse>(`/admin/projects/${slug}`)).data,
     enabled: !!slug,
+  });
+}
+
+export function useProjectHealth(slug: string) {
+  return useQuery({
+    queryKey: ["project", slug, "health"],
+    queryFn: async () => (await api.get<ProjectHealthResponse>(`/admin/projects/${slug}/health`)).data,
+    enabled: !!slug,
+    refetchInterval: 30_000,
   });
 }
 

@@ -29,6 +29,15 @@ export interface ProjectDetailResponse {
   audit_log: import("./audit").AuditLogEntry[];
 }
 
+export interface ProjectHealthResponse {
+  project: Project;
+  container?: string | null;
+  containerHealth?: string | null;
+  nginxEnabled: boolean;
+  certificateInstalled: boolean;
+  readiness: string;
+}
+
 export interface CreateProjectPayload {
   slug: string;
   name: string;
