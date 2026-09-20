@@ -139,12 +139,15 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
   const [volumes, setVolumes] = useState<VolumeMount[]>([]);
   const [envFile, setEnvFile] = useState<File | null>(null);
   const [imageNotLocal, setImageNotLocal] = useState(false);
+  const [imageChecked, setImageChecked] = useState(false);
   const [checkingWizard, setCheckingWizard] = useState(false);
 
   const resetForm = () => {
     setName("");
     setProjectSlug("");
     setImage("");
+    setImageChecked(false);
+    setImageNotLocal(false);
     setNetwork(wizardContext?.internalNetwork || "bridge");
     setRestartPolicy("unless-stopped");
     setPullImage(true);
@@ -153,7 +156,6 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
     setEnvVars([]);
     setVolumes([]);
     setEnvFile(null);
-    setImageNotLocal(false);
     setValidation(null);
     setWizardStep(0);
     if (fileInputRef.current) {
@@ -206,7 +208,9 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
         pullImage,
       });
       setImageNotLocal(!res.data.imageExists);
+      setImageChecked(true);
     } catch {
+      setImageChecked(false);
       setImageNotLocal(false);
     } finally {
       setCheckingWizard(false);
@@ -384,15 +388,16 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                     value={image}
                     onChange={(e) => {
                       setImage(e.target.value);
+                      setImageChecked(false);
                       setImageNotLocal(false);
                     }}
                     onBlur={handleImageBlur}
                     placeholder="nginx:latest"
                   />
-                  {imageNotLocal && (
-                    <p className="text-xs text-amber-600 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Image not found locally. It will be pulled from the registry when pull is enabled.
+                  {imageChecked && (
+                    <p className={`text-xs flex items-center gap-1 ${imageNotLocal ? "text-amber-600" : "text-emerald-600"}`}>
+                      {imageNotLocal ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                      {imageNotLocal ? "Image is not available locally. It will be pulled before creation." : "Image is available locally. No pull is needed."}
                     </p>
                   )}
                 </div>
@@ -420,7 +425,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                       onChange={(e) => setPullImage(e.target.checked)}
                       className="h-4 w-4 rounded border-input"
                     />
-                    Pull image before creating
+                    Pull image if it is not available locally
                   </label>
                   <label className="flex items-center gap-2 text-xs text-muted-foreground">
                     <input
@@ -429,7 +434,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                       onChange={(e) => setPullViaCli(e.target.checked)}
                       className="h-4 w-4 rounded border-input"
                     />
-                    Pull via Docker CLI (reuse host Docker Hub auth)
+                    Use host Docker credentials for private image pulls
                   </label>
                 </div>
               </div>
