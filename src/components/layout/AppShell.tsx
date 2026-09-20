@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Bell, CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server } from "lucide-react";
+import { Activity, Bell, CreditCard, Box, Container, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -25,6 +25,7 @@ const navItems = [
   { to: "/app/containers", label: "Containers", icon: Container },
   { to: "/app/nginx", label: "Nginx", icon: Server },
   { to: "/app/operations", label: "Operations", icon: Activity },
+  { to: "/app/deployments", label: "Deployments", icon: Rocket },
 ];
 
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
@@ -155,6 +156,7 @@ export function AppShell() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem disabled>{email}</DropdownMenuItem>
+                <DropdownMenuItem asChild><Link to="/app/settings/profile"><Settings className="h-4 w-4" />Profile settings</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {

@@ -25,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useCreateProject, useProjectWizardContext, useUpdateProject } from "@/hooks/useProjects";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
-import type { Project } from "@/types/project";
+import type { CreateProjectPayload, Project, UpdateProjectPayload } from "@/types/project";
 
 const projectSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers, and hyphens only"),
@@ -131,20 +131,30 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
       dueDate: values.dueDate || undefined,
       gracePeriodDays: values.gracePeriodDays,
     };
-    const payload = isEdit
-      ? Object.fromEntries(
-          Object.entries(normalized).filter(([key, value]) => {
-            const original = project?.[key as keyof Project];
-            const comparableOriginal = key === "dueDate" && typeof original === "string" ? original.slice(0, 10) : original;
-            return value !== comparableOriginal;
-          }),
-        )
-      : { ...values, ...normalized };
+    if (isEdit) {
+      const changedEntries = Object.entries(normalized).filter(([key, value]) => {
+        const original = project?.[key as keyof Project];
+        const comparableOriginal = key === "dueDate" && typeof original === "string" ? original.slice(0, 10) : original;
+        return value !== comparableOriginal;
+      });
+      const payload: UpdateProjectPayload = Object.fromEntries(changedEntries);
+      update.mutate(payload, {
+        onSuccess: () => {
+          toast.success("Project updated");
+          onOpenChange(false);
+        },
+        onError: (err) => {
+          const code = getApiErrorCode(err);
+          toast.error(code === "container_not_found" ? "The referenced Docker container doesn't exist. Create the container first, then register the project." : getApiErrorMessage(err));
+        },
+      });
+      return;
+    }
 
-    const mutation = isEdit ? update : create;
-    mutation.mutate(payload, {
+    const payload: CreateProjectPayload = { ...values, ...normalized };
+    create.mutate(payload, {
       onSuccess: () => {
-        toast.success(isEdit ? "Project updated" : "Project created");
+        toast.success("Project created");
         onOpenChange(false);
       },
       onError: (err) => {
