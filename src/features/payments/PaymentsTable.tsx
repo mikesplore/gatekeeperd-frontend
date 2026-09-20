@@ -38,7 +38,7 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
               <TableRow
                 key={payment.id}
                 className="cursor-pointer"
-                onClick={() => navigate(`/projects/${payment.projectSlug}?tab=payments`)}
+                onClick={() => navigate(`/app/projects/${payment.projectSlug}?tab=payments`)}
               >
                 <TableCell>
                   <div>
@@ -72,7 +72,7 @@ export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps
           <div
             key={payment.id}
             className="rounded-lg border bg-card p-3 shadow-sm cursor-pointer active:bg-muted/50"
-            onClick={() => navigate(`/projects/${payment.projectSlug}?tab=payments`)}
+            onClick={() => navigate(`/app/projects/${payment.projectSlug}?tab=payments`)}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
