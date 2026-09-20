@@ -8,6 +8,7 @@ export interface ContainerInfo {
   created: string;
   networks?: string[];
   volumes?: VolumeMount[];
+  restartPolicy?: string;
 }
 
 export interface VolumeMount {
