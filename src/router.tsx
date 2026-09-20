@@ -16,6 +16,7 @@ import { DeploymentsPage } from "@/features/deployments/DeploymentsPage";
 import { ProfileSettingsPage } from "@/features/settings/ProfileSettingsPage";
 import { DockerResourcesPage } from "@/features/infrastructure/DockerResourcesPage";
 import { AuditPage } from "@/features/audit/AuditPage";
+import { NotificationsPage } from "@/features/notifications/NotificationsPage";
 
 export const router = createBrowserRouter([
   {
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
           { path: "nginx", element: <NginxPage /> },
           { path: "operations", element: <OperationsPage /> },
           { path: "audit", element: <AuditPage /> },
+          { path: "notifications", element: <NotificationsPage /> },
           { path: "deployments", element: <DeploymentsPage /> },
           { path: "settings/profile", element: <ProfileSettingsPage /> },
           { path: "networks", element: <DockerResourcesPage kind="networks" /> },

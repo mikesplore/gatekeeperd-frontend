@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
 import { api } from "@/lib/api";
-import { useDashboardSummary } from "@/hooks/useProjects";
+import { useNotifications } from "@/hooks/useProjects";
 
 const navGroups = [
   {
@@ -50,6 +50,7 @@ const navGroups = [
     items: [
       { to: "/app/operations", label: "Operations", icon: Activity },
       { to: "/app/audit", label: "Audit log", icon: FileClock },
+      { to: "/app/notifications", label: "Notifications", icon: Bell },
     ],
   },
   {
@@ -100,10 +101,9 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dark = useThemeStore((s) => s.dark);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
-  const { data: dashboardSummary } = useDashboardSummary();
-  const deadLetters = dashboardSummary?.integrations.outboxDeadLetter ?? 0;
-  const pendingIntegrations = (dashboardSummary?.integrations.outboxPending ?? 0) + (dashboardSummary?.integrations.outboxProcessing ?? 0);
-  const notificationCount = deadLetters + pendingIntegrations;
+  const notifications = useNotifications(10);
+  const notificationItems = notifications.data ?? [];
+  const notificationCount = notificationItems.length;
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
   const currentNav = navItems.find(({ to }) => to !== "/app" && location.pathname.startsWith(to)) ?? navItems[0];
@@ -143,7 +143,7 @@ export function AppShell() {
                   {notificationCount > 0 && (
                     <span className={cn(
                       "absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white",
-                      deadLetters > 0 ? "bg-destructive" : "bg-primary",
+                      notificationItems.some(item => item.severity === "error") ? "bg-destructive" : "bg-primary",
                     )}>
                       {notificationCount > 99 ? "99+" : notificationCount}
                     </span>
@@ -156,25 +156,11 @@ export function AppShell() {
                   <p className="text-xs text-muted-foreground">Operational events from Gatekeeperd</p>
                 </div>
                 <DropdownMenuSeparator />
-                {deadLetters > 0 && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/app/operations" className="flex-col items-start gap-1 py-3">
-                      <span className="font-medium text-destructive">{deadLetters} failed integration {deadLetters === 1 ? "event" : "events"}</span>
-                      <span className="text-xs text-muted-foreground">Review and replay dead-letter events.</span>
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                {pendingIntegrations > 0 && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/app/operations" className="flex-col items-start gap-1 py-3">
-                      <span className="font-medium">{pendingIntegrations} integration {pendingIntegrations === 1 ? "event" : "events"} in progress</span>
-                      <span className="text-xs text-muted-foreground">Pending delivery to connected services.</span>
-                    </Link>
-                  </DropdownMenuItem>
-                )}
+                {notificationItems.slice(0, 5).map(item => <DropdownMenuItem key={item.id} asChild><Link to="/app/notifications" className="flex-col items-start gap-1 py-3"><span className={cn("font-medium capitalize", item.severity === "error" && "text-destructive")}>{item.title}</span><span className="line-clamp-2 text-xs text-muted-foreground">{item.message}</span></Link></DropdownMenuItem>)}
                 {notificationCount === 0 && (
-                  <div className="px-2 py-4 text-sm text-muted-foreground">No active notifications.</div>
+                  <div className="px-2 py-4 text-sm text-muted-foreground">No recent notifications.</div>
                 )}
+                {notificationCount > 5 && <DropdownMenuItem asChild><Link to="/app/notifications" className="justify-center text-xs text-primary">View all notifications</Link></DropdownMenuItem>}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button variant="ghost" size="icon" onClick={toggleTheme}>

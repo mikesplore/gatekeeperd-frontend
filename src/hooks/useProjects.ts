@@ -26,7 +26,15 @@ import type {
 import type { PaymentLinkResponse } from "@/types/payment";
 import type { ProjectInvoiceStatus } from "@/types/payment";
 import type { DashboardSummary } from "@/types/dashboard";
-import type { IntegrationOutboxEvent } from "@/types/dashboard";
+import type { IntegrationOutboxEvent, NotificationItem } from "@/types/dashboard";
+
+export function useNotifications(limit = 25) {
+  return useQuery({
+    queryKey: ["notifications", limit],
+    queryFn: async () => (await api.get<NotificationItem[]>("/admin/notifications", { params: { limit } })).data,
+    refetchInterval: 30_000,
+  });
+}
 
 export function useIntegrationOutbox() {
   return useQuery({

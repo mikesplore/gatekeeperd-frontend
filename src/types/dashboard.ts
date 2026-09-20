@@ -20,3 +20,13 @@ export interface IntegrationOutboxEvent {
   payload: string;
   attempts: number;
 }
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  severity: "info" | "warning" | "error";
+  action: string;
+  createdAt: string;
+  read: boolean;
+}
