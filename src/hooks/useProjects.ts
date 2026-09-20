@@ -55,7 +55,7 @@ export function useDashboardSummary() {
 export function useProjects() {
   return useQuery({
     queryKey: ["projects"],
-    queryFn: async () => (await api.get<Project[]>("/admin/projects")).data,
+    queryFn: async () => (await api.get<{ projects: Project[]; total: number; limit: number; offset: number }>("/admin/projects")).data.projects,
     refetchInterval: 30_000,
   });
 }
@@ -205,7 +205,7 @@ export function useGlobalAuditLog(limit = 100) {
 export function useContainers() {
   return useQuery({
     queryKey: ["containers"],
-    queryFn: async () => (await api.get<ContainerInfo[]>("/admin/containers")).data,
+    queryFn: async () => (await api.get<{ containers: ContainerInfo[]; total: number; limit: number; offset: number }>("/admin/containers")).data.containers,
     refetchInterval: 15_000,
     retry: (failureCount, err) =>
       axios.isAxiosError(err) && err.response?.status === 503 ? false : failureCount < 3,
