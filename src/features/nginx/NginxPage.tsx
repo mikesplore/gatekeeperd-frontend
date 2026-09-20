@@ -111,8 +111,7 @@ export function NginxPage() {
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [previewConfig, setPreviewConfig] = useState<string | null>(null);
-  const selectedProjectData = projects?.find((p) => p.slug === selectedSlug);
-  const selectedDomain = selectedProjectData?.domain ?? "";
+  const selectedDomain = projects?.find((p) => p.slug === selectedSlug)?.domain ?? "";
 
   const { data: nginxStatus, isLoading: statusLoading, refetch: refetchStatus } = useNginxStatus(selectedSlug);
   const { data: nginxConfig, refetch: refetchConfig } = useNginxConfig(selectedSlug);
@@ -273,16 +272,6 @@ export function NginxPage() {
             <p className="mt-1 max-w-md text-sm text-muted-foreground">The selected project’s Nginx status, certificate, configuration, managed blocks, diagnostics, and rollback history will appear here.</p>
           </CardContent>
         </Card>
-      )}
-
-      {selectedSlug && (
-        <div className="flex items-center justify-between border-b pb-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected site</p>
-            <h2 className="text-lg font-semibold">{selectedProjectData?.name ?? selectedSlug}</h2>
-          </div>
-          <Badge variant="outline" className="font-mono text-xs">{selectedDomain || selectedSlug}</Badge>
-        </div>
       )}
 
       {selectedSlug && (
