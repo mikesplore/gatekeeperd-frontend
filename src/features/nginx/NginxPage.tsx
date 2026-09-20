@@ -16,6 +16,7 @@ import {
   useCertificateStatus,
   useNginxConfig,
   useNginxDiagnostics,
+  useNginxBlockUpdate,
 } from "@/hooks/useNginx";
 import { useProjects } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
@@ -114,6 +115,11 @@ export function NginxPage() {
   const { data: nginxStatus, isLoading: statusLoading, refetch: refetchStatus } = useNginxStatus(selectedSlug);
   const { data: nginxConfig, refetch: refetchConfig } = useNginxConfig(selectedSlug);
   const diagnostics = useNginxDiagnostics();
+  const previewBlock = useNginxBlockUpdate(selectedSlug, "preview");
+  const applyBlock = useNginxBlockUpdate(selectedSlug, "apply");
+  const [editingBlock, setEditingBlock] = useState<number | null>(null);
+  const [blockContent, setBlockContent] = useState("");
+  const [previewedConfig, setPreviewedConfig] = useState<string | null>(null);
   const { data: wizardContext, refetch: refetchWizardContext } = useNginxWizardContext(selectedSlug);
   const validateEnable = useValidateNginxEnable(selectedSlug);
   const enableNginx = useEnableNginx();
@@ -366,6 +372,30 @@ export function NginxPage() {
                       <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{diagnostics.data.output}</pre>
                     </div>
                   )}
+                  {nginxConfig?.blocks?.length ? (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">Managed blocks</p>
+                      {nginxConfig.blocks.map((block, index) => (
+                        <div key={`${block.header}-${index}`} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div><p className="text-sm font-medium">{block.type}</p><p className="font-mono text-xs text-muted-foreground">{block.header}</p></div>
+                            <Button size="sm" variant="outline" onClick={() => { setEditingBlock(index); setBlockContent(block.content); setPreviewedConfig(null); }}>Edit block</Button>
+                          </div>
+                          {editingBlock === index && (
+                            <div className="mt-3 space-y-2">
+                              <textarea value={blockContent} onChange={(event) => setBlockContent(event.target.value)} className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-xs" />
+                              <div className="flex flex-wrap gap-2">
+                                <Button size="sm" variant="outline" disabled={previewBlock.isPending} onClick={async () => setPreviewedConfig((await previewBlock.mutateAsync({ blockIndex: index, content: blockContent })).data.config)}>Preview change</Button>
+                                <Button size="sm" disabled={applyBlock.isPending} onClick={() => applyBlock.mutate({ blockIndex: index, content: blockContent })}>Apply block</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingBlock(null)}>Cancel</Button>
+                              </div>
+                              {previewedConfig && <pre className="max-h-48 overflow-auto rounded-md bg-muted p-3 text-xs">{previewedConfig}</pre>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
 

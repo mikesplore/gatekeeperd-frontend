@@ -32,6 +32,20 @@ export function useNginxDiagnostics() {
   });
 }
 
+export function useNginxBlockUpdate(slug: string, action: "preview" | "apply") {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ blockIndex, content }: { blockIndex: number; content: string }) =>
+      api.post<{ slug: string; blockIndex: number; config: string }>(
+        `/admin/nginx/config/${slug}/blocks/${blockIndex}/${action}`,
+        { blockIndex, content },
+      ),
+    onSuccess: () => {
+      if (action === "apply") qc.invalidateQueries({ queryKey: ["nginx", "config", slug] });
+    },
+  });
+}
+
 export function useNginxWizardContext(slug: string) {
   return useQuery({
     queryKey: ["nginx", "wizard", slug],
