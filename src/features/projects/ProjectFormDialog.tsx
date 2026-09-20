@@ -62,6 +62,8 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
     setValue,
     watch,
     getValues,
+    setError,
+    setFocus,
     formState: { errors },
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
@@ -143,10 +145,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
           toast.success("Project updated");
           onOpenChange(false);
         },
-        onError: (err) => {
-          const code = getApiErrorCode(err);
-          toast.error(code === "container_not_found" ? "The referenced Docker container doesn't exist. Create the container first, then register the project." : getApiErrorMessage(err));
-        },
+        onError: handleSubmitError,
       });
       return;
     }
@@ -157,20 +156,34 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         toast.success("Project created");
         onOpenChange(false);
       },
-      onError: (err) => {
-        const code = getApiErrorCode(err);
-        if (code === "container_not_found") {
-          toast.error("The referenced Docker container doesn't exist. Create the container first, then register the project.");
-        } else {
-          toast.error(getApiErrorMessage(err));
-        }
-      },
+      onError: handleSubmitError,
     });
   };
 
   const selectedContainer = wizardContext?.containers.find(
     (c) => c.name === containerName || c.name === containerName?.split(":")[0],
   );
+
+  function handleSubmitError(err: unknown) {
+    const code = getApiErrorCode(err)?.toLowerCase() ?? "";
+    const message = getApiErrorMessage(err);
+    const text = message.toLowerCase();
+    const field: keyof ProjectFormValues | null = code.includes("slug") || text.includes("slug") ? "slug"
+      : code.includes("domain") || text.includes("domain") ? "domain"
+        : code.includes("container") || text.includes("container") ? "containerName"
+          : code.includes("email") || text.includes("email") ? "clientEmail" : null;
+
+    if (field) {
+      setError(field, { type: "server", message });
+      setFocus(field);
+      toast.error(message);
+      return;
+    }
+
+    toast.error(code === "container_not_found"
+      ? "The referenced Docker container doesn't exist. Create the container first, then register the project."
+      : message);
+  }
 
   return (
     <SidePanel open={open} onOpenChange={onOpenChange}>
