@@ -7,13 +7,16 @@ import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { useGlobalAuditLog } from "@/hooks/useProjects";
 import { DataTable } from "@/components/common/DataTable";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import type { AuditLogEntry } from "@/types/audit";
 
 export function AuditPage() {
   const pageSize = 15;
   const [page, setPage] = useState(0);
   const [view, setView] = useState<"timeline" | "table">("timeline");
-  const audit = useGlobalAuditLog(pageSize, page * pageSize);
+  const [search, setSearch] = useState("");
+  const [action, setAction] = useState("");
+  const audit = useGlobalAuditLog(pageSize, page * pageSize, search, action);
   const actionLabel = (action: string) => action.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   return <div className="space-y-6">
     <div><p className="text-muted-foreground">A chronological record of administrative and operational changes.</p></div>
@@ -22,7 +25,7 @@ export function AuditPage() {
         <CardTitle className="text-sm">Activity history</CardTitle>
         <div className="flex items-center gap-1"><Button variant={view === "timeline" ? "secondary" : "ghost"} size="sm" onClick={() => setView("timeline")}><List className="mr-1 h-4 w-4" />Timeline</Button><Button variant={view === "table" ? "secondary" : "ghost"} size="sm" onClick={() => setView("table")}><Table2 className="mr-1 h-4 w-4" />Table</Button><Button variant="ghost" size="icon" onClick={() => audit.refetch()} aria-label="Refresh audit history"><RefreshCw className="h-4 w-4" /></Button></div>
       </CardHeader>
-      <CardContent><QueryState isLoading={audit.isLoading} isError={audit.isError} error={audit.error} data={audit.data}>
+      <CardContent><div className="mb-4 flex flex-col gap-2 sm:flex-row"><Input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search actor, action, or reason..." /><select value={action} onChange={(event) => { setAction(event.target.value); setPage(0); }} className="h-10 rounded-md border border-input bg-background px-3 text-sm"><option value="">All actions</option>{["blocked", "unblocked", "payment_received", "manual_override", "project_created", "project_updated"].map(value => <option key={value} value={value}>{actionLabel(value)}</option>)}</select></div><QueryState isLoading={audit.isLoading} isError={audit.isError} error={audit.error} data={audit.data}>
         {(result) => result.entries.length ? view === "timeline" ? <AuditLogTimeline entries={result.entries} /> : <><AuditTable entries={result.entries} actionLabel={actionLabel} /><div className="mt-4 flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{result.offset + 1}-{result.offset + result.entries.length} of {result.total}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page === 0 || audit.isFetching} onClick={() => setPage(value => value - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={!result.hasMore || audit.isFetching} onClick={() => setPage(value => value + 1)}>Next</Button></div></div></> : <p className="py-8 text-center text-sm text-muted-foreground">No activity recorded yet.</p>}
       </QueryState></CardContent>
     </Card>
