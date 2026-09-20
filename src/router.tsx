@@ -5,6 +5,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { ForgotPasswordPage, ResetPasswordPage } from "@/features/auth/PasswordResetPage";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { ContainersPage } from "@/features/containers/ContainersPage";
+import { ContainerDetailPage } from "@/features/containers/ContainerDetailPage";
 import { DashboardOverviewPage } from "@/features/dashboard/DashboardOverviewPage";
 import { NotFoundPage } from "@/features/NotFoundPage";
 import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           { path: "projects/:slug", element: <ProjectDetailPage /> },
           { path: "payments", element: <PaymentsPage /> },
           { path: "containers", element: <ContainersPage /> },
+          { path: "containers/:name", element: <ContainerDetailPage /> },
           { path: "nginx", element: <NginxPage /> },
           { path: "operations", element: <OperationsPage /> },
           { path: "audit", element: <AuditPage /> },

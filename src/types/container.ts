@@ -6,6 +6,8 @@ export interface ContainerInfo {
   state: string;
   ports: string;
   created: string;
+  networks?: string[];
+  volumes?: VolumeMount[];
 }
 
 export interface VolumeMount {

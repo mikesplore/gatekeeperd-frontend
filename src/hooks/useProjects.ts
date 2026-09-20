@@ -250,6 +250,14 @@ export function useContainers() {
   });
 }
 
+export function useContainer(name: string) {
+  return useQuery({
+    queryKey: ["container", name],
+    queryFn: async () => (await api.get<ContainerInfo>(`/admin/containers/${encodeURIComponent(name)}`)).data,
+    enabled: Boolean(name),
+  });
+}
+
 export function useContainerAction(action: "start" | "stop" | "restart") {
   const qc = useQueryClient();
   return useMutation({

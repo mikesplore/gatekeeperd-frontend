@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -35,7 +36,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
         <DataTable data={containers} getRowKey={(container) => container.id}
           filters={[{ label: "State", options: [...new Set(containers.map((container) => container.state))].map((value) => ({ label: value, value })), getValue: (container) => container.state }]}
           columns={[
-            { key: "name", header: "Name", searchable: true, searchValue: (container) => container.name, render: (container) => <span className="font-medium">{container.name}</span> },
+            { key: "name", header: "Name", searchable: true, searchValue: (container) => container.name, render: (container) => <Link className="font-medium text-primary hover:underline" to={`/app/containers/${encodeURIComponent(container.name)}`}>{container.name}</Link> },
             { key: "image", header: "Image", searchable: true, searchValue: (container) => container.image, render: (container) => <span className="max-w-[200px] truncate text-muted-foreground">{container.image}</span> },
             { key: "status", header: "Status", render: (container) => container.status },
             { key: "state", header: "State", render: (container) => <ContainerStateBadge state={container.state} /> },
@@ -51,7 +52,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
           <div key={c.id} className="rounded-lg border bg-card px-4 py-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="font-medium truncate text-sm">{c.name}</p>
+                <Link className="font-medium truncate text-sm text-primary hover:underline" to={`/app/containers/${encodeURIComponent(c.name)}`}>{c.name}</Link>
                 <p className="text-xs text-muted-foreground truncate">{c.status}</p>
               </div>
               <ContainerStateBadge state={c.state} />
