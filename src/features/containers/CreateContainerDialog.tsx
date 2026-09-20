@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  SidePanel,
+  SidePanelContent,
+  SidePanelDescription,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "@/components/ui/side-panel";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -329,21 +329,22 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
   };
 
   return (
-    <Dialog
+    <SidePanel
       open={open}
       onOpenChange={(o) => {
         if (!o) resetForm();
         onOpenChange(o);
       }}
     >
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Container — Wizard</DialogTitle>
-          <DialogDescription>
+      <SidePanelContent className="sm:max-w-2xl">
+        <SidePanelHeader className="border-b px-6 py-4 text-left">
+          <SidePanelTitle>Create Container — Wizard</SidePanelTitle>
+          <SidePanelDescription>
             Configure and create a Docker container, step by step.
-          </DialogDescription>
-        </DialogHeader>
+          </SidePanelDescription>
+        </SidePanelHeader>
 
+        <div className="space-y-6 px-6 py-5">
         <StepIndicator current={wizardStep} />
         <Separator />
 
@@ -726,7 +727,9 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
           )}
         </div>
 
-        <DialogFooter>
+        </div>
+
+        <SidePanelFooter className="sticky bottom-0 border-t bg-background px-6 py-4">
           {wizardStep > 0 ? (
             <Button type="button" variant="outline" onClick={() => setWizardStep((wizardStep - 1) as WizardStep)}>
               Back
@@ -745,8 +748,8 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
               {createContainer.isPending ? "Creating..." : "Confirm & Create"}
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SidePanelFooter>
+      </SidePanelContent>
+    </SidePanel>
   );
 }
