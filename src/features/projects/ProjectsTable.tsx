@@ -36,7 +36,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
             { key: "name", header: "Name", searchable: true, render: (project) => <Link to={`/app/projects/${project.slug}`} className="font-medium hover:underline">{project.name}</Link> },
             { key: "domain", header: "Domain", searchable: true, render: (project) => <span className="text-muted-foreground">{project.domain}</span> },
             { key: "type", header: "Type", render: (project) => <Badge variant="secondary">{project.type}</Badge> },
-            { key: "status", header: "Status", render: (project) => <><ProjectStatusBadge status={project.status} /><div className="mt-1 flex flex-wrap gap-1"><Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge><Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge></div></> },
+            { key: "status", header: "Status", render: (project) => <><ProjectStatusBadge status={project.status} /><div className="mt-1 flex flex-wrap gap-1">{project.lifecycleStatus !== project.status && <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>}<Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge></div></> },
             { key: "client", header: "Client", searchable: true, render: (project) => project.clientName ?? "—" },
             { key: "due", header: "Due date", render: (project) => project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "—" },
             { key: "amount", header: "Amount", render: (project) => project.amountDue != null ? `${project.currency} ${project.amountDue.toLocaleString()}` : "—" },
@@ -73,7 +73,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
                 <div className="mt-0.5">
                   <ProjectStatusBadge status={project.status} />
                   <div className="mt-1 flex flex-wrap gap-1">
-                    <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>
+                    {project.lifecycleStatus !== project.status && <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge>}
                     <Badge variant="secondary" className="text-[10px]">{project.serviceMode}</Badge>
                   </div>
                 </div>
