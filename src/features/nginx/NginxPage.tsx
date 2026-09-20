@@ -241,10 +241,6 @@ export function NginxPage() {
       <section className="rounded-2xl border bg-card px-6 py-7 shadow-sm sm:px-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              <Server className="h-4 w-4" /> Infrastructure
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Nginx sites</h1>
             <p className="text-sm leading-6 text-muted-foreground">
               Inspect, validate, and safely operate project server blocks without leaving Gatekeeperd.
             </p>
