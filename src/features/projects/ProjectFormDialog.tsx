@@ -185,7 +185,12 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         </SidePanelHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-6 py-6">
           {/* Container selection — container-first flow */}
-          <div className="space-y-2">
+          <div className="space-y-4">
+            <div className="border-b pb-2">
+              <h3 className="text-sm font-semibold">Container setup</h3>
+              <p className="text-xs text-muted-foreground">Bind this project to an existing Docker container.</p>
+            </div>
+            <div className="space-y-2">
             <Label htmlFor="containerName">Container *</Label>
             {isEdit ? (
               <Input id="containerName" {...register("containerName")} />
@@ -232,9 +237,15 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
             {errors.containerName && (
               <p className="text-sm text-destructive">{errors.containerName.message}</p>
             )}
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-4">
+            <div className="border-b pb-2">
+              <h3 className="text-sm font-semibold">1. Project details</h3>
+              <p className="text-xs text-muted-foreground">Identify the application and how it is served.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="slug">Slug</Label>
               <Input id="slug" disabled={isEdit} {...register("slug")} />
@@ -262,6 +273,15 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
                 </SelectContent>
               </Select>
             </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="border-b pb-2">
+              <h3 className="text-sm font-semibold">2. Client & billing</h3>
+              <p className="text-xs text-muted-foreground">Optional client contact and payment policy details.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="gracePeriodDays">Grace period (days)</Label>
               <Input id="gracePeriodDays" type="number" {...register("gracePeriodDays")} />
@@ -285,8 +305,9 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               <Label htmlFor="dueDate">Due date</Label>
               <Input id="dueDate" type="date" {...register("dueDate")} />
             </div>
+            </div>
           </div>
-          <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4">
+          <SidePanelFooter className="sticky bottom-0 -mx-6 -mb-6 mt-2 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
