@@ -238,14 +238,14 @@ export function NginxPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border bg-card px-6 py-7 shadow-sm sm:px-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl space-y-2">
-            <p className="text-sm leading-6 text-muted-foreground">
+      <section className="rounded-xl border bg-card px-5 py-4 shadow-sm sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-sm leading-5 text-muted-foreground">
               Inspect, validate, and safely operate project server blocks without leaving Gatekeeperd.
             </p>
           </div>
-          <div className="w-full lg:max-w-sm">
+          <div className="w-full lg:max-w-xs">
             <Label htmlFor="nginx-project" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project workspace</Label>
             {projectsLoading ? <Skeleton className="mt-2 h-10 w-full" /> : (
               <select
