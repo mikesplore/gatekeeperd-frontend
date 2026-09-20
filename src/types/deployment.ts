@@ -40,5 +40,7 @@ export interface CreateDeploymentPayload {
   network?: string;
   restartPolicy?: string;
   projectSlug?: string;
+  env?: Record<string, string>;
+  volumes?: { hostPath: string; containerPath: string; readOnly?: boolean }[];
+  createNetworkIfMissing?: boolean;
 }
-
