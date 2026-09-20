@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { LandingPage } from "@/features/landing/LandingPage";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { ForgotPasswordPage, ResetPasswordPage } from "@/features/auth/PasswordResetPage";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { ContainersPage } from "@/features/containers/ContainersPage";
 import { DashboardOverviewPage } from "@/features/dashboard/DashboardOverviewPage";
@@ -21,6 +22,8 @@ export const router = createBrowserRouter([
     path: "login",
     element: <LoginPage />,
   },
+  { path: "forgot-password", element: <ForgotPasswordPage /> },
+  { path: "reset-password", element: <ResetPasswordPage /> },
   {
     path: "app",
     element: <ProtectedRoute />,

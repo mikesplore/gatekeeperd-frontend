@@ -99,6 +99,7 @@ export function LoginPage() {
               <Button type="submit" className="w-full" disabled={login.isPending}>
                 {login.isPending ? "Signing in..." : "Sign in"}
               </Button>
+              <Link to="/forgot-password" className="block text-center text-sm text-muted-foreground hover:text-foreground">Forgot password?</Link>
             </form>
             <p className="mt-6 text-center text-xs text-muted-foreground">
               <Link to="/" className="hover:text-foreground transition-colors">
