@@ -5,13 +5,13 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  SidePanel,
+  SidePanelContent,
+  SidePanelDescription,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "@/components/ui/side-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -173,17 +173,17 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit project" : "New project"}</DialogTitle>
-          <DialogDescription>
+    <SidePanel open={open} onOpenChange={onOpenChange}>
+      <SidePanelContent>
+        <SidePanelHeader className="border-b px-6 py-5 pr-14">
+          <SidePanelTitle>{isEdit ? "Edit project" : "New project"}</SidePanelTitle>
+          <SidePanelDescription>
             {isEdit
               ? "Update project details."
               : "Register a new client project in Gatekeeper. The container must already exist."}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          </SidePanelDescription>
+        </SidePanelHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-6 py-6">
           {/* Container selection — container-first flow */}
           <div className="space-y-2">
             <Label htmlFor="containerName">Container *</Label>
@@ -286,16 +286,16 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               <Input id="dueDate" type="date" {...register("dueDate")} />
             </div>
           </div>
-          <DialogFooter>
+          <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Saving…" : isEdit ? "Save changes" : "Create project"}
             </Button>
-          </DialogFooter>
+          </SidePanelFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SidePanelContent>
+    </SidePanel>
   );
 }
