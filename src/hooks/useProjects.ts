@@ -232,11 +232,11 @@ export function useReconcilePayment() {
   });
 }
 
-export function useGlobalAuditLog(limit = 100) {
+export function useGlobalAuditLog(limit = 20, offset = 0) {
   return useQuery({
-    queryKey: ["audit", limit],
+    queryKey: ["audit", limit, offset],
     queryFn: async () =>
-      (await api.get<{ entries: AuditLogEntry[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/audit", { params: { limit } })).data,
+      (await api.get<{ entries: AuditLogEntry[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/audit", { params: { limit, offset } })).data,
     refetchInterval: 30_000,
   });
 }
