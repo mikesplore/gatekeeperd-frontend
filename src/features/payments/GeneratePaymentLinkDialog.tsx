@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useInitializePayment } from "@/hooks/useProjects";
+import { useInitializePayment, useInitiateMpesaPayment } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import type { Project } from "@/types/project";
 
@@ -25,7 +25,9 @@ interface GeneratePaymentLinkDialogProps {
 export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: GeneratePaymentLinkDialogProps) {
   const [email, setEmail] = useState(project.clientEmail ?? "");
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
   const initPayment = useInitializePayment(project.slug);
+  const mpesaPayment = useInitiateMpesaPayment();
 
   const handleGenerate = () => {
     initPayment.mutate(email || undefined, {
@@ -49,6 +51,11 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
     toast.success("Link copied to clipboard");
   };
 
+  const handleMpesa = () => mpesaPayment.mutate({ slug: project.slug, phone }, {
+    onSuccess: () => toast.success("M-Pesa prompt sent to the customer"),
+    onError: (err) => toast.error(getApiErrorMessage(err)),
+  });
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent>
@@ -69,6 +76,10 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
               placeholder={project.clientEmail ?? "client@example.com"}
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="mpesa-phone">M-Pesa phone number</Label>
+            <Input id="mpesa-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="2547XXXXXXXX" />
+          </div>
           {paymentLink && (
             <div className="space-y-2 rounded-md border bg-muted/40 p-3">
               <Label>Payment link</Label>
@@ -84,10 +95,13 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>Close</Button>
           {!paymentLink && (
+            <>
+            <Button variant="outline" disabled={mpesaPayment.isPending || !phone} onClick={handleMpesa}>{mpesaPayment.isPending ? "Sending…" : "Pay with M-Pesa"}</Button>
             <Button disabled={initPayment.isPending} onClick={handleGenerate}>
               <Link2 className="h-4 w-4" />
               {initPayment.isPending ? "Generating…" : "Generate link"}
             </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

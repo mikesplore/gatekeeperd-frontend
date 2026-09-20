@@ -172,6 +172,12 @@ export function ProjectDetailPage() {
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {project.amountDue != null && (
+                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                      <span className="text-muted-foreground">Remaining balance: </span>
+                      <span className="font-semibold">{project.currency} {Math.max(0, project.amountDue - payments.filter((payment) => payment.gatewayStatus === "success").reduce((sum, payment) => sum + payment.amount, 0)).toLocaleString()}</span>
+                    </div>
+                  )}
                   {reversalAlert && (
                     <Alert variant="destructive">
                       <AlertTitle>Payment reversed</AlertTitle>

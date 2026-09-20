@@ -164,6 +164,13 @@ export function useInitializePayment(slug: string) {
   });
 }
 
+export function useInitiateMpesaPayment() {
+  return useMutation({
+    mutationFn: ({ slug, phone }: { slug: string; phone: string }) =>
+      api.post<{ provider: string; reference: string; status: string }>(`/mpesa/pay?project=${encodeURIComponent(slug)}&phone=${encodeURIComponent(phone)}`),
+  });
+}
+
 export function useGlobalAuditLog(limit = 100) {
   return useQuery({
     queryKey: ["audit", limit],
