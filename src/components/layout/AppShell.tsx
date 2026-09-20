@@ -3,7 +3,7 @@ import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard,
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -103,7 +103,7 @@ export function AppShell() {
   const dark = useThemeStore((s) => s.dark);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const notifications = useNotifications(10);
-  const profile = useQuery({ queryKey: ["auth", "me"], queryFn: async () => (await api.get<{ displayName?: string }>("/auth/me")).data, staleTime: 60_000 });
+  const profile = useQuery({ queryKey: ["auth", "me"], queryFn: async () => (await api.get<{ displayName?: string; avatarUrl?: string }>("/auth/me")).data, staleTime: 60_000 });
   useNotificationStream();
   const notificationItems = notifications.data?.data ?? [];
   const notificationCount = notificationItems.length;
@@ -176,6 +176,7 @@ export function AppShell() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">
                   <Avatar className="h-7 w-7">
+                    {profile.data?.avatarUrl && <AvatarImage src={profile.data.avatarUrl} alt={`${profileName} profile`} />}
                     <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                   </Avatar>
                   <span className="hidden text-sm sm:inline">{profileName}</span>
