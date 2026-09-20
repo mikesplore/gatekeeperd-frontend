@@ -21,7 +21,7 @@ export function AuditPage() {
         <div className="flex items-center gap-1"><Button variant={view === "timeline" ? "secondary" : "ghost"} size="sm" onClick={() => setView("timeline")}><List className="mr-1 h-4 w-4" />Timeline</Button><Button variant={view === "table" ? "secondary" : "ghost"} size="sm" onClick={() => setView("table")}><Table2 className="mr-1 h-4 w-4" />Table</Button><Button variant="ghost" size="icon" onClick={() => audit.refetch()} aria-label="Refresh audit history"><RefreshCw className="h-4 w-4" /></Button></div>
       </CardHeader>
       <CardContent><QueryState isLoading={audit.isLoading} isError={audit.isError} error={audit.error} data={audit.data}>
-        {(entries) => entries.length ? view === "timeline" ? <AuditLogTimeline entries={entries} /> : <AuditTable entries={entries} actionLabel={actionLabel} /> : <p className="py-8 text-center text-sm text-muted-foreground">No activity recorded yet.</p>}
+        {(page) => page.entries.length ? view === "timeline" ? <AuditLogTimeline entries={page.entries} /> : <AuditTable entries={page.entries} actionLabel={actionLabel} /> : <p className="py-8 text-center text-sm text-muted-foreground">No activity recorded yet.</p>}
       </QueryState></CardContent>
     </Card>
   </div>;

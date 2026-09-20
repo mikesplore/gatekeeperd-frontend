@@ -236,7 +236,7 @@ export function useGlobalAuditLog(limit = 100) {
   return useQuery({
     queryKey: ["audit", limit],
     queryFn: async () =>
-      (await api.get<AuditLogEntry[]>("/admin/audit", { params: { limit } })).data,
+      (await api.get<{ entries: AuditLogEntry[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/audit", { params: { limit } })).data,
     refetchInterval: 30_000,
   });
 }

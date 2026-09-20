@@ -33,9 +33,9 @@ export function GlobalActivityFeed({ limit = 20 }: { limit?: number }) {
             </div>
           }
         >
-          {(entries) => (
+          {(page) => (
             <div className="max-h-[clamp(16rem,32vw,24rem)] overflow-y-auto pr-1">
-              <AuditLogTimeline entries={entries} />
+              <AuditLogTimeline entries={page.entries} />
             </div>
           )}
         </QueryState>
