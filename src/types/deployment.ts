@@ -18,6 +18,7 @@ export interface DeploymentJob {
   completedAt?: string | null;
   updatedAt: string;
   canRollback?: boolean;
+  triggerSource?: "manual" | "github_push" | string;
 }
 
 export interface DeploymentAuditEntry {
