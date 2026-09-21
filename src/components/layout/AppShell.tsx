@@ -56,7 +56,7 @@ const navGroups = [
   },
   {
     label: "Account",
-    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }],
+    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }, { to: "/app/settings/users", label: "Admin users", icon: Settings }],
   },
 ];
 

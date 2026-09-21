@@ -15,6 +15,7 @@ import { NginxPage } from "@/features/nginx/NginxPage";
 import { OperationsPage } from "@/features/operations/OperationsPage";
 import { DeploymentsPage } from "@/features/deployments/DeploymentsPage";
 import { ProfileSettingsPage } from "@/features/settings/ProfileSettingsPage";
+import { AdminUsersPage } from "@/features/settings/AdminUsersPage";
 import { DockerResourcesPage } from "@/features/infrastructure/DockerResourcesPage";
 import { NetworkDetailPage } from "@/features/infrastructure/NetworkDetailPage";
 import { VolumeDetailPage } from "@/features/infrastructure/VolumeDetailPage";
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
           { path: "notifications", element: <NotificationsPage /> },
           { path: "deployments", element: <DeploymentsPage /> },
           { path: "settings/profile", element: <ProfileSettingsPage /> },
+          { path: "settings/users", element: <AdminUsersPage /> },
           { path: "networks", element: <DockerResourcesPage kind="networks" /> },
           { path: "networks/:name", element: <NetworkDetailPage /> },
           { path: "volumes", element: <DockerResourcesPage kind="volumes" /> },
