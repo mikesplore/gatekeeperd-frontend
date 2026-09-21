@@ -20,6 +20,7 @@ import {
   useCreateContainer,
   useValidateCreateContainer,
 } from "@/hooks/useProjects";
+import { useVolumes } from "@/hooks/useDockerResources";
 import { getApiErrorMessage } from "@/lib/api";
 import type {
   ContainerValidateResponse,
@@ -122,6 +123,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
   const createContainer = useCreateContainer();
   const validateContainer = useValidateCreateContainer();
   const { data: wizardContext, isLoading: wizardContextLoading } = useContainerWizardContext();
+  const { data: dockerVolumes = [] } = useVolumes();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
@@ -419,7 +421,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                   <div className="space-y-2"><Label htmlFor="postgresDatabase">Database name</Label><Input id="postgresDatabase" value={postgresDatabase} onChange={(e) => setPostgresDatabase(e.target.value)} /></div>
                   <div className="space-y-2"><Label htmlFor="postgresUser">Database user</Label><Input id="postgresUser" value={postgresUser} onChange={(e) => setPostgresUser(e.target.value)} /></div>
                   <div className="space-y-2"><Label htmlFor="postgresPassword">Database password</Label><Input id="postgresPassword" type="password" value={postgresPassword} onChange={(e) => setPostgresPassword(e.target.value)} autoComplete="new-password" /></div>
-                  <div className="space-y-2"><Label htmlFor="postgresVolume">Named data volume</Label><Input id="postgresVolume" value={postgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} /><p className="text-xs text-muted-foreground">Mounted at /var/lib/postgresql/data.</p></div>
+                  <div className="space-y-2"><Label htmlFor="postgresVolume">Named data volume</Label><select id="postgresVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === postgresVolume) ? postgresVolume : "__new__"} onChange={(e) => { if (e.target.value !== "__new__") setPostgresVolume(e.target.value); }}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === postgresVolume) && <Input value={postgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} placeholder="postgres-data" />}</div>
                 </>}
                 <div className="space-y-2">
                   <Label htmlFor="image">Image *</Label>
