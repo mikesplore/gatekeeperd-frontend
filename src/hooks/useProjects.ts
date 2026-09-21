@@ -330,6 +330,15 @@ export function useCreateContainer() {
         },
         ...containers.filter((container) => container.name !== response.data.name),
       ]);
+      void (async () => {
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2_000));
+          const status = await api.get<{ id: string; name: string; status: string; error?: string }>(`/admin/containers/creation/${response.data.id}`).catch(() => null);
+          if (!status) continue;
+          qc.setQueryData<ContainerInfo[]>(["containers"], (containers = []) => containers.map((container) => container.id === `pending-${response.data.name}` ? { ...container, state: status.data.status, status: status.data.error || status.data.status } : container));
+          if (["succeeded", "failed"].includes(status.data.status)) break;
+        }
+      })();
     },
   });
 }
