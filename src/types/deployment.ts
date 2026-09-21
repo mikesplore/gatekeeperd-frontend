@@ -19,6 +19,20 @@ export interface DeploymentJob {
   updatedAt: string;
   canRollback?: boolean;
   triggerSource?: "manual" | "github_push" | string;
+  env?: Record<string, string>;
+  secretEnv?: Record<string, string>;
+  volumes?: { hostPath: string; containerPath: string; readOnly?: boolean }[];
+  network?: string;
+  restartPolicy?: string;
+  hostPort?: number | null;
+  containerPort?: number | null;
+}
+
+export interface UpdateDeploymentConfigurationPayload {
+  repository?: string; gitRef?: string; registry?: string; imageName?: string; imageTag?: string;
+  containerName?: string; hostPort?: number; containerPort?: number; network?: string; restartPolicy?: string;
+  env?: Record<string, string>; secretEnv?: Record<string, string>; volumes?: { hostPath: string; containerPath: string; readOnly?: boolean }[];
+  createNetworkIfMissing?: boolean;
 }
 
 export interface DeploymentAuditEntry {

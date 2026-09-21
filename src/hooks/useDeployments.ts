@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { CreateDeploymentPayload, DeploymentAuditEntry, DeploymentJob } from "@/types/deployment";
+import type { CreateDeploymentPayload, DeploymentAuditEntry, DeploymentJob, UpdateDeploymentConfigurationPayload } from "@/types/deployment";
 
 export interface GitHubStatus {
   configured: boolean;
@@ -86,5 +86,21 @@ export function useDeploymentAction(action: "cancel" | "retry" | "rollback") {
       qc.invalidateQueries({ queryKey: ["deployment", id] });
       qc.invalidateQueries({ queryKey: ["deployment", id, "audit"] });
     },
+  });
+}
+
+export function useUpdateDeploymentConfiguration() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateDeploymentConfigurationPayload }) => api.patch(`/admin/deployment-configurations/${id}`, payload),
+    onSuccess: (_data, variables) => { qc.invalidateQueries({ queryKey: ["deployments"] }); qc.invalidateQueries({ queryKey: ["deployment", variables.id] }); },
+  });
+}
+
+export function useRedeployConfiguration() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/admin/deployment-configurations/${id}/redeploy`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["deployments"] }),
   });
 }
