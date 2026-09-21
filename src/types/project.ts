@@ -26,6 +26,11 @@ export interface Project {
   gracePeriodDays: number;
   createdAt: string;
   updatedAt: string;
+  githubRepository?: string | null;
+  githubRef?: string;
+  deployImageName?: string | null;
+  deployImageTag?: string;
+  autoDeploy?: boolean;
 }
 
 export interface ProjectDetailResponse {

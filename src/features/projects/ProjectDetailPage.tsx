@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { Link2, Pencil, Trash2 } from "lucide-react";
@@ -42,9 +42,12 @@ export function ProjectDetailPage() {
   const [invoiceDownloading, setInvoiceDownloading] = useState(false);
   const [deploymentMode, setDeploymentMode] = useState("client_hosted");
   const [serviceMode, setServiceMode] = useState("production");
+  const [deploymentSource, setDeploymentSource] = useState({ repository: "", gitRef: "main", imageName: "", imageTag: "latest", autoDeploy: false });
+  const [savingDeploymentSource, setSavingDeploymentSource] = useState(false);
   const transferProject = useTransferProject(slug);
   const addAdjustment = useAddProjectAdjustment(slug);
   const resyncInvoice = useResyncProjectInvoice(slug);
+  useEffect(() => { if (data?.project) setDeploymentSource({ repository: data.project.githubRepository ?? "", gitRef: data.project.githubRef ?? "main", imageName: data.project.deployImageName ?? "", imageTag: data.project.deployImageTag ?? "latest", autoDeploy: data.project.autoDeploy ?? false }); }, [data?.project]);
 
   const defaultTab = searchParams.get("tab") === "payments" ? "payments" : "overview";
 
@@ -139,6 +142,7 @@ export function ProjectDetailPage() {
                   <StateCard label="Lifecycle" value={formatStatus(project.lifecycleStatus)} />
                 </CardContent>
               </Card>
+              <Card className="mb-4"><CardHeader><CardTitle>Deployment source</CardTitle><p className="text-sm text-muted-foreground">Configure automatic redeployments for GitHub pushes.</p></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1"><Label>Repository</Label><Input placeholder="owner/repository" value={deploymentSource.repository} onChange={e => setDeploymentSource({...deploymentSource, repository: e.target.value})} /></div><div className="space-y-1"><Label>Branch or ref</Label><Input value={deploymentSource.gitRef} onChange={e => setDeploymentSource({...deploymentSource, gitRef: e.target.value})} /></div><div className="space-y-1"><Label>Image name</Label><Input placeholder="scribed" value={deploymentSource.imageName} onChange={e => setDeploymentSource({...deploymentSource, imageName: e.target.value})} /></div><div className="space-y-1"><Label>Image tag</Label><Input value={deploymentSource.imageTag} onChange={e => setDeploymentSource({...deploymentSource, imageTag: e.target.value})} /></div><label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" checked={deploymentSource.autoDeploy} onChange={e => setDeploymentSource({...deploymentSource, autoDeploy: e.target.checked})} />Redeploy automatically on GitHub pushes</label></div><div className="mt-4 flex justify-end"><Button disabled={savingDeploymentSource} onClick={async () => { setSavingDeploymentSource(true); try { await api.patch(`/admin/projects/${encodeURIComponent(slug)}/deployment-source`, deploymentSource); toast.success("Deployment source saved"); } catch (error) { toast.error(getApiErrorMessage(error)); } finally { setSavingDeploymentSource(false); } }}>{savingDeploymentSource ? "Saving…" : "Save deployment source"}</Button></div></CardContent></Card>
               <Card className="mb-4">
                 <CardHeader><CardTitle>Runtime health</CardTitle></CardHeader>
                 <CardContent>
