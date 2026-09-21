@@ -350,7 +350,9 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
       setCheckingWizard(true);
       const payload = buildPayload();
       await createContainer.mutateAsync(payload);
-      toast.success(`Container ${name || projectSlug} created`);
+      toast.success(`Container ${name || projectSlug} queued`, {
+        description: "Image pulling and startup are continuing in the background.",
+      });
       resetForm();
       onOpenChange(false);
     } catch (err) {

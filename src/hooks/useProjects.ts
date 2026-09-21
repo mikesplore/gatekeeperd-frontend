@@ -276,7 +276,7 @@ export function useContainers() {
   return useQuery({
     queryKey: ["containers"],
     queryFn: async () => (await api.get<{ containers: ContainerInfo[]; total: number; limit: number; offset: number }>("/admin/containers")).data.containers,
-    refetchInterval: 15_000,
+    refetchInterval: 3_000,
     retry: (failureCount, err) =>
       axios.isAxiosError(err) && err.response?.status === 503 ? false : failureCount < 3,
   });
