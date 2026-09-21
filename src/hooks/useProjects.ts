@@ -314,9 +314,22 @@ export function useCreateContainer() {
   return useMutation({
     mutationFn: (payload: CreateContainerPayload) =>
       api.post<CreateContainerResponse>("/admin/containers/create", payload),
-    onSuccess: async () => {
+    onSuccess: async (response, payload) => {
       await qc.invalidateQueries({ queryKey: ["containers"] });
       await qc.refetchQueries({ queryKey: ["containers"], type: "active" });
+      qc.setQueryData<ContainerInfo[]>(["containers"], (containers = []) => [
+        {
+          id: `pending-${response.data.name}`,
+          name: response.data.name || payload.name || payload.projectSlug || "container",
+          image: payload.image,
+          status: "provisioning",
+          state: "provisioning",
+          ports: "",
+          created: new Date().toISOString(),
+          networks: payload.network ? [payload.network] : [],
+        },
+        ...containers.filter((container) => container.name !== response.data.name),
+      ]);
     },
   });
 }
