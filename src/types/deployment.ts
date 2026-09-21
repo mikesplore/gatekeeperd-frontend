@@ -17,6 +17,7 @@ export interface DeploymentJob {
   startedAt?: string | null;
   completedAt?: string | null;
   updatedAt: string;
+  canRollback?: boolean;
 }
 
 export interface DeploymentAuditEntry {
