@@ -132,6 +132,15 @@ export function NginxPage() {
 
   const { data: certStatus, refetch: refetchCertStatus } = useCertificateStatus(selectedDomain);
 
+  const detectedContainerName = wizardContext?.containerName ?? wizardContext?.configuredContainerName;
+  const containerDetectionStatus = wizardContext
+    ? wizardContext.dockerContainerHealth === "running" || wizardContext.dockerContainerHealth === "exited"
+      ? wizardContext.dockerContainerHealth
+      : detectedContainerName
+        ? "detected"
+        : "not detected"
+    : null;
+
   const {
     register: registerEnable,
     handleSubmit: handleSubmitEnable,
@@ -510,21 +519,23 @@ export function NginxPage() {
                   {wizardContext ? (
                     <div className="grid gap-4 sm:grid-cols-2">
                       <InfoRow label="Domain" value={wizardContext.domain} />
-                      <InfoRow label="Container" value={wizardContext.containerName ?? wizardContext.configuredContainerName ?? ""} mono />
+                      <InfoRow label="Container" value={detectedContainerName ?? "Not detected"} mono />
                       <InfoRow label="Detected Port" value={wizardContext.configuredPort ? String(wizardContext.configuredPort) : ""} />
                       <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Docker Container</p>
                         <Badge
                           variant="outline"
                           className={
-                            wizardContext.dockerContainerHealth === "running"
+                            containerDetectionStatus === "running"
                               ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20"
-                              : wizardContext.dockerContainerHealth === "exited"
+                              : containerDetectionStatus === "exited"
                                 ? "bg-red-500/15 text-red-600 border-red-500/20"
-                                : "bg-muted text-muted-foreground"
+                                : containerDetectionStatus === "detected"
+                                  ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20"
+                                  : "bg-muted text-muted-foreground"
                           }
                         >
-                          {wizardContext.dockerContainerHealth || "unknown"}
+                          {containerDetectionStatus || "unknown"}
                         </Badge>
                       </div>
                       {wizardContext.dockerPublishedHostPorts.length > 0 && (
