@@ -64,6 +64,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   const customers = useDashboardCustomers();
   const pending = create.isPending || update.isPending;
   const [billingSameAsClient, setBillingSameAsClient] = useState(false);
+  const [identitySameAsCustomer, setIdentitySameAsCustomer] = useState(false);
 
   const {
     register,
@@ -86,6 +87,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   const type = watch("type");
   const containerName = watch("containerName");
   const customerId = watch("customerId");
+  const selectedCustomer = customers.data?.find(customer => customer.id === customerId);
 
   useEffect(() => {
     if (open && project) {
@@ -143,16 +145,19 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   };
 
   const onSubmit = (values: ProjectFormValues) => {
+    const customerIdentity = customerId === "__new__"
+      ? { name: values.newCustomerName?.trim() || undefined, email: values.newCustomerEmail || undefined }
+      : { name: selectedCustomer?.name, email: selectedCustomer?.contactEmail ?? undefined };
     const normalized = {
       name: values.name,
       domain: values.domain,
       containerName: values.containerName,
       type: values.type,
-      clientName: values.clientName || undefined,
-      clientEmail: values.clientEmail || undefined,
-      billingName: values.billingName || undefined,
-      billingEmail: values.billingEmail || undefined,
-      billingAddress: values.billingAddress || undefined,
+      clientName: identitySameAsCustomer ? customerIdentity.name : values.clientName || undefined,
+      clientEmail: identitySameAsCustomer ? customerIdentity.email : values.clientEmail || undefined,
+      billingName: identitySameAsCustomer ? customerIdentity.name : values.billingName || undefined,
+      billingEmail: identitySameAsCustomer ? customerIdentity.email : values.billingEmail || undefined,
+      billingAddress: identitySameAsCustomer ? undefined : values.billingAddress || undefined,
       amountDue: values.amountDue,
       dueDate: values.dueDate || undefined,
       gracePeriodDays: values.gracePeriodDays,
@@ -342,7 +347,9 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               <h3 className="text-sm font-semibold">2. Client & billing</h3>
               <p className="text-xs text-muted-foreground">Optional client contact and payment policy details.</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            {!isEdit && <div className="flex items-center gap-2"><input id="identity-same" type="checkbox" checked={identitySameAsCustomer} disabled={!customerId || customerId === "__empty" || customerId === "__loading"} onChange={(event) => setIdentitySameAsCustomer(event.target.checked)} /><Label htmlFor="identity-same">Client and billing information same as customer</Label></div>}
+            {identitySameAsCustomer && <p className="text-xs text-muted-foreground">Client and billing fields are taken from the selected customer.</p>}
+            {!identitySameAsCustomer && <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="gracePeriodDays">Grace period (days)</Label>
               <Input id="gracePeriodDays" type="number" {...register("gracePeriodDays")} />
@@ -359,9 +366,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               )}
             </div>
             <div className="flex items-center gap-2 sm:col-span-2"><input id="billing-same" type="checkbox" checked={billingSameAsClient} onChange={(event) => { const checked = event.target.checked; setBillingSameAsClient(checked); if (checked) { setValue("billingName", getValues("clientName") || ""); setValue("billingEmail", getValues("clientEmail") || ""); } }} /><Label htmlFor="billing-same">Billing information same as client information</Label></div>
-            <div className="space-y-2"><Label htmlFor="billingName">Billing name</Label><Input id="billingName" disabled={billingSameAsClient} {...register("billingName")} /></div>
-            <div className="space-y-2"><Label htmlFor="billingEmail">Billing email</Label><Input id="billingEmail" type="email" disabled={billingSameAsClient} {...register("billingEmail")} /></div>
-            <div className="space-y-2 sm:col-span-2"><Label htmlFor="billingAddress">Billing address</Label><Input id="billingAddress" disabled={billingSameAsClient} {...register("billingAddress")} /></div>
+            {!billingSameAsClient && <><div className="space-y-2"><Label htmlFor="billingName">Billing name</Label><Input id="billingName" {...register("billingName")} /></div><div className="space-y-2"><Label htmlFor="billingEmail">Billing email</Label><Input id="billingEmail" type="email" {...register("billingEmail")} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="billingAddress">Billing address</Label><Input id="billingAddress" {...register("billingAddress")} /></div></>}
             <div className="space-y-2">
               <Label htmlFor="amountDue">Amount due</Label>
               <Input id="amountDue" type="number" step="0.01" {...register("amountDue")} />
@@ -370,7 +375,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               <Label htmlFor="dueDate">Due date</Label>
               <Input id="dueDate" type="date" {...register("dueDate")} />
             </div>
-            </div>
+            </div>}
           </div>
           <SidePanelFooter className="sticky bottom-0 -mx-6 -mb-6 mt-2 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
