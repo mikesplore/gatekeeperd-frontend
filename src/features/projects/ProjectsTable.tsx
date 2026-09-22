@@ -40,7 +40,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
             { key: "access", header: "Access", render: (project) => <ProjectStatusBadge status={project.status} /> },
             { key: "lifecycle", header: "Lifecycle", render: (project) => <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge> },
             { key: "deployment", header: "Deployment", render: (project) => <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge> },
-            { key: "client", header: "Client", searchable: true, render: (project) => project.clientName ?? "Not set" },
+            { key: "customer", header: "Customer", searchable: true, render: (project) => project.customerName ?? "Not set" },
             { key: "due", header: "Due date", render: (project) => project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "Not set" },
             { key: "amount", header: "Remaining", render: (project) => project.remainingBalance != null ? `${project.currency} ${project.remainingBalance.toLocaleString()}` : project.amountDue != null ? `${project.currency} ${project.amountDue.toLocaleString()}` : "Not set" },
             { key: "actions", header: "", render: (project) => <ProjectActionsMenu project={project} onEdit={onEdit} onBlock={onBlock} onUnblock={onUnblock} onDelete={onDelete} /> },
@@ -96,7 +96,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Client</span>
-                <p className="truncate">{project.clientName ?? "Not set"}</p>
+                <p className="truncate">{project.customerName ?? "Not set"}</p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Due Date</span>

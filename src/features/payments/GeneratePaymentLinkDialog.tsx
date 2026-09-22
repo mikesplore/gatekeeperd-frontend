@@ -23,7 +23,7 @@ interface GeneratePaymentLinkDialogProps {
 }
 
 export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: GeneratePaymentLinkDialogProps) {
-  const [email, setEmail] = useState(project.clientEmail ?? "");
+  const [email, setEmail] = useState(project.customerEmail ?? "");
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const initPayment = useInitializePayment(project.slug);
@@ -41,7 +41,7 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
 
   const handleClose = () => {
     setPaymentLink(null);
-    setEmail(project.clientEmail ?? "");
+    setEmail(project.customerEmail ?? "");
     onOpenChange(false);
   };
 
@@ -73,7 +73,7 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={project.clientEmail ?? "client@example.com"}
+              placeholder={project.customerEmail ?? "customer@example.com"}
             />
           </div>
           <div className="space-y-2">

@@ -34,8 +34,6 @@ const projectSchema = z.object({
   domain: z.string().min(1, "Domain is required"),
   containerName: z.string().min(1, "Container name is required"),
   type: z.enum(["frontend", "backend"]),
-  clientName: z.string().optional(),
-  clientEmail: z.string().email().optional().or(z.literal("")),
   billingName: z.string().optional(),
   billingEmail: z.string().email().optional().or(z.literal("")),
   billingAddress: z.string().optional(),
@@ -63,8 +61,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   const { data: wizardContext, isLoading: wizardLoading } = useProjectWizardContext(open && !isEdit);
   const customers = useDashboardCustomers();
   const pending = create.isPending || update.isPending;
-  const [billingSameAsClient, setBillingSameAsClient] = useState(false);
-  const [identitySameAsCustomer, setIdentitySameAsCustomer] = useState(false);
+  const [billingSameAsCustomer, setBillingSameAsCustomer] = useState(false);
 
   const {
     register,
@@ -97,8 +94,6 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         domain: project.domain,
         containerName: project.containerName,
         type: project.type,
-        clientName: project.clientName ?? "",
-        clientEmail: project.clientEmail ?? "",
         amountDue: project.amountDue,
         dueDate: project.dueDate?.slice(0, 10) ?? "",
         gracePeriodDays: project.gracePeriodDays,
@@ -115,8 +110,6 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         domain: "",
         containerName: "",
         type: "frontend",
-        clientName: "",
-        clientEmail: "",
         amountDue: undefined,
         dueDate: "",
         gracePeriodDays: 3,
@@ -153,11 +146,9 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
       domain: values.domain,
       containerName: values.containerName,
       type: values.type,
-      clientName: identitySameAsCustomer ? customerIdentity.name : values.clientName || undefined,
-      clientEmail: identitySameAsCustomer ? customerIdentity.email : values.clientEmail || undefined,
-      billingName: identitySameAsCustomer ? customerIdentity.name : values.billingName || undefined,
-      billingEmail: identitySameAsCustomer ? customerIdentity.email : values.billingEmail || undefined,
-      billingAddress: identitySameAsCustomer ? undefined : values.billingAddress || undefined,
+      billingName: billingSameAsCustomer ? customerIdentity.name : values.billingName || undefined,
+      billingEmail: billingSameAsCustomer ? customerIdentity.email : values.billingEmail || undefined,
+      billingAddress: billingSameAsCustomer ? undefined : values.billingAddress || undefined,
       amountDue: values.amountDue,
       dueDate: values.dueDate || undefined,
       gracePeriodDays: values.gracePeriodDays,
@@ -201,7 +192,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
     const field: keyof ProjectFormValues | null = code.includes("slug") || text.includes("slug") ? "slug"
       : code.includes("domain") || text.includes("domain") ? "domain"
         : code.includes("container") || text.includes("container") ? "containerName"
-          : code.includes("email") || text.includes("email") ? "clientEmail" : null;
+          : code.includes("email") || text.includes("email") ? "newCustomerEmail" : null;
 
     if (field) {
       setError(field, { type: "server", message });
@@ -344,29 +335,17 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
 
           <div className="space-y-4">
             <div className="border-b pb-2">
-              <h3 className="text-sm font-semibold">2. Client & billing</h3>
-              <p className="text-xs text-muted-foreground">Optional client contact and payment policy details.</p>
+              <h3 className="text-sm font-semibold">2. Customer & billing</h3>
+              <p className="text-xs text-muted-foreground">Payment policy details for the selected customer.</p>
             </div>
-            {!isEdit && <div className="flex items-center gap-2"><input id="identity-same" type="checkbox" checked={identitySameAsCustomer} disabled={!customerId || customerId === "__empty" || customerId === "__loading"} onChange={(event) => setIdentitySameAsCustomer(event.target.checked)} /><Label htmlFor="identity-same">Client and billing information same as customer</Label></div>}
-            {identitySameAsCustomer && <p className="text-xs text-muted-foreground">Client and billing fields are taken from the selected customer.</p>}
-            {!identitySameAsCustomer && <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="gracePeriodDays">Grace period (days)</Label>
               <Input id="gracePeriodDays" type="number" {...register("gracePeriodDays")} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Client name</Label>
-              <Input id="clientName" {...register("clientName")} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientEmail">Client email</Label>
-              <Input id="clientEmail" type="email" {...register("clientEmail")} />
-              {errors.clientEmail && (
-                <p className="text-sm text-destructive">{errors.clientEmail.message}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 sm:col-span-2"><input id="billing-same" type="checkbox" checked={billingSameAsClient} onChange={(event) => { const checked = event.target.checked; setBillingSameAsClient(checked); if (checked) { setValue("billingName", getValues("clientName") || ""); setValue("billingEmail", getValues("clientEmail") || ""); } }} /><Label htmlFor="billing-same">Billing information same as client information</Label></div>
-            {!billingSameAsClient && <><div className="space-y-2"><Label htmlFor="billingName">Billing name</Label><Input id="billingName" {...register("billingName")} /></div><div className="space-y-2"><Label htmlFor="billingEmail">Billing email</Label><Input id="billingEmail" type="email" {...register("billingEmail")} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="billingAddress">Billing address</Label><Input id="billingAddress" {...register("billingAddress")} /></div></>}
+            <div className="flex items-center gap-2 sm:col-span-2"><input id="billing-same" type="checkbox" checked={billingSameAsCustomer} onChange={(event) => { const checked = event.target.checked; setBillingSameAsCustomer(checked); if (checked) { setValue("billingName", customerId === "__new__" ? getValues("newCustomerName") || "" : selectedCustomer?.name || ""); setValue("billingEmail", customerId === "__new__" ? getValues("newCustomerEmail") || "" : selectedCustomer?.contactEmail || ""); } }} /><Label htmlFor="billing-same">Billing information same as customer</Label></div>
+            {billingSameAsCustomer && <p className="text-xs text-muted-foreground">Billing fields are taken from the selected customer.</p>}
+            {!billingSameAsCustomer && <><div className="space-y-2"><Label htmlFor="billingName">Billing name</Label><Input id="billingName" {...register("billingName")} /></div><div className="space-y-2"><Label htmlFor="billingEmail">Billing email</Label><Input id="billingEmail" type="email" {...register("billingEmail")} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="billingAddress">Billing address</Label><Input id="billingAddress" {...register("billingAddress")} /></div></>}
             <div className="space-y-2">
               <Label htmlFor="amountDue">Amount due</Label>
               <Input id="amountDue" type="number" step="0.01" {...register("amountDue")} />
@@ -375,7 +354,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               <Label htmlFor="dueDate">Due date</Label>
               <Input id="dueDate" type="date" {...register("dueDate")} />
             </div>
-            </div>}
+            </div>
           </div>
           <SidePanelFooter className="sticky bottom-0 -mx-6 -mb-6 mt-2 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -164,8 +164,8 @@ export function ProjectDetailPage() {
                   <InfoRow label="Additional charges" value={`${project.currency} ${project.additionalCharges.toLocaleString()}`} />
                   <InfoRow label="Discounts" value={`${project.currency} ${project.discounts.toLocaleString()}`} />
                   <InfoRow label="Successful payments" value={`${project.currency} ${project.successfulPayments.toLocaleString()}`} />
-                  <InfoRow label="Client" value={project.clientName ?? "Not set"} />
-                  <InfoRow label="Client email" value={project.clientEmail ?? "Not set"} />
+                  <InfoRow label="Customer" value={project.customerName ?? "Not set"} />
+                  <InfoRow label="Customer email" value={project.customerEmail ?? "Not set"} />
                   <InfoRow
                     label="Remaining balance"
                     value={

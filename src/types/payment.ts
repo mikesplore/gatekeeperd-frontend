@@ -33,8 +33,8 @@ export interface PaymentRecord {
 export interface OverdueProject {
   slug: string;
   name: string;
-  clientName?: string;
-  clientEmail?: string;
+  customerName?: string;
+  customerEmail?: string;
   dueDate: string;
   daysOverdue: number;
   gracePeriodDays: number;

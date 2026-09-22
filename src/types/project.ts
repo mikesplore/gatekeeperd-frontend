@@ -13,8 +13,8 @@ export interface Project {
   deploymentMode: "developer_hosted" | "client_hosted" | "external_hosted";
   serviceMode: "development" | "testing" | "production";
   lifecycleStatus: "active" | "transferred" | "archived" | "cancelled";
-  clientName?: string;
-  clientEmail?: string;
+  customerName?: string;
+  customerEmail?: string;
   billingName?: string;
   billingEmail?: string;
   billingAddress?: string;
@@ -60,8 +60,6 @@ export interface CreateProjectPayload {
   domain: string;
   containerName: string;
   type: ProjectType;
-  clientName?: string;
-  clientEmail?: string;
   amountDue?: number;
   dueDate?: string;
   gracePeriodDays: number;
