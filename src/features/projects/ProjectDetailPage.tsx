@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
 import { useAddProjectAdjustment, useProjectDetail, useProjectHealth, useProjectInvoice, useResyncProjectInvoice, useTransferProject } from "@/hooks/useProjects";
+import { useProjectPayments } from "@/hooks/usePayments";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
 import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
@@ -40,6 +41,8 @@ export function ProjectDetailPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [invoiceDownloading, setInvoiceDownloading] = useState(false);
+  const [paymentPage, setPaymentPage] = useState(0);
+  const projectPayments = useProjectPayments(slug, 25, paymentPage * 25);
   const [deploymentMode, setDeploymentMode] = useState("client_hosted");
   const [serviceMode, setServiceMode] = useState("production");
   const [deploymentSource, setDeploymentSource] = useState({ repository: "", gitRef: "main", imageName: "", imageTag: "latest", autoDeploy: false });
@@ -85,7 +88,7 @@ export function ProjectDetailPage() {
         </div>
       }
     >
-      {({ project, payments, audit_log }) => (
+      {({ project, audit_log }) => (
         <div className="space-y-6">
           <Card>
             <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -227,7 +230,8 @@ export function ProjectDetailPage() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  <PaymentsHistoryTable payments={payments} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, `/admin/projects/${project.slug}/invoice/receipts/${payment.id}`]))} receiptNames={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, payment.receipt_number]))} />
+                  <PaymentsHistoryTable payments={(projectPayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, `/admin/projects/${project.slug}/invoice/receipts/${payment.id}`]))} receiptNames={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, payment.receipt_number]))} />
+                  <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{projectPayments.data ? `${projectPayments.data.offset + 1}-${projectPayments.data.offset + projectPayments.data.payments.length} of ${projectPayments.data.total}` : "Loading payments…"}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={paymentPage === 0 || projectPayments.isFetching} onClick={() => setPaymentPage(value => value - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={!projectPayments.data || projectPayments.data.offset + projectPayments.data.payments.length >= projectPayments.data.total || projectPayments.isFetching} onClick={() => setPaymentPage(value => value + 1)}>Next</Button></div></div>
                 </CardContent>
               </Card>
             </TabsContent>
