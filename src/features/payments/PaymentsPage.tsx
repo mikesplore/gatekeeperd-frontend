@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,11 +28,13 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export function PaymentsPage() {
-  const [status, setStatus] = useState<string>("all");
-  const [projectSlug, setProjectSlug] = useState<string>("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [offset, setOffset] = useState(0);
+  const [params, setParams] = useSearchParams();
+  const status = params.get("status") ?? "all";
+  const projectSlug = params.get("project") ?? "all";
+  const from = params.get("from") ?? "";
+  const to = params.get("to") ?? "";
+  const offset = Math.max(0, Number(params.get("offset") ?? 0) || 0);
+  const update = (key: string, value: string, resetOffset = true) => { const next = new URLSearchParams(params); value && value !== "all" ? next.set(key, value) : next.delete(key); if (resetOffset) next.delete("offset"); setParams(next); };
 
   const filters = useMemo(
     () => ({
@@ -67,8 +70,7 @@ export function PaymentsPage() {
               <Select
                 value={status}
                 onValueChange={(v) => {
-                  setStatus(v);
-                  setOffset(0);
+                  update("status", v);
                 }}
               >
                 <SelectTrigger className="w-full sm:w-[180px]">
@@ -89,8 +91,7 @@ export function PaymentsPage() {
               <Select
                 value={projectSlug}
                 onValueChange={(v) => {
-                  setProjectSlug(v);
-                  setOffset(0);
+                  update("project", v);
                 }}
               >
                 <SelectTrigger className="w-full sm:w-[220px]">
@@ -113,8 +114,7 @@ export function PaymentsPage() {
                 type="date"
                 value={from}
                 onChange={(e) => {
-                  setFrom(e.target.value);
-                  setOffset(0);
+                  update("from", e.target.value);
                 }}
                 className="w-full sm:w-[160px]"
                 aria-label="From date"
@@ -127,8 +127,7 @@ export function PaymentsPage() {
                 type="date"
                 value={to}
                 onChange={(e) => {
-                  setTo(e.target.value);
-                  setOffset(0);
+                  update("to", e.target.value);
                 }}
                 className="w-full sm:w-[160px]"
                 aria-label="To date"
@@ -153,7 +152,7 @@ export function PaymentsPage() {
                       variant="outline"
                       size="sm"
                       disabled={offset === 0}
-                      onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
+                      onClick={() => update("offset", String(Math.max(0, offset - PAGE_SIZE)), false)}
                     >
                       Prev
                     </Button>
@@ -161,7 +160,7 @@ export function PaymentsPage() {
                       variant="outline"
                       size="sm"
                       disabled={offset + PAGE_SIZE >= total}
-                      onClick={() => setOffset((o) => o + PAGE_SIZE)}
+                      onClick={() => update("offset", String(offset + PAGE_SIZE), false)}
                     >
                       Next
                     </Button>

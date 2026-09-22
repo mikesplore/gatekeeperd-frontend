@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUrlTableState } from "@/hooks/useUrlTableState";
 import { AlertCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +8,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
 import { ContainersTable } from "@/features/containers/ContainersTable";
 import { CreateContainerDialog } from "@/features/containers/CreateContainerDialog";
-import { useContainers } from "@/hooks/useProjects";
+import { useContainersPage } from "@/hooks/useProjects";
 import { getApiErrorMessage, isDockerUnavailable } from "@/lib/api";
 
 export function ContainersPage() {
-  const { data, isLoading, isError, error } = useContainers();
+  const { page, pageSize, offset, setTableParam } = useUrlTableState(25);
+  const { data, isLoading, isError, error } = useContainersPage(pageSize, offset);
   const [createOpen, setCreateOpen] = useState(false);
 
   if (isError && isDockerUnavailable(error)) {
@@ -44,7 +46,7 @@ export function ContainersPage() {
             isLoading={isLoading}
             isError={isError}
             error={error}
-            data={data}
+            data={data?.containers}
             loadingFallback={
               <div className="space-y-2">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -63,7 +65,7 @@ export function ContainersPage() {
                   </Button>
                 </div>
               ) : (
-                <ContainersTable containers={containers} />
+                <><ContainersTable containers={containers} /><div className="mt-4 flex items-center justify-between text-xs text-muted-foreground"><span>{data?.total ?? 0} result{data?.total === 1 ? "" : "s"}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 0 || isLoading} onClick={() => setTableParam("page", page - 1)}>Previous</Button><span>{page + 1} / {Math.max(1, Math.ceil((data?.total ?? 0) / pageSize))}</span><Button variant="outline" size="sm" disabled={!data?.hasMore && offset + containers.length >= (data?.total ?? 0)} onClick={() => setTableParam("page", page + 1)}>Next</Button></div></div></>
               )
             }
           </QueryState>

@@ -275,9 +275,15 @@ export function useGlobalAuditLog(limit = 20, offset = 0, query = "", action = "
 }
 
 export function useContainers() {
+  return useContainersPage(100, 0);
+}
+
+export type PaginatedContainersResponse = { containers: ContainerInfo[]; total: number; limit: number; offset: number; hasMore?: boolean };
+
+export function useContainersPage(limit = 25, offset = 0) {
   return useQuery({
-    queryKey: ["containers"],
-    queryFn: async () => (await api.get<{ containers: ContainerInfo[]; total: number; limit: number; offset: number }>("/admin/containers")).data.containers,
+    queryKey: ["containers", limit, offset],
+    queryFn: async () => (await api.get<PaginatedContainersResponse>("/admin/containers", { params: { limit, offset } })).data,
     refetchInterval: 3_000,
     retry: (failureCount, err) =>
       axios.isAxiosError(err) && err.response?.status === 503 ? false : failureCount < 3,
