@@ -3,8 +3,9 @@ import { api } from "@/lib/api";
 import type { DashboardCustomer, DashboardCustomerTransaction, DashboardSite, SiteDetail, SiteStatus } from "@/types/sites";
 import type { DashboardSummary } from "@/types/dashboard";
 
-export function useDashboardSites(status?: SiteStatus | "all") {
-  return useQuery({ queryKey: ["dashboard", "sites", status], queryFn: async () => (await api.get<DashboardSite[]>("/admin/dashboard/sites", { params: status && status !== "all" ? { status } : undefined })).data });
+export type PaginatedDashboardSites = { sites: DashboardSite[]; total: number; limit: number; offset: number; hasMore: boolean };
+export function useDashboardSites(status?: SiteStatus | "all", limit = 25, offset = 0) {
+  return useQuery({ queryKey: ["dashboard", "sites", status, limit, offset], queryFn: async () => (await api.get<PaginatedDashboardSites>("/admin/dashboard/sites", { params: { status: status && status !== "all" ? status : undefined, limit, offset } })).data });
 }
 export function useDashboardSite(slug: string) { return useQuery({ queryKey: ["dashboard", "site", slug], queryFn: async () => (await api.get<SiteDetail>(`/admin/dashboard/sites/${encodeURIComponent(slug)}`)).data, enabled: !!slug }); }
 export interface DashboardSiteUpdate { domain?: string; upstreamHost?: string; upstreamMode?: string; upstreamContainerName?: string; upstreamExplicitPort?: number; tlsMode?: string; certMode?: string; certExplicitPath?: string; gateEnabled?: boolean; bypassPaths?: string[]; }
