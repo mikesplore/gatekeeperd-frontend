@@ -22,6 +22,8 @@ import { VolumeDetailPage } from "@/features/infrastructure/VolumeDetailPage";
 import { AuditPage } from "@/features/audit/AuditPage";
 import { NotificationsPage } from "@/features/notifications/NotificationsPage";
 import { SitesDashboardPage } from "@/features/dashboard/SitesDashboardPage";
+import { SiteDetailPage } from "@/features/dashboard/SiteDetailPage";
+import { CustomerDetailPage, CustomersPage } from "@/features/dashboard/CustomersPage";
 
 export const router = createBrowserRouter([
   {
@@ -49,6 +51,9 @@ export const router = createBrowserRouter([
           { path: "containers/:name", element: <ContainerDetailPage /> },
           { path: "nginx", element: <NginxPage /> },
           { path: "nginx/sites", element: <SitesDashboardPage /> },
+          { path: "nginx/sites/:slug", element: <SiteDetailPage /> },
+          { path: "customers", element: <CustomersPage /> },
+          { path: "customers/:id", element: <CustomerDetailPage /> },
           { path: "operations", element: <OperationsPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "notifications", element: <NotificationsPage /> },
