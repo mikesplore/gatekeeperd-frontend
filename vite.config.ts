@@ -9,7 +9,7 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   cacheDir: "/tmp/gatekeeperd-frontend-vite",
   build: {
-    outDir: "/tmp/gatekeeperd-frontend-dist",
+    outDir: "dist",
   },
   plugins: [react(), tailwindcss()],
   resolve: {
