@@ -30,5 +30,6 @@ export function AppBreadcrumb() {
   }
 
   if (location.pathname === "/app") return <h1 className="text-sm font-semibold sm:text-base">Dashboard</h1>;
-  return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to={section?.to ?? "/app"} className="transition-colors hover:text-primary">{section?.label ?? "Dashboard"}</Link>{detailLabel && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{detailLabel}</span></>}</h1>;
+  const childLabel = location.pathname === "/app/nginx/dead-configs" ? "Dead configs" : detailLabel;
+  return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to={section?.to ?? "/app"} className="transition-colors hover:text-primary">{section?.label ?? "Dashboard"}</Link>{childLabel && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{childLabel}</span></>}</h1>;
 }
