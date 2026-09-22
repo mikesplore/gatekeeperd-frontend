@@ -158,13 +158,13 @@ export function ProjectDetailPage() {
               </Card>
               <div className="grid items-stretch gap-4 lg:grid-cols-2">
               <Card className="h-full">
-                <CardHeader><CardTitle>Client &amp; Billing</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Customer &amp; Billing</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
                   <InfoRow label="Original charge" value={project.baseAmount != null ? `${project.currency} ${project.baseAmount.toLocaleString()}` : "Not set"} />
                   <InfoRow label="Additional charges" value={`${project.currency} ${project.additionalCharges.toLocaleString()}`} />
                   <InfoRow label="Discounts" value={`${project.currency} ${project.discounts.toLocaleString()}`} />
                   <InfoRow label="Successful payments" value={`${project.currency} ${project.successfulPayments.toLocaleString()}`} />
-                  <InfoRow label="Customer" value={project.customerName ?? "Not set"} />
+                  <InfoRow label="Customer" value={project.customerId && project.customerName ? <Link to={`/app/customers/${project.customerId}`} className="text-primary hover:underline">{project.customerName}</Link> : "Not set"} />
                   <InfoRow label="Customer email" value={project.customerEmail ?? "Not set"} />
                   <InfoRow label="Customer phone" value={project.customerPhone ?? "Not set"} />
                   <InfoRow
@@ -186,7 +186,7 @@ export function ProjectDetailPage() {
                 <CardHeader><CardTitle>Subscription &amp; Policy</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
                   <InfoRow label="Type" value={project.type} />
-                  <InfoRow label="Block reason" value={project.blockReason ?? "Not set"} />
+                  {project.status !== "active" && <InfoRow label="Block reason" value={project.blockReason ?? "Not set"} />}
                 </CardContent>
               </Card>
               </div>
