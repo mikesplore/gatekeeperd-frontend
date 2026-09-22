@@ -18,8 +18,10 @@ export function AuditPage() {
   const [view, setView] = useState<"timeline" | "table">("timeline");
   const search = params.get("q") ?? "";
   const action = params.get("action") ?? "";
+  const sort = params.get("sort") ?? "createdAt";
+  const direction = (params.get("direction") as "asc" | "desc" | null) ?? "desc";
   const update = (key: string, value: string) => { const next = new URLSearchParams(params); value ? next.set(key, value) : next.delete(key); if (key !== "page") next.delete("page"); setParams(next); };
-  const audit = useGlobalAuditLog(pageSize, page * pageSize, search, action);
+  const audit = useGlobalAuditLog(pageSize, page * pageSize, search, action, sort, direction);
   const actionLabel = (action: string) => action.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   return <div className="space-y-6">
     <div><p className="text-muted-foreground">A chronological record of administrative and operational changes.</p></div>
