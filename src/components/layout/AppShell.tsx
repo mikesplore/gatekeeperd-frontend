@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database } from "lucide-react";
+import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router-dom";
@@ -28,6 +28,7 @@ const navGroups = [
     label: "Manage",
     items: [
       { to: "/app/projects", label: "Projects", icon: Box },
+      { to: "/app/customers", label: "Customers", icon: UsersRound },
       { to: "/app/payments", label: "Payments", icon: CreditCard },
     ],
   },
