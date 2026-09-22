@@ -295,7 +295,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select an existing customer" /></SelectTrigger>
               <SelectContent>
                 {customers.isLoading ? <SelectItem value="__loading" disabled>Loading customers…</SelectItem> : customers.data?.length ? customers.data.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>) : <SelectItem value="__empty" disabled>No customers available</SelectItem>}
-                <SelectItem value="__new__">Create a new customer</SelectItem>
+                {!isEdit && <SelectItem value="__new__">Create a new customer</SelectItem>}
               </SelectContent>
             </Select>
             {customerId === "__new__" && <div className="grid gap-3 sm:grid-cols-2"><Input placeholder="Customer name" {...register("newCustomerName")} /><Input type="email" placeholder="Customer email (optional)" {...register("newCustomerEmail")} /><Input placeholder="Customer phone (optional)" {...register("newCustomerPhone")} /></div>}
