@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,6 +36,9 @@ const projectSchema = z.object({
   type: z.enum(["frontend", "backend"]),
   clientName: z.string().optional(),
   clientEmail: z.string().email().optional().or(z.literal("")),
+  billingName: z.string().optional(),
+  billingEmail: z.string().email().optional().or(z.literal("")),
+  billingAddress: z.string().optional(),
   amountDue: z.coerce.number().nonnegative().optional(),
   dueDate: z.string().optional(),
   gracePeriodDays: z.coerce.number().int().nonnegative(),
@@ -60,6 +63,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   const { data: wizardContext, isLoading: wizardLoading } = useProjectWizardContext();
   const customers = useDashboardCustomers();
   const pending = create.isPending || update.isPending;
+  const [billingSameAsClient, setBillingSameAsClient] = useState(false);
 
   const {
     register,
@@ -96,6 +100,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         amountDue: project.amountDue,
         dueDate: project.dueDate?.slice(0, 10) ?? "",
         gracePeriodDays: project.gracePeriodDays,
+        billingName: project.billingName ?? "", billingEmail: project.billingEmail ?? "", billingAddress: project.billingAddress ?? "",
         customerId: "",
         newCustomerName: "",
         newCustomerEmail: "",
@@ -113,6 +118,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         amountDue: undefined,
         dueDate: "",
         gracePeriodDays: 3,
+        billingName: "", billingEmail: "", billingAddress: "",
         customerId: "",
         newCustomerName: "",
         newCustomerEmail: "",
@@ -144,6 +150,9 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
       type: values.type,
       clientName: values.clientName || undefined,
       clientEmail: values.clientEmail || undefined,
+      billingName: values.billingName || undefined,
+      billingEmail: values.billingEmail || undefined,
+      billingAddress: values.billingAddress || undefined,
       amountDue: values.amountDue,
       dueDate: values.dueDate || undefined,
       gracePeriodDays: values.gracePeriodDays,
@@ -349,6 +358,10 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
                 <p className="text-sm text-destructive">{errors.clientEmail.message}</p>
               )}
             </div>
+            <div className="flex items-center gap-2 sm:col-span-2"><input id="billing-same" type="checkbox" checked={billingSameAsClient} onChange={(event) => { const checked = event.target.checked; setBillingSameAsClient(checked); if (checked) { setValue("billingName", getValues("clientName") || ""); setValue("billingEmail", getValues("clientEmail") || ""); } }} /><Label htmlFor="billing-same">Billing information same as client information</Label></div>
+            <div className="space-y-2"><Label htmlFor="billingName">Billing name</Label><Input id="billingName" disabled={billingSameAsClient} {...register("billingName")} /></div>
+            <div className="space-y-2"><Label htmlFor="billingEmail">Billing email</Label><Input id="billingEmail" type="email" disabled={billingSameAsClient} {...register("billingEmail")} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label htmlFor="billingAddress">Billing address</Label><Input id="billingAddress" disabled={billingSameAsClient} {...register("billingAddress")} /></div>
             <div className="space-y-2">
               <Label htmlFor="amountDue">Amount due</Label>
               <Input id="amountDue" type="number" step="0.01" {...register("amountDue")} />
