@@ -90,6 +90,8 @@ export function useEnableNginx() {
       api.post<EnableNginxResponse>(`/admin/nginx/enable/${slug}`, payload),
     onSuccess: (_data, { slug }) => {
       qc.invalidateQueries({ queryKey: ["nginx", "status", slug] });
+      qc.invalidateQueries({ queryKey: ["dashboard", "sites"] });
+      qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
     },
   });
 }

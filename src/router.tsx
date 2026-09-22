@@ -11,7 +11,9 @@ import { NotFoundPage } from "@/features/NotFoundPage";
 import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
 import { ProjectsListPage } from "@/features/projects/ProjectsListPage";
 import { PaymentsPage } from "@/features/payments/PaymentsPage";
+import { PaymentEventsPage } from "@/features/payments/PaymentEventsPage";
 import { NginxPage } from "@/features/nginx/NginxPage";
+import { CertificatesPage } from "@/features/nginx/CertificatesPage";
 import { OperationsPage } from "@/features/operations/OperationsPage";
 import { DeploymentsPage } from "@/features/deployments/DeploymentsPage";
 import { ProfileSettingsPage } from "@/features/settings/ProfileSettingsPage";
@@ -48,10 +50,12 @@ export const router = createBrowserRouter([
           { path: "projects", element: <ProjectsListPage /> },
           { path: "projects/:slug", element: <ProjectDetailPage /> },
           { path: "payments", element: <PaymentsPage /> },
+          { path: "payments/events", element: <PaymentEventsPage /> },
           { path: "containers", element: <ContainersPage /> },
           { path: "containers/:name", element: <ContainerDetailPage /> },
           { path: "nginx", element: <SitesDashboardPage /> },
           { path: "nginx/manage", element: <NginxPage /> },
+          { path: "nginx/certificates", element: <CertificatesPage /> },
           { path: "nginx/sites/:slug", element: <SiteDetailPage /> },
           { path: "nginx/dead-configs", element: <DeadConfigsPage /> },
           { path: "customers", element: <CustomersPage /> },

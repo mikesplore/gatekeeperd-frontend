@@ -90,6 +90,9 @@ export interface CertificateInfo {
   certificateDomain: string;
   certificatePath: string;
   privateKeyPath: string;
+  certificateExpiresAt?: string | null;
+  certificateDaysRemaining?: number | null;
+  renewalStatus?: "active" | "expired" | "unknown";
 }
 
 export interface CertificateListResponse {

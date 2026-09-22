@@ -17,7 +17,7 @@ export function AdminUsersPage() {
   const pageSize = 15;
   const page = Math.max(0, Number(params.get("page") ?? 0) || 0);
   const search = params.get("q") ?? "";
-  const updateTable = (key: string, value: string) => { const next = new URLSearchParams(params); value ? next.set(key, value) : next.delete(key); if (key !== "page") next.delete("page"); setParams(next); };
+  const updateTable = (key: string, value: string) => { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); if (key !== "page") next.delete("page"); setParams(next); };
   const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [role, setRole] = useState("admin"); const [open, setOpen] = useState(false); const [editing, setEditing] = useState<AdminUser | null>(null); const [editEmail, setEditEmail] = useState(""); const [editRole, setEditRole] = useState("admin");
   const users = useQuery({ queryKey: ["admin-users", page, search], queryFn: async () => (await api.get<{ users: AdminUser[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/users", { params: { limit: pageSize, offset: page * pageSize, q: search || undefined } })).data });
   const refresh = () => void client.invalidateQueries({ queryKey: ["admin-users"] });

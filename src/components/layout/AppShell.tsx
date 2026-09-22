@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database, UsersRound } from "lucide-react";
+import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database, UsersRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router-dom";
@@ -38,6 +38,7 @@ const navGroups = [
     items: [
       { to: "/app/deployments", label: "Deployments", icon: Rocket },
       { to: "/app/nginx", label: "Nginx", icon: Server },
+      { to: "/app/nginx/certificates", label: "Certificates", icon: ShieldCheck },
     ],
   },
   {
@@ -70,10 +71,11 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
       {navGroups.map(group => <div key={group.label} className="space-y-1">
         {!collapsed && <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">{group.label}</p>}
         {group.items.map(({ to, label, icon: Icon }) => {
-        const active =
-          to === "/app"
-            ? location.pathname === "/app"
-            : location.pathname.startsWith(to);
+        const active = to === "/app"
+          ? location.pathname === "/app"
+          : to === "/app/nginx"
+            ? location.pathname === to || (location.pathname.startsWith(`${to}/`) && !location.pathname.startsWith(`${to}/certificates`))
+            : location.pathname === to || location.pathname.startsWith(`${to}/`);
         return (
           <Link
             key={to}

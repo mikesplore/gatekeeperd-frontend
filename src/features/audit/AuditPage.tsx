@@ -8,6 +8,9 @@ import { DataTable } from "@/components/common/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { AuditLogEntry } from "@/types/audit";
+import { Download } from "lucide-react";
+import { api, getApiErrorMessage } from "@/lib/api";
+import { toast } from "sonner";
 
 export function AuditPage() {
   const pageSize = 15;
@@ -17,7 +20,7 @@ export function AuditPage() {
   const action = params.get("action") ?? "";
   const sort = params.get("sort") ?? "createdAt";
   const direction = (params.get("direction") as "asc" | "desc" | null) ?? "desc";
-  const update = (key: string, value: string) => { const next = new URLSearchParams(params); value ? next.set(key, value) : next.delete(key); if (key !== "page") next.delete("page"); setParams(next); };
+  const update = (key: string, value: string) => { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); if (key !== "page") next.delete("page"); setParams(next); };
   const audit = useGlobalAuditLog(pageSize, page * pageSize, search, action, sort, direction);
   const actionLabel = (action: string) => action.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   return <div className="space-y-6">
@@ -25,7 +28,7 @@ export function AuditPage() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-sm">Activity history</CardTitle>
-        <Button variant="ghost" size="icon" onClick={() => audit.refetch()} aria-label="Refresh audit history"><RefreshCw className="h-4 w-4" /></Button>
+        <div className="flex gap-1"><Button variant="outline" size="sm" onClick={async () => { try { const response = await api.get<Blob>("/admin/audit/export", { params: { limit: 5000, action: action || undefined }, responseType: "blob" }); const url = URL.createObjectURL(response.data); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "gatekeeper-audit.csv"; anchor.click(); URL.revokeObjectURL(url); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Download className="mr-2 h-4 w-4"/>Export CSV</Button><Button variant="ghost" size="icon" onClick={() => audit.refetch()} aria-label="Refresh audit history"><RefreshCw className="h-4 w-4" /></Button></div>
       </CardHeader>
       <div className="flex items-center gap-2 px-6 pt-4"><span className="text-xs text-muted-foreground">Sort by</span><select value={sort} onChange={(event) => update("sort", event.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm"><option value="createdAt">Date</option><option value="action">Action</option><option value="actor">Actor</option></select><Button variant="outline" size="sm" onClick={() => update("direction", direction === "asc" ? "desc" : "asc")}>{direction === "asc" ? "Ascending ↑" : "Descending ↓"}</Button></div>
       <CardContent><div className="mb-4 flex flex-col gap-2 sm:flex-row"><Input value={search} onChange={(event) => update("q", event.target.value)} placeholder="Search actor, action, or reason..." /><select value={action} onChange={(event) => update("action", event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm"><option value="">All actions</option>{["blocked", "unblocked", "payment_received", "manual_override", "project_created", "project_updated"].map(value => <option key={value} value={value}>{actionLabel(value)}</option>)}</select></div><QueryState isLoading={audit.isLoading} isError={audit.isError} error={audit.error} data={audit.data}>

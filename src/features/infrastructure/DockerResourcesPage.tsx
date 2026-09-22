@@ -19,7 +19,7 @@ export function DockerResourcesPage({ kind }: { kind: "networks" | "volumes" }) 
   const pageSize = 25;
   const page = Math.max(0, Number(params.get("page") ?? 0) || 0);
   const search = params.get("q") ?? "";
-  const updateTable = (key: string, value: string) => { const next = new URLSearchParams(params); value ? next.set(key, value) : next.delete(key); if (key !== "page") next.delete("page"); setParams(next); };
+  const updateTable = (key: string, value: string) => { const next = new URLSearchParams(params); if (value) next.set(key, value); else next.delete(key); if (key !== "page") next.delete("page"); setParams(next); };
   const networks = useNetworksPage(pageSize, page * pageSize, search);
   const volumes = useVolumesPage(pageSize, page * pageSize, search);
   const query = kind === "networks" ? networks : volumes;

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ export function PaymentsPage() {
   const from = params.get("from") ?? "";
   const to = params.get("to") ?? "";
   const offset = Math.max(0, Number(params.get("offset") ?? 0) || 0);
-  const update = (key: string, value: string, resetOffset = true) => { const next = new URLSearchParams(params); value && value !== "all" ? next.set(key, value) : next.delete(key); if (resetOffset) next.delete("offset"); setParams(next); };
+  const update = (key: string, value: string, resetOffset = true) => { const next = new URLSearchParams(params); if (value && value !== "all") next.set(key, value); else next.delete(key); if (resetOffset) next.delete("offset"); setParams(next); };
 
   const filters = useMemo(
     () => ({
@@ -58,6 +58,8 @@ export function PaymentsPage() {
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground">All payment activity across projects.</p>
+
+      <div className="flex justify-end"><Button variant="outline" asChild><Link to="/app/payments/events">Paystack webhook events</Link></Button></div>
 
       <Card>
         <CardHeader>

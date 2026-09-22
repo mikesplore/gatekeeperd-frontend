@@ -1,10 +1,15 @@
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryState } from "@/components/QueryState";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCw, Trash2 } from "lucide-react";
 import { useDashboardSummary, useIntegrationOutbox, useReplayIntegrationEvent } from "@/hooks/useProjects";
+import { api, getApiErrorMessage } from "@/lib/api";
+import type { PaymentEvent } from "@/types/payment";
 
 function Breakdown({ values }: { values: Record<string, number> }) {
   const entries = Object.entries(values);
@@ -12,9 +17,15 @@ function Breakdown({ values }: { values: Record<string, number> }) {
 }
 
 export function OperationsPage() {
+  const qc = useQueryClient();
+  const [imagePrefix, setImagePrefix] = useState("");
+  const [prunePreview, setPrunePreview] = useState<{ removed: { reference: string; sizeBytes: number; reason: string }[]; reclaimedBytes: number } | null>(null);
   const summary = useDashboardSummary();
   const outbox = useIntegrationOutbox();
   const replay = useReplayIntegrationEvent();
+  const paymentEvents = useQuery({ queryKey: ["payment-events", "failed"], queryFn: async () => (await api.get<{ data: PaymentEvent[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/payment-events", { params: { status: "failed", limit: 25 } })).data });
+  const replayPayment = useMutation({ mutationFn: (id: string) => api.post(`/admin/payment-events/${id}/replay`), onSuccess: () => { void qc.invalidateQueries({ queryKey: ["payment-events"] }); void qc.invalidateQueries({ queryKey: ["payments"] }); } });
+  const prune = useMutation({ mutationFn: async (dryRun: boolean) => (await api.post<{ dryRun: boolean; inspected: number; removed: { reference: string; sizeBytes: number; reason: string }[]; reclaimedBytes: number }>("/admin/system/prune", null, { params: { dryRun, imagePrefix: imagePrefix || undefined } })).data });
 
   return <div className="space-y-6">
     <p className="text-muted-foreground">Infrastructure, payment, and integration health.</p>
@@ -35,6 +46,8 @@ export function OperationsPage() {
         {data.certificateAlerts?.length ? <Card><CardHeader><CardTitle className="text-sm">Certificate alerts</CardTitle></CardHeader><CardContent><div className="space-y-2 text-sm">{data.certificateAlerts.map(alert => <p key={alert} className="text-orange-700">{alert}</p>)}</div></CardContent></Card> : null}
       </>}
     </QueryState>
+    <Card><CardHeader><CardTitle className="flex items-center justify-between">Failed Paystack webhook events <Button size="sm" variant="outline" asChild><Link to="/app/payments/events">View payment events</Link></Button></CardTitle></CardHeader><CardContent>{paymentEvents.isLoading ? <p className="text-sm text-muted-foreground">Loading failed events…</p> : paymentEvents.isError ? <p className="text-sm text-destructive">Unable to load payment events.</p> : (paymentEvents.data?.data?.length ?? 0) > 0 ? <div className="space-y-3">{paymentEvents.data?.data?.map(event => <div key={event.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="font-medium text-sm">{event.eventType} · {event.paystackReference}</p><p className="text-xs text-muted-foreground">{event.processingError || "Processing failed"} · {new Date(event.receivedAt).toLocaleString()}</p></div><Button size="sm" variant="outline" disabled={replayPayment.isPending} onClick={async () => { try { await replayPayment.mutateAsync(event.id); toast.success("Webhook event replayed"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><RotateCw className="mr-2 h-4 w-4" />Replay</Button></div>)}</div> : <p className="text-sm text-muted-foreground">No failed webhook events.</p>}</CardContent></Card>
+    <Card><CardHeader><CardTitle>Docker image cleanup</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Review unreferenced project images, then remove the candidates to reclaim disk space.</p><div className="flex flex-col gap-2 sm:flex-row"><input value={imagePrefix} onChange={event => setImagePrefix(event.target.value)} placeholder="Optional image name prefix" className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"/><Button variant="outline" disabled={prune.isPending} onClick={async () => { try { const result = await prune.mutateAsync(true); setPrunePreview(result); toast.success(`Found ${result.removed.length} removable images`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Trash2 className="mr-2 h-4 w-4"/>Preview cleanup</Button></div>{prunePreview && <div className="space-y-3 rounded-md border p-3"><p className="text-sm font-medium">{prunePreview.removed.length} candidates · {(prunePreview.reclaimedBytes / 1024 / 1024).toFixed(1)} MB</p>{prunePreview.removed.length > 0 && <ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">{prunePreview.removed.map(item => <li key={item.reference} className="truncate">{item.reference}</li>)}</ul>}<Button variant="destructive" disabled={prune.isPending || prunePreview.removed.length === 0} onClick={async () => { if (!window.confirm(`Remove ${prunePreview.removed.length} unreferenced images?`)) return; try { const result = await prune.mutateAsync(false); setPrunePreview(null); toast.success(`Removed ${result.removed.length} images`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{prune.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Remove previewed images</Button></div>}</CardContent></Card>
     <Card><CardHeader><CardTitle>Queued integration events</CardTitle></CardHeader><CardContent>{outbox.data?.length ? <div className="space-y-3">{outbox.data.map((event) => { const replaying = replay.isPending && replay.variables === event.id; return <div key={event.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{event.eventType}</p><p className="truncate font-mono text-xs text-muted-foreground">{event.idempotencyKey}</p><p className="text-xs text-muted-foreground">Attempts: {event.attempts}</p></div><Button size="sm" variant="outline" disabled={replay.isPending} onClick={async () => { try { await replay.mutateAsync(event.id); toast.success("Event replay completed"); } catch { toast.error("Unable to replay event"); } }}>{replaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {replaying ? "Replaying…" : "Replay"}</Button></div>; })}</div> : <p className="text-sm text-muted-foreground">No undelivered integration events.</p>}</CardContent></Card>
   </div>;
 }

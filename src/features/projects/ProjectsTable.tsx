@@ -17,13 +17,16 @@ import type { Project } from "@/types/project";
 
 interface ProjectsTableProps {
   projects: Project[];
+  selectedSlugs: string[];
+  onSelectionChange: (slugs: string[]) => void;
   onEdit: (project: Project) => void;
   onBlock: (project: Project) => void;
   onUnblock: (project: Project) => void;
   onDelete: (project: Project) => void;
 }
 
-export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }: ProjectsTableProps) {
+export function ProjectsTable({ projects, selectedSlugs, onSelectionChange, onEdit, onBlock, onUnblock, onDelete }: ProjectsTableProps) {
+  const toggle = (slug: string) => onSelectionChange(selectedSlugs.includes(slug) ? selectedSlugs.filter(item => item !== slug) : [...selectedSlugs, slug]);
   return (
     <>
       <div className="hidden md:block">
@@ -34,6 +37,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
           searchPlaceholder="Search by name, domain, or client…"
           filters={[{ label: "Access", options: [{ label: "Active", value: "active" }, { label: "Blocked", value: "blocked" }, { label: "Manual block", value: "manual_block" }], getValue: (project) => project.status }]}
           columns={[
+            { key: "select", header: "", render: (project) => <input aria-label={`Select ${project.name}`} type="checkbox" checked={selectedSlugs.includes(project.slug)} onChange={() => toggle(project.slug)} className="h-4 w-4 accent-primary" /> },
             { key: "name", header: "Name", searchable: true, render: (project) => <Link to={`/app/projects/${project.slug}`} className="font-medium hover:underline">{project.name}</Link> },
             { key: "domain", header: "Domain", searchable: true, render: (project) => <span className="text-muted-foreground">{project.domain}</span> },
             { key: "type", header: "Type", render: (project) => <Badge variant="secondary">{project.type}</Badge> },
@@ -53,6 +57,7 @@ export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete }
         {projects.map((project) => (
           <div key={project.id} className="rounded-lg border bg-card p-3 shadow-sm">
             <div className="flex items-start justify-between gap-2">
+              <input aria-label={`Select ${project.name}`} type="checkbox" checked={selectedSlugs.includes(project.slug)} onChange={() => toggle(project.slug)} className="mt-1 h-4 w-4 accent-primary" />
               <div className="min-w-0 flex-1">
                   <Link
                    to={`/app/projects/${project.slug}`}

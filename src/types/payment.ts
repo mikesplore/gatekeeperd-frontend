@@ -65,3 +65,15 @@ export interface PaymentsListResponse {
   offset: number;
   hasMore?: boolean;
 }
+
+export interface PaymentEvent {
+  id: string;
+  dedupeKey: string;
+  eventType: string;
+  paystackReference: string;
+  processingStatus: string;
+  processingAttempts: number;
+  processingError?: string | null;
+  receivedAt: string;
+  processedAt?: string | null;
+}

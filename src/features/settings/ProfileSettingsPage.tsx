@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Github, ExternalLink, RefreshCw } from "lucide-react";
 import QRCode from "qrcode";
@@ -35,9 +36,11 @@ type Setup = { secret: string; otpauthUri: string; recoveryCodes: string[] };
 type Tab = "general" | "security" | "integrations";
 
 export function ProfileSettingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const email = useAuthStore((s) => s.email);
   const role = useAuthStore((s) => s.role);
-  const [tab, setTab] = useState<Tab>("general");
+  const [tab, setTab] = useState<Tab>(() => searchParams.get("tab") === "integrations" || searchParams.get("tab") === "security" ? searchParams.get("tab") as Tab : "general");
+  const selectTab = (value: Tab) => { setTab(value); const next = new URLSearchParams(searchParams); if (value === "general") next.delete("tab"); else next.set("tab", value); setSearchParams(next); };
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [setup, setSetup] = useState<Setup | null>(null);
@@ -48,6 +51,9 @@ export function ProfileSettingsPage() {
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
+  const [registry, setRegistry] = useState("");
+  const [registryUsername, setRegistryUsername] = useState("");
+  const [registryPassword, setRegistryPassword] = useState("");
   const account = useQuery({
     queryKey: ["auth", "me"],
     queryFn: async () =>
@@ -60,6 +66,9 @@ export function ProfileSettingsPage() {
       ).data,
   });
   const github = useGitHubStatus();
+  const registries = useQuery({ queryKey: ["registries"], queryFn: async () => (await api.get<{ registry: string; username: string; configured: boolean }[]>("/admin/registries")).data });
+  const saveRegistry = useMutation({ mutationFn: () => api.put(`/admin/registries/${encodeURIComponent(registry.trim().toLowerCase())}`, { username: registryUsername, password: registryPassword }), onSuccess: () => registries.refetch() });
+  const deleteRegistry = useMutation({ mutationFn: (host: string) => api.delete(`/admin/registries/${encodeURIComponent(host)}`), onSuccess: () => registries.refetch() });
   const install = useGitHubInstallUrl();
   const unlink = useUnlinkGitHub();
   const profile = useMutation({
@@ -120,19 +129,19 @@ export function ProfileSettingsPage() {
       <div className="flex gap-1 border-b">
         <Button
           variant={tab === "general" ? "secondary" : "ghost"}
-          onClick={() => setTab("general")}
+          onClick={() => selectTab("general")}
         >
           General
         </Button>
         <Button
           variant={tab === "security" ? "secondary" : "ghost"}
-          onClick={() => setTab("security")}
+          onClick={() => selectTab("security")}
         >
           Security
         </Button>
         <Button
           variant={tab === "integrations" ? "secondary" : "ghost"}
-          onClick={() => setTab("integrations")}
+          onClick={() => selectTab("integrations")}
         >
           Integrations
         </Button>
@@ -366,6 +375,7 @@ export function ProfileSettingsPage() {
         </div>
       )}
       {tab === "integrations" && (
+        <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -423,6 +433,15 @@ export function ProfileSettingsPage() {
             )}
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader><CardTitle>Container registry credentials</CardTitle><CardDescription>Credentials are encrypted at rest and are never returned to the dashboard. Saving replaces the password for that registry.</CardDescription></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3"><div className="space-y-1"><Label>Registry host</Label><Input placeholder="registry.example.com" value={registry} onChange={event => setRegistry(event.target.value)} /></div><div className="space-y-1"><Label>Username</Label><Input autoComplete="username" value={registryUsername} onChange={event => setRegistryUsername(event.target.value)} /></div><div className="space-y-1"><Label>Password</Label><Input type="password" autoComplete="new-password" value={registryPassword} onChange={event => setRegistryPassword(event.target.value)} /></div></div>
+            <Button disabled={saveRegistry.isPending || !registry.trim() || !registryUsername.trim() || !registryPassword} onClick={async () => { try { await saveRegistry.mutateAsync(); setRegistry(""); setRegistryUsername(""); setRegistryPassword(""); toast.success("Registry credentials saved"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{saveRegistry.isPending ? "Saving…" : "Save credentials"}</Button>
+            <div className="divide-y rounded-md border">{registries.isLoading ? <p className="p-3 text-sm text-muted-foreground">Loading saved registries…</p> : registries.isError ? <p className="p-3 text-sm text-destructive">Unable to load registry credentials.</p> : registries.data?.length ? registries.data.map(item => <div key={item.registry} className="flex items-center justify-between gap-3 p-3"><div><p className="text-sm font-medium">{item.registry}</p><p className="text-xs text-muted-foreground">Username: {item.username} · Password stored securely</p></div><Button size="sm" variant="outline" disabled={deleteRegistry.isPending} onClick={async () => { if (!window.confirm(`Delete stored credentials for ${item.registry}?`)) return; try { await deleteRegistry.mutateAsync(item.registry); toast.success("Registry credentials deleted"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>Delete</Button></div>) : <p className="p-3 text-sm text-muted-foreground">No registries configured.</p>}</div>
+          </CardContent>
+        </Card>
+        </div>
       )}
       <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
         <AlertDialogContent>
