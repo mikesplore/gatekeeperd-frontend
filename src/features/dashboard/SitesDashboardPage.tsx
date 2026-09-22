@@ -27,7 +27,7 @@ export function SitesDashboardPage() {
   ];
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Nginx</h1><p className="text-muted-foreground">Nginx, Docker, and payment-gating visibility.</p></div><Button asChild><Link to="/app/nginx/manage">Add new site</Link></Button></div>
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Nginx</h1><p className="text-muted-foreground">Nginx, Docker, and payment-gating visibility.</p></div><div className="flex gap-2"><Button variant="outline" asChild><Link to="/app/nginx/dead-configs">Dead configs</Link></Button><Button asChild><Link to="/app/nginx/manage">Add new site</Link></Button></div></div>
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Card><CardHeader><CardTitle className="text-sm">Total sites</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{summary.data ? summaryCards.reduce((total, card) => total + (statusCounts[card.status] ?? 0), 0) : "—"}</CardContent></Card>
         {summaryCards.map(card => <Card key={card.status}><CardHeader><CardTitle className="text-sm">{card.label}</CardTitle></CardHeader><CardContent className={`text-2xl font-semibold ${card.className}`}>{statusCounts[card.status] ?? "—"}</CardContent></Card>)}

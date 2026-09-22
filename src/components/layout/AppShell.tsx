@@ -38,7 +38,6 @@ const navGroups = [
     items: [
       { to: "/app/deployments", label: "Deployments", icon: Rocket },
       { to: "/app/nginx", label: "Nginx", icon: Server },
-      { to: "/app/nginx/dead-configs", label: "Dead configs", icon: Server },
     ],
   },
   {
