@@ -11,6 +11,7 @@ export interface DashboardSummary {
   };
   nginx: { availableSites: number; enabledSites: number };
   metrics: Record<string, number>;
+  certificateAlerts?: string[];
 }
 
 export interface IntegrationOutboxEvent {
