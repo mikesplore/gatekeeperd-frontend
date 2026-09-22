@@ -1,0 +1,4 @@
+export type SiteStatus = "healthy" | "docker_down" | "dead_config" | "drifted" | "disabled" | "error";
+export interface DashboardSite { slug: string; projectId: string; customerId?: string | null; customerName?: string | null; domain: string; status: SiteStatus; dockerState?: string | null; lastNginxError?: string | null; lastDockerError?: string | null; configVersion: number; available: boolean; enabled: boolean; }
+export interface SiteDetail { site: DashboardSite; generatedConfig?: string | null; currentConfig?: string | null; certificateInstalled?: boolean | null; certificateDaysRemaining?: number | null; backups: string[]; }
+export interface DashboardCustomer { id: string; name: string; contactEmail?: string | null; contactPhone?: string | null; billingStatus: string; siteCount: number; health: Record<string, number>; }

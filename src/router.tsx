@@ -21,6 +21,7 @@ import { NetworkDetailPage } from "@/features/infrastructure/NetworkDetailPage";
 import { VolumeDetailPage } from "@/features/infrastructure/VolumeDetailPage";
 import { AuditPage } from "@/features/audit/AuditPage";
 import { NotificationsPage } from "@/features/notifications/NotificationsPage";
+import { SitesDashboardPage } from "@/features/dashboard/SitesDashboardPage";
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
           { path: "containers", element: <ContainersPage /> },
           { path: "containers/:name", element: <ContainerDetailPage /> },
           { path: "nginx", element: <NginxPage /> },
+          { path: "nginx/sites", element: <SitesDashboardPage /> },
           { path: "operations", element: <OperationsPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "notifications", element: <NotificationsPage /> },
