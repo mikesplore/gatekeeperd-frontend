@@ -265,11 +265,11 @@ export function useReconcilePayment() {
   });
 }
 
-export function useGlobalAuditLog(limit = 20, offset = 0, query = "", action = "") {
+export function useGlobalAuditLog(limit = 20, offset = 0, query = "", action = "", sort = "createdAt", direction: "asc" | "desc" = "desc") {
   return useQuery({
-    queryKey: ["audit", limit, offset, query, action],
+    queryKey: ["audit", limit, offset, query, action, sort, direction],
     queryFn: async () =>
-      (await api.get<{ entries: AuditLogEntry[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/audit", { params: { limit, offset, q: query || undefined, action: action || undefined } })).data,
+      (await api.get<{ entries: AuditLogEntry[]; total: number; limit: number; offset: number; q?: string; action?: string; sort?: string; direction?: string; hasMore: boolean }>("/admin/audit", { params: { limit, offset, q: query || undefined, action: action || undefined, sort, direction } })).data,
     refetchInterval: 30_000,
   });
 }
