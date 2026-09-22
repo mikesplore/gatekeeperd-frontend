@@ -18,6 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
 import { api } from "@/lib/api";
 import { useNotificationStream, useNotifications } from "@/hooks/useProjects";
+import { AppBreadcrumb } from "@/components/layout/AppBreadcrumb";
 
 const navGroups = [
   {
@@ -63,8 +64,6 @@ const navGroups = [
   },
 ];
 
-const navItems = navGroups.flatMap(group => group.items);
-
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
   const location = useLocation();
 
@@ -98,7 +97,6 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
 }
 
 export function AppShell() {
-  const location = useLocation();
   const email = useAuthStore((s) => s.email);
   const logout = useAuthStore((s) => s.logout);
   const refreshToken = useAuthStore((s) => s.refreshToken);
@@ -113,9 +111,6 @@ export function AppShell() {
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
   const profileName = profile.data?.displayName?.trim() || email || "Admin";
-  const currentNav = navItems.find(({ to }) => to !== "/app" && location.pathname.startsWith(to)) ?? navItems[0];
-  const detailSegment = location.pathname.match(/^\/app\/(containers|projects|networks)\/([^/]+)/)?.[2];
-  const detailLabel = detailSegment ? decodeURIComponent(detailSegment) : null;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -142,7 +137,7 @@ export function AppShell() {
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
-            <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to={currentNav.to} className="transition-colors hover:text-primary">{currentNav.label}</Link>{detailLabel && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{detailLabel}</span></>}</h1>
+            <AppBreadcrumb />
           </div>
           <div className="flex items-center gap-2">
             <DropdownMenu>
