@@ -107,9 +107,11 @@ export function useProjects() {
   });
 }
 
-export function useProjectWizardContext() {
+export function useProjectWizardContext(enabled = true) {
   return useQuery({
     queryKey: ["projects", "wizard", "context"],
+    enabled,
+    refetchOnMount: "always",
     queryFn: async () =>
       (await api.get<ProjectWizardContext>("/admin/projects/wizard/context")).data,
   });

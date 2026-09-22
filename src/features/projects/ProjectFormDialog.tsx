@@ -60,7 +60,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   const isEdit = !!project;
   const create = useCreateProject();
   const update = useUpdateProject(project?.slug ?? "");
-  const { data: wizardContext, isLoading: wizardLoading } = useProjectWizardContext();
+  const { data: wizardContext, isLoading: wizardLoading } = useProjectWizardContext(open && !isEdit);
   const customers = useDashboardCustomers();
   const pending = create.isPending || update.isPending;
   const [billingSameAsClient, setBillingSameAsClient] = useState(false);
