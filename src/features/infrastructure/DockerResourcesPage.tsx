@@ -15,7 +15,9 @@ import { getApiErrorMessage } from "@/lib/api";
 import { useCreateDockerResource, useDeleteDockerResource, useNetworks, useVolumes, type DockerNetwork, type DockerVolume } from "@/hooks/useDockerResources";
 
 export function DockerResourcesPage({ kind }: { kind: "networks" | "volumes" }) {
-  const query = kind === "networks" ? useNetworks() : useVolumes();
+  const networks = useNetworks();
+  const volumes = useVolumes();
+  const query = kind === "networks" ? networks : volumes;
   const create = useCreateDockerResource(kind);
   const remove = useDeleteDockerResource(kind);
   const [name, setName] = useState("");
