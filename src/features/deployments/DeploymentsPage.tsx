@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 import { QueryState } from "@/components/QueryState";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/api";
@@ -65,6 +66,7 @@ export function DeploymentsPage() {
   const [volumeRows, setVolumeRows] = useState<VolumeRow[]>([]);
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const cancel = useDeploymentAction("cancel");
   const retry = useDeploymentAction("retry");
   const rollback = useDeploymentAction("rollback");
@@ -92,8 +94,8 @@ export function DeploymentsPage() {
   };
 
   return <div className="space-y-6">
-    <div><p className="text-muted-foreground">Build, publish, and run applications from GitHub repositories.</p></div>
-    <Card><CardHeader><CardTitle className="text-sm">Queue deployment</CardTitle></CardHeader><CardContent>
+    <div className="flex items-center justify-between gap-3"><p className="text-muted-foreground">Build, publish, and run applications from GitHub repositories.</p><Button onClick={() => setCreateOpen(true)}>New deployment</Button></div>
+    <SidePanel open={createOpen} onOpenChange={setCreateOpen}><SidePanelContent><SidePanelHeader><SidePanelTitle>New deployment</SidePanelTitle><SidePanelDescription>Build, publish, and run an application.</SidePanelDescription></SidePanelHeader>
       <form onSubmit={submit}>
         <div className="mb-6 grid grid-cols-5 gap-2">{["Source", "Image", "Runtime", "Storage", "Review"].map((label, index) => <button type="button" key={label} onClick={() => setStep(index)} className={`rounded-md px-2 py-2 text-xs ${step === index ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}. {label}</button>)}</div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -105,7 +107,7 @@ export function DeploymentsPage() {
         </div>
         <div className="mt-6 flex justify-between"><Button type="button" variant="outline" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>Back</Button>{step < 4 ? <Button type="button" onClick={() => setStep(Math.min(4, step + 1))}>Continue</Button> : <Button type="submit" disabled={create.isPending}>{create.isPending ? "Queueing…" : "Queue deployment"}</Button>}</div>
       </form>
-    </CardContent></Card>
+    </SidePanelContent></SidePanel>
     <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>Deployment history</CardTitle><Button variant="ghost" size="icon" onClick={() => deployments.refetch()}><RefreshCw className="h-4 w-4" /></Button></CardHeader><CardContent>
       <QueryState isLoading={deployments.isLoading} isError={deployments.isError} error={deployments.error} data={deployments.data}>
         {(items) => items.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No deployments yet.</p> : <div className="space-y-3">{[...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(job => <div key={job.id} className="rounded-lg border p-4">
