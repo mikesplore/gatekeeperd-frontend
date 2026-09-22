@@ -171,7 +171,11 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
       return;
     }
 
-    const payload: CreateProjectPayload = { ...values, ...normalized };
+    const payload: CreateProjectPayload = {
+      ...values,
+      ...normalized,
+      ...(values.customerId === "__new__" ? { customerId: undefined } : {}),
+    };
     create.mutate(payload, {
       onSuccess: () => {
         toast.success("Project created");
