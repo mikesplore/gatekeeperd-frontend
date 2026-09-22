@@ -43,6 +43,14 @@ export function useAllPayments(filters: {
   });
 }
 
+export function useProjectPayments(projectSlug: string, limit = 25, offset = 0) {
+  return useQuery({
+    queryKey: ["project-payments", projectSlug, limit, offset],
+    queryFn: async () => (await api.get<PaymentsListResponse>(`/admin/projects/${encodeURIComponent(projectSlug)}/payments`, { params: { limit, offset } })).data,
+    enabled: !!projectSlug,
+  });
+}
+
 export function useOverdueProjects() {
   return useQuery({
     queryKey: ["projects", "overdue"],
