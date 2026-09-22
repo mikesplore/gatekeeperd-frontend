@@ -9,7 +9,7 @@ export interface DashboardSummary {
     outboxDeadLetter: number;
     outboxDelivered: number;
   };
-  nginx: { availableSites: number; enabledSites: number };
+  nginx: Record<string, number>;
   metrics: Record<string, number>;
   certificateAlerts?: string[];
 }

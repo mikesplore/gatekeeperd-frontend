@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useDashboardCustomers, useDashboardSites, useDeadConfigs } from "@/hooks/useSiteDashboard";
+import { useDashboardSites, useDashboardSummary } from "@/hooks/useSiteDashboard";
 import type { DashboardSite, SiteStatus } from "@/types/sites";
 
 const statuses: SiteStatus[] = ["healthy", "docker_down", "dead_config", "drifted", "disabled", "error"];
@@ -13,16 +13,23 @@ function SiteTable({ sites }: { sites: DashboardSite[] }) { const [sort, setSort
 export function SitesDashboardPage() {
   const [filter, setFilter] = useState<SiteStatus | "all">("all");
   const sites = useDashboardSites(filter);
-  const dead = useDeadConfigs();
-  const customers = useDashboardCustomers();
+  const summary = useDashboardSummary();
+  const statusCounts = summary.data?.nginx ?? {};
+  const summaryCards: { label: string; status: SiteStatus; className: string }[] = [
+    { label: "Healthy", status: "healthy", className: "text-emerald-600" },
+    { label: "Docker down", status: "docker_down", className: "text-orange-600" },
+    { label: "Dead config", status: "dead_config", className: "text-red-600" },
+    { label: "Drifted", status: "drifted", className: "text-yellow-600" },
+    { label: "Error", status: "error", className: "text-red-700" },
+  ];
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-semibold">Site health</h1><p className="text-muted-foreground">Nginx, Docker, and payment-gating visibility.</p></div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card><CardHeader><CardTitle className="text-sm">Sites</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{sites.data?.length ?? "—"}</CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-sm">Dead configs</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{dead.data?.length ?? "—"}</CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-sm">Customers</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{customers.data?.length ?? "—"}</CardContent></Card>
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <Card><CardHeader><CardTitle className="text-sm">Total sites</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{summary.data ? summaryCards.reduce((total, card) => total + (statusCounts[card.status] ?? 0), 0) : "—"}</CardContent></Card>
+        {summaryCards.map(card => <Card key={card.status}><CardHeader><CardTitle className="text-sm">{card.label}</CardTitle></CardHeader><CardContent className={`text-2xl font-semibold ${card.className}`}>{statusCounts[card.status] ?? "—"}</CardContent></Card>)}
       </div>
+      {summary.data?.certificateAlerts?.length ? <Card><CardHeader><CardTitle>Certificate alerts</CardTitle></CardHeader><CardContent><ul className="space-y-1 text-sm text-amber-700">{summary.data.certificateAlerts.map(alert => <li key={alert}>{alert}</li>)}</ul></CardContent></Card> : null}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between"><CardTitle>Sites</CardTitle><select className="rounded-md border bg-background px-3 py-2 text-sm" value={filter} onChange={e => setFilter(e.target.value as SiteStatus | "all")}><option value="all">All statuses</option>{statuses.map(s => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}</select></CardHeader>
         <CardContent>{sites.isLoading ? <p>Loading…</p> : <SiteTable sites={sites.data ?? []} />}</CardContent>
