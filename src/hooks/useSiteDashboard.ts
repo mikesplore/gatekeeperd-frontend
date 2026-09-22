@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { DashboardCustomer, DashboardSite, SiteDetail, SiteStatus } from "@/types/sites";
 import type { DashboardSummary } from "@/types/dashboard";
@@ -8,6 +8,17 @@ export function useDashboardSites(status?: SiteStatus | "all") {
 }
 export function useDashboardSite(slug: string) { return useQuery({ queryKey: ["dashboard", "site", slug], queryFn: async () => (await api.get<SiteDetail>(`/admin/dashboard/sites/${encodeURIComponent(slug)}`)).data, enabled: !!slug }); }
 export function useDeadConfigs() { return useQuery({ queryKey: ["dashboard", "dead-configs"], queryFn: async () => (await api.get<DashboardSite[]>("/admin/dashboard/dead-configs")).data }); }
+export function useDeleteDeadConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (filename: string) => api.delete(`/admin/dashboard/dead-configs/${encodeURIComponent(filename)}`, { data: { confirm: true } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "dead-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "sites"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "summary"] });
+    },
+  });
+}
 export function useDashboardCustomers() { return useQuery({ queryKey: ["dashboard", "customers"], queryFn: async () => (await api.get<DashboardCustomer[]>("/admin/dashboard/customers")).data }); }
 export function useDashboardCustomer(id: string) { return useQuery({ queryKey: ["dashboard", "customer", id], queryFn: async () => (await api.get<DashboardCustomer>(`/admin/dashboard/customers/${id}`)).data, enabled: !!id }); }
 export function useDashboardSummary() { return useQuery({ queryKey: ["dashboard", "summary"], queryFn: async () => (await api.get<DashboardSummary>("/admin/dashboard/summary")).data, staleTime: 30_000 }); }

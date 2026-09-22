@@ -24,6 +24,7 @@ import { NotificationsPage } from "@/features/notifications/NotificationsPage";
 import { SitesDashboardPage } from "@/features/dashboard/SitesDashboardPage";
 import { SiteDetailPage } from "@/features/dashboard/SiteDetailPage";
 import { CustomerDetailPage, CustomersPage } from "@/features/dashboard/CustomersPage";
+import { DeadConfigsPage } from "@/features/dashboard/DeadConfigsPage";
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
           { path: "nginx", element: <NginxPage /> },
           { path: "nginx/sites", element: <SitesDashboardPage /> },
           { path: "nginx/sites/:slug", element: <SiteDetailPage /> },
+          { path: "nginx/dead-configs", element: <DeadConfigsPage /> },
           { path: "customers", element: <CustomersPage /> },
           { path: "customers/:id", element: <CustomerDetailPage /> },
           { path: "operations", element: <OperationsPage /> },
