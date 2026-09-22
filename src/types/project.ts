@@ -15,6 +15,8 @@ export interface Project {
   lifecycleStatus: "active" | "transferred" | "archived" | "cancelled";
   customerName?: string;
   customerEmail?: string;
+  customerPhone?: string;
+  customerId?: string;
   billingName?: string;
   billingEmail?: string;
   billingAddress?: string;

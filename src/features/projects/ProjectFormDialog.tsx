@@ -98,7 +98,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         dueDate: project.dueDate?.slice(0, 10) ?? "",
         gracePeriodDays: project.gracePeriodDays,
         billingName: project.billingName ?? "", billingEmail: project.billingEmail ?? "", billingAddress: project.billingAddress ?? "",
-        customerId: "",
+        customerId: project.customerId ?? "",
         newCustomerName: "",
         newCustomerEmail: "",
         newCustomerPhone: "",
@@ -285,8 +285,8 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
             </div>
           </div>
 
-          {!isEdit && <div className="space-y-4">
-            <div className="border-b pb-2"><h3 className="text-sm font-semibold">3. Customer</h3><p className="text-xs text-muted-foreground">Optionally assign ownership while creating the project.</p></div>
+          <div className="space-y-4">
+            <div className="border-b pb-2"><h3 className="text-sm font-semibold">3. Customer</h3><p className="text-xs text-muted-foreground">{isEdit ? "Link this project to its customer." : "Optionally assign ownership while creating the project."}</p></div>
             <Select value={customerId || ""} onValueChange={(value) => setValue("customerId", value, { shouldValidate: true })}>
               <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select an existing customer" /></SelectTrigger>
               <SelectContent>
@@ -295,7 +295,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
               </SelectContent>
             </Select>
             {customerId === "__new__" && <div className="grid gap-3 sm:grid-cols-2"><Input placeholder="Customer name" {...register("newCustomerName")} /><Input type="email" placeholder="Customer email (optional)" {...register("newCustomerEmail")} /><Input placeholder="Customer phone (optional)" {...register("newCustomerPhone")} /></div>}
-          </div>}
+          </div>
 
           <div className="space-y-4">
             <div className="border-b pb-2">
