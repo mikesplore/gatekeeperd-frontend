@@ -84,7 +84,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   const type = watch("type");
   const containerName = watch("containerName");
   const customerId = watch("customerId");
-  const selectedCustomer = customers.data?.find(customer => customer.id === customerId);
+  const selectedCustomer = customers.data?.customers.find(customer => customer.id === customerId);
 
   useEffect(() => {
     if (open && project) {
@@ -294,7 +294,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
             <Select value={customerId || ""} onValueChange={(value) => setValue("customerId", value, { shouldValidate: true })}>
               <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select an existing customer" /></SelectTrigger>
               <SelectContent>
-                {customers.isLoading ? <SelectItem value="__loading" disabled>Loading customers…</SelectItem> : customers.data?.length ? customers.data.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>) : <SelectItem value="__empty" disabled>No customers available</SelectItem>}
+                {customers.isLoading ? <SelectItem value="__loading" disabled>Loading customers…</SelectItem> : customers.data?.customers.length ? customers.data.customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>) : <SelectItem value="__empty" disabled>No customers available</SelectItem>}
                 {!isEdit && <SelectItem value="__new__">Create a new customer</SelectItem>}
               </SelectContent>
             </Select>

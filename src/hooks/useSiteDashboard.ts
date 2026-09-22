@@ -29,7 +29,8 @@ export function useDeleteDeadConfig() {
     },
   });
 }
-export function useDashboardCustomers() { return useQuery({ queryKey: ["dashboard", "customers"], queryFn: async () => (await api.get<DashboardCustomer[]>("/admin/dashboard/customers")).data }); }
+export type PaginatedDashboardCustomers = { customers: DashboardCustomer[]; total: number; limit: number; offset: number; hasMore: boolean };
+export function useDashboardCustomers(limit = 25, offset = 0, q = "") { return useQuery({ queryKey: ["dashboard", "customers", limit, offset, q], queryFn: async () => (await api.get<PaginatedDashboardCustomers>("/admin/dashboard/customers", { params: { limit, offset, q: q || undefined } })).data }); }
 export function useDashboardCustomer(id: string) { return useQuery({ queryKey: ["dashboard", "customer", id], queryFn: async () => (await api.get<DashboardCustomer>(`/admin/dashboard/customers/${id}`)).data, enabled: !!id }); }
 export function useDashboardCustomerTransactions(id: string) { return useQuery({ queryKey: ["dashboard", "customer", id, "transactions"], queryFn: async () => (await api.get<DashboardCustomerTransaction[]>(`/admin/dashboard/customers/${id}/transactions`)).data, enabled: !!id }); }
 export function useCreateDashboardCustomer() { const queryClient = useQueryClient(); return useMutation({ mutationFn: (payload: { name: string; contactEmail?: string; contactPhone?: string; billingStatus?: string }) => api.post("/admin/dashboard/customers", payload), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard", "customers"] }) }); }
