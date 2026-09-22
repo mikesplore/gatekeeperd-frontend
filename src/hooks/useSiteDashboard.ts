@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { DashboardCustomer, DashboardSite, SiteDetail, SiteStatus } from "@/types/sites";
+import type { DashboardCustomer, DashboardCustomerTransaction, DashboardSite, SiteDetail, SiteStatus } from "@/types/sites";
 import type { DashboardSummary } from "@/types/dashboard";
 
 export function useDashboardSites(status?: SiteStatus | "all") {
@@ -30,6 +30,7 @@ export function useDeleteDeadConfig() {
 }
 export function useDashboardCustomers() { return useQuery({ queryKey: ["dashboard", "customers"], queryFn: async () => (await api.get<DashboardCustomer[]>("/admin/dashboard/customers")).data }); }
 export function useDashboardCustomer(id: string) { return useQuery({ queryKey: ["dashboard", "customer", id], queryFn: async () => (await api.get<DashboardCustomer>(`/admin/dashboard/customers/${id}`)).data, enabled: !!id }); }
+export function useDashboardCustomerTransactions(id: string) { return useQuery({ queryKey: ["dashboard", "customer", id, "transactions"], queryFn: async () => (await api.get<DashboardCustomerTransaction[]>(`/admin/dashboard/customers/${id}/transactions`)).data, enabled: !!id }); }
 export function useCreateDashboardCustomer() { const queryClient = useQueryClient(); return useMutation({ mutationFn: (payload: { name: string; contactEmail?: string; contactPhone?: string; billingStatus?: string }) => api.post("/admin/dashboard/customers", payload), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard", "customers"] }) }); }
 export function useAssignProjectCustomer() { const queryClient = useQueryClient(); return useMutation({ mutationFn: ({ projectId, customerId }: { projectId: string; customerId: string | null }) => api.patch(`/admin/dashboard/projects/${encodeURIComponent(projectId)}`, { customerId }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }) }); }
 export function useDashboardSummary() { return useQuery({ queryKey: ["dashboard", "summary"], queryFn: async () => (await api.get<DashboardSummary>("/admin/dashboard/summary")).data, staleTime: 30_000 }); }
