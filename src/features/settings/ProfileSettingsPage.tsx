@@ -241,11 +241,7 @@ export function ProfileSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Two-factor authentication</CardTitle>
-              <CardDescription>
-                {account.data?.totpEnabled
-                  ? "Your account is protected by an authenticator app."
-                  : "Add an authenticator app as a second layer of protection."}
-              </CardDescription>
+              {!account.data?.totpEnabled && <CardDescription>Add an authenticator app as a second layer of protection.</CardDescription>}
             </CardHeader>
             <CardContent className="space-y-5">
               {account.data?.totpEnabled ? (
