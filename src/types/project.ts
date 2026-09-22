@@ -62,6 +62,8 @@ export interface CreateProjectPayload {
   amountDue?: number;
   dueDate?: string;
   gracePeriodDays: number;
+  customerId?: string;
+  newCustomer?: { name: string; contactEmail?: string; contactPhone?: string };
 }
 
 export type UpdateProjectPayload = Partial<Omit<CreateProjectPayload, "slug">>;

@@ -24,6 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useCreateProject, useProjectWizardContext, useUpdateProject } from "@/hooks/useProjects";
+import { useDashboardCustomers } from "@/hooks/useSiteDashboard";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import type { CreateProjectPayload, Project, UpdateProjectPayload } from "@/types/project";
 
@@ -38,6 +39,10 @@ const projectSchema = z.object({
   amountDue: z.coerce.number().nonnegative().optional(),
   dueDate: z.string().optional(),
   gracePeriodDays: z.coerce.number().int().nonnegative(),
+  customerId: z.string().optional(),
+  newCustomerName: z.string().optional(),
+  newCustomerEmail: z.string().email().optional().or(z.literal("")),
+  newCustomerPhone: z.string().optional(),
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -53,6 +58,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
   const create = useCreateProject();
   const update = useUpdateProject(project?.slug ?? "");
   const { data: wizardContext, isLoading: wizardLoading } = useProjectWizardContext();
+  const customers = useDashboardCustomers();
   const pending = create.isPending || update.isPending;
 
   const {
@@ -75,6 +81,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
 
   const type = watch("type");
   const containerName = watch("containerName");
+  const customerId = watch("customerId");
 
   useEffect(() => {
     if (open && project) {
@@ -89,6 +96,10 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         amountDue: project.amountDue,
         dueDate: project.dueDate?.slice(0, 10) ?? "",
         gracePeriodDays: project.gracePeriodDays,
+        customerId: "",
+        newCustomerName: "",
+        newCustomerEmail: "",
+        newCustomerPhone: "",
       });
     } else if (open && !project) {
       reset({
@@ -102,6 +113,10 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         amountDue: undefined,
         dueDate: "",
         gracePeriodDays: 3,
+        customerId: "",
+        newCustomerName: "",
+        newCustomerEmail: "",
+        newCustomerPhone: "",
       });
     }
   }, [open, project, reset]);
@@ -132,6 +147,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
       amountDue: values.amountDue,
       dueDate: values.dueDate || undefined,
       gracePeriodDays: values.gracePeriodDays,
+      ...(values.customerId === "__new__" ? { newCustomer: { name: values.newCustomerName?.trim() ?? "", contactEmail: values.newCustomerEmail || undefined, contactPhone: values.newCustomerPhone || undefined } } : { customerId: values.customerId || undefined }),
     };
     if (isEdit) {
       const changedEntries = Object.entries(normalized).filter(([key, value]) => {
@@ -263,6 +279,18 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
             )}
             </div>
           </div>
+
+          {!isEdit && <div className="space-y-4">
+            <div className="border-b pb-2"><h3 className="text-sm font-semibold">3. Customer</h3><p className="text-xs text-muted-foreground">Optionally assign ownership while creating the project.</p></div>
+            <Select value={customerId || ""} onValueChange={(value) => setValue("customerId", value, { shouldValidate: true })}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select an existing customer" /></SelectTrigger>
+              <SelectContent>
+                {customers.isLoading ? <SelectItem value="__loading" disabled>Loading customers…</SelectItem> : customers.data?.length ? customers.data.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>) : <SelectItem value="__empty" disabled>No customers available</SelectItem>}
+                <SelectItem value="__new__">Create a new customer</SelectItem>
+              </SelectContent>
+            </Select>
+            {customerId === "__new__" && <div className="grid gap-3 sm:grid-cols-2"><Input placeholder="Customer name" {...register("newCustomerName")} /><Input type="email" placeholder="Customer email (optional)" {...register("newCustomerEmail")} /><Input placeholder="Customer phone (optional)" {...register("newCustomerPhone")} /></div>}
+          </div>}
 
           <div className="space-y-4">
             <div className="border-b pb-2">
