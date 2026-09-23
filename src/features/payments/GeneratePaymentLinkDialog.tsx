@@ -93,7 +93,7 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
           <div className="space-y-2">
             <Label htmlFor="payment-amount">Amount to pay ({project.currency})</Label>
             <Input id="payment-amount" type="number" min="0.01" max={balance} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-            <p className="text-xs text-muted-foreground">Remaining balance: {project.currency} {balance.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Remaining balance: {project.currency} {balance.toLocaleString()}. Access is restored when the balance is paid in full.</p>
           </div>
           {project.currency.toUpperCase() === "KES" && amountValid && !Number.isInteger(numericAmount) && <p className="text-xs text-muted-foreground">M-Pesa accepts whole KES amounts.</p>}
           {project.currency.toUpperCase() !== "KES" && <p className="text-xs text-muted-foreground">M-Pesa is available for KES projects.</p>}
