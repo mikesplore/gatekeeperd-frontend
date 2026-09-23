@@ -217,6 +217,19 @@ export function useResyncProjectInvoice(slug: string) {
   });
 }
 
+export function useCreateProjectInvoice(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (description: string) =>
+      api.post<{ status: string; invoiceId: number | null }>(`/admin/projects/${encodeURIComponent(slug)}/invoice`, { description }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project", slug, "invoice"] });
+      qc.invalidateQueries({ queryKey: ["project", slug] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}
+
 export function useProjectHealth(slug: string) {
   return useQuery({
     queryKey: ["project", slug, "health"],

@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useAddProjectAdjustment, useProjectDetail, useProjectHealth, useProjectInvoice, useResyncProjectInvoice, useTransferProject } from "@/hooks/useProjects";
+import { useAddProjectAdjustment, useProjectDetail, useProjectHealth, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject } from "@/hooks/useProjects";
 import { useProjectPayments } from "@/hooks/usePayments";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
@@ -41,6 +41,8 @@ export function ProjectDetailPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [invoiceDownloading, setInvoiceDownloading] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [invoiceDescription, setInvoiceDescription] = useState("");
   const [paymentPage, setPaymentPage] = useState(0);
   const projectPayments = useProjectPayments(slug, 25, paymentPage * 25);
   const [deploymentMode, setDeploymentMode] = useState("client_hosted");
@@ -50,6 +52,7 @@ export function ProjectDetailPage() {
   const transferProject = useTransferProject(slug);
   const addAdjustment = useAddProjectAdjustment(slug);
   const resyncInvoice = useResyncProjectInvoice(slug);
+  const createInvoice = useCreateProjectInvoice(slug);
   useEffect(() => { if (data?.project) setDeploymentSource({ repository: data.project.githubRepository ?? "", gitRef: data.project.githubRef ?? "main", imageName: data.project.deployImageName ?? "", imageTag: data.project.deployImageTag ?? "latest", autoDeploy: data.project.autoDeploy ?? false }); }, [data?.project]);
 
   const defaultTab = searchParams.get("tab") === "payments" ? "payments" : "overview";
@@ -198,8 +201,17 @@ export function ProjectDetailPage() {
             <TabsContent value="deployment"><Card><CardHeader><CardTitle>Deployment source</CardTitle><p className="text-sm text-muted-foreground">Configure automatic redeployments for GitHub pushes.</p></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1"><Label>Repository</Label><Input placeholder="owner/repository" value={deploymentSource.repository} onChange={e => setDeploymentSource({...deploymentSource, repository: e.target.value})} /></div><div className="space-y-1"><Label>Branch or ref</Label><Input value={deploymentSource.gitRef} onChange={e => setDeploymentSource({...deploymentSource, gitRef: e.target.value})} /></div><div className="space-y-1"><Label>Image name</Label><Input placeholder="scribed" value={deploymentSource.imageName} onChange={e => setDeploymentSource({...deploymentSource, imageName: e.target.value})} /></div><div className="space-y-1"><Label>Image tag</Label><Input value={deploymentSource.imageTag} onChange={e => setDeploymentSource({...deploymentSource, imageTag: e.target.value})} /></div><label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" checked={deploymentSource.autoDeploy} onChange={e => setDeploymentSource({...deploymentSource, autoDeploy: e.target.checked})} />Redeploy automatically on GitHub pushes</label></div><div className="mt-4 flex justify-end"><Button disabled={savingDeploymentSource} onClick={async () => { setSavingDeploymentSource(true); try { await api.patch(`/admin/projects/${encodeURIComponent(slug)}/deployment-source`, deploymentSource); toast.success("Deployment source saved"); } catch (error) { toast.error(getApiErrorMessage(error)); } finally { setSavingDeploymentSource(false); } }}>{savingDeploymentSource ? "Saving…" : "Save deployment source"}</Button></div></CardContent></Card></TabsContent>
             <TabsContent value="payments">
               {invoiceQuery.isLoading && <Card className="mb-4"><CardHeader><Skeleton className="h-6 w-36" /></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div></CardContent></Card>}
-              {invoiceQuery.isError && <Alert className="mb-4"><AlertTitle>Invoice unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(invoiceQuery.error)}</AlertDescription></Alert>}
+              {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) !== "invoice_unavailable" && <Alert className="mb-4"><AlertTitle>Invoice unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(invoiceQuery.error)}</AlertDescription></Alert>}
+              {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) === "invoice_unavailable" && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle>Invoice</CardTitle><p className="mt-1 text-sm text-muted-foreground">No invoice has been created for this project.</p></div><Button size="sm" onClick={() => { setInvoiceDescription(`Services for ${project.name}`); setCreateInvoiceOpen(true); }}>Create invoice</Button></CardHeader></Card>}
               {invoiceQuery.data && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><CardTitle>Invoice {invoiceQuery.data.invoice.number}</CardTitle><div className="flex gap-2">{invoiceQuery.data.invoice.download_url && <Button size="sm" variant="outline" disabled={invoiceDownloading} onClick={async () => { setInvoiceDownloading(true); try { const response = await api.get(`/admin/projects/${encodeURIComponent(slug)}/invoice/download`, { responseType: "blob" }); const url = URL.createObjectURL(response.data); const link = document.createElement("a"); link.href = url; link.download = `invoice-${slug}.pdf`; link.click(); URL.revokeObjectURL(url); } finally { setInvoiceDownloading(false); } }}>{invoiceDownloading ? "Downloading…" : "Download invoice"}</Button>}<Button size="sm" variant="outline" disabled={resyncInvoice.isPending} onClick={() => resyncInvoice.mutate(undefined, { onSuccess: () => toast.success("Invoice synchronization queued"), onError: (error) => toast.error(getApiErrorMessage(error)) })}>{resyncInvoice.isPending ? "Queueing…" : "Resync invoice"}</Button></div></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><InfoRow label="Status" value={invoiceQuery.data.invoice.status.replace(/_/g, " ")} /><InfoRow label="Total" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.amount}`} /><InfoRow label="Paid" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.paid}`} /><InfoRow label="Balance" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.balance}`} /></div></CardContent></Card>}
+              <Dialog open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen}>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Create invoice</DialogTitle><DialogDescription>Creates an invoice in Scribed for the current project balance and billing contact.</DialogDescription></DialogHeader>
+                  <div className="space-y-2"><Label htmlFor="invoice-description">Description</Label><Input id="invoice-description" value={invoiceDescription} onChange={event => setInvoiceDescription(event.target.value)} maxLength={500} /></div>
+                  <p className="text-sm text-muted-foreground">Invoice total: {project.currency} {((project.baseAmount ?? project.amountDue ?? 0) + project.additionalCharges - project.discounts).toLocaleString()}</p>
+                  <DialogFooter><Button variant="outline" onClick={() => setCreateInvoiceOpen(false)}>Cancel</Button><Button disabled={!invoiceDescription.trim() || createInvoice.isPending} onClick={() => createInvoice.mutate(invoiceDescription.trim(), { onSuccess: async () => { setCreateInvoiceOpen(false); toast.success("Invoice created"); await invoiceQuery.refetch(); }, onError: error => toast.error(getApiErrorMessage(error)) })}>{createInvoice.isPending ? "Creating…" : "Create invoice"}</Button></DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Card>
                 <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
