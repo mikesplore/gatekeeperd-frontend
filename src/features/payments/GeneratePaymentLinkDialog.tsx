@@ -26,11 +26,16 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
   const [email, setEmail] = useState(project.customerEmail ?? "");
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState((project.remainingBalance ?? project.amountDue ?? 0).toString());
+  const balance = project.remainingBalance ?? project.amountDue ?? 0;
+  const numericAmount = Number(amount);
+  const amountValid = Number.isFinite(numericAmount) && numericAmount > 0 && numericAmount <= balance;
   const initPayment = useInitializePayment(project.slug);
   const mpesaPayment = useInitiateMpesaPayment();
 
   const handleGenerate = () => {
-    initPayment.mutate(email || undefined, {
+    if (!amountValid) { toast.error("Enter an amount within the remaining balance"); return; }
+    initPayment.mutate({ email: email || undefined, amount: numericAmount }, {
       onSuccess: (res) => {
         setPaymentLink(res.data.payment_link);
         toast.success("Payment link generated");
@@ -42,6 +47,8 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
   const handleClose = () => {
     setPaymentLink(null);
     setEmail(project.customerEmail ?? "");
+    setAmount(balance.toString());
+    setPhone("");
     onOpenChange(false);
   };
 
@@ -51,10 +58,13 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
     toast.success("Link copied to clipboard");
   };
 
-  const handleMpesa = () => mpesaPayment.mutate({ slug: project.slug, phone }, {
+  const handleMpesa = () => {
+    if (!amountValid) { toast.error("Enter an amount within the remaining balance"); return; }
+    mpesaPayment.mutate({ slug: project.slug, phone, amount: numericAmount }, {
     onSuccess: () => toast.success("M-Pesa prompt sent to the customer"),
     onError: (err) => toast.error(getApiErrorMessage(err)),
-  });
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
@@ -62,7 +72,7 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
         <DialogHeader>
           <DialogTitle>Generate payment link</DialogTitle>
           <DialogDescription>
-            Creates a new pending payment row and returns a Paystack checkout link.
+            Choose an amount up to the remaining balance, then generate a Paystack link or send an M-Pesa prompt.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -80,6 +90,13 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
             <Label htmlFor="mpesa-phone">M-Pesa phone number</Label>
             <Input id="mpesa-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="2547XXXXXXXX" />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="payment-amount">Amount to pay ({project.currency})</Label>
+            <Input id="payment-amount" type="number" min="0.01" max={balance} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+            <p className="text-xs text-muted-foreground">Remaining balance: {project.currency} {balance.toLocaleString()}</p>
+          </div>
+          {project.currency.toUpperCase() === "KES" && amountValid && !Number.isInteger(numericAmount) && <p className="text-xs text-muted-foreground">M-Pesa accepts whole KES amounts.</p>}
+          {project.currency.toUpperCase() !== "KES" && <p className="text-xs text-muted-foreground">M-Pesa is available for KES projects.</p>}
           {paymentLink && (
             <div className="space-y-2 rounded-md border bg-muted/40 p-3">
               <Label>Payment link</Label>
@@ -96,8 +113,8 @@ export function GeneratePaymentLinkDialog({ project, open, onOpenChange }: Gener
           <Button variant="outline" onClick={handleClose}>Close</Button>
           {!paymentLink && (
             <>
-            <Button variant="outline" disabled={mpesaPayment.isPending || !phone} onClick={handleMpesa}>{mpesaPayment.isPending ? "Sending…" : "Pay with M-Pesa"}</Button>
-            <Button disabled={initPayment.isPending} onClick={handleGenerate}>
+            <Button variant="outline" disabled={mpesaPayment.isPending || !phone || !amountValid || project.currency.toUpperCase() !== "KES" || !Number.isInteger(numericAmount)} onClick={handleMpesa}>{mpesaPayment.isPending ? "Sending…" : "Pay with M-Pesa"}</Button>
+            <Button disabled={initPayment.isPending || !amountValid} onClick={handleGenerate}>
               <Link2 className="h-4 w-4" />
               {initPayment.isPending ? "Generating…" : "Generate link"}
             </Button>

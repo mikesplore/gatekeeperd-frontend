@@ -229,9 +229,10 @@ export function useProjectHealth(slug: string) {
 export function useInitializePayment(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (email?: string) =>
+    mutationFn: ({ email, amount }: { email?: string; amount?: number }) =>
       api.post<PaymentLinkResponse>(`/admin/projects/${slug}/payment/initialize`, {
         email: email || undefined,
+        amount,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["project", slug] }),
   });
@@ -239,8 +240,8 @@ export function useInitializePayment(slug: string) {
 
 export function useInitiateMpesaPayment() {
   return useMutation({
-    mutationFn: ({ slug, phone }: { slug: string; phone: string }) =>
-      api.post<{ provider: string; reference: string; status: string }>(`/mpesa/pay?project=${encodeURIComponent(slug)}&phone=${encodeURIComponent(phone)}`),
+    mutationFn: ({ slug, phone, amount }: { slug: string; phone: string; amount: number }) =>
+      api.post<{ provider: string; reference: string; status: string }>(`/mpesa/pay?project=${encodeURIComponent(slug)}&phone=${encodeURIComponent(phone)}&amount=${encodeURIComponent(amount)}`),
   });
 }
 
