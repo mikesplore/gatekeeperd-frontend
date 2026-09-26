@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronLeft, ChevronRight, Rocket, Save, Upload } from "lucide-react";
+import { Check, ChevronLeft, Rocket, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,11 +257,6 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(3)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : "Deploy"}</Button></div></div>
                 </CardContent>
               </Card>}
-
-              <div className="flex justify-between">
-                <Button variant="ghost" onClick={() => goToStep(step - 1)} disabled={step <= 1}><ChevronLeft className="mr-1 h-4 w-4" />Previous step</Button>
-                {step < 4 && <Button variant="ghost" onClick={() => goToStep(step + 1)}>Next step<ChevronRight className="ml-1 h-4 w-4" /></Button>}
-              </div>
             </>
           )}
         </QueryState>
