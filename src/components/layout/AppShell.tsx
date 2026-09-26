@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database, UsersRound, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database, UsersRound, ShieldCheck, UserCog, ChevronDown } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -60,18 +60,26 @@ const navGroups = [
   },
   {
     label: "Account",
-    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }, { to: "/app/settings/users", label: "Admin users", icon: Settings }],
+    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }, { to: "/app/settings/users", label: "Admin users", icon: UserCog }],
   },
 ];
 
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
   const location = useLocation();
+  const activeGroup = navGroups.find(group => group.items.some(({ to }) => to === "/app" ? location.pathname === "/app" : to === "/app/nginx" ? location.pathname === to || (location.pathname.startsWith(`${to}/`) && !location.pathname.startsWith(`${to}/certificates`)) : location.pathname === to || location.pathname.startsWith(`${to}/`)))?.label;
+  const [openGroups, setOpenGroups] = useState<string[]>(() => navGroups.map(group => group.label));
+
+  useEffect(() => {
+    if (activeGroup) setOpenGroups(current => current.includes(activeGroup) ? current : [...current, activeGroup]);
+  }, [activeGroup]);
 
   return (
-    <nav className="space-y-4 p-2">
-      {navGroups.map(group => <div key={group.label} className="space-y-1">
-        {!collapsed && <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">{group.label}</p>}
-        {group.items.map(({ to, label, icon: Icon }) => {
+    <nav className="space-y-2 p-2">
+      {navGroups.map(group => {
+        const groupOpen = openGroups.includes(group.label);
+        return <div key={group.label} className="space-y-1">
+        {!collapsed && <button type="button" aria-expanded={groupOpen} onClick={() => setOpenGroups(current => groupOpen ? current.filter(label => label !== group.label) : [...current, group.label])} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"><span>{group.label}</span><ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !groupOpen && "-rotate-90")} /></button>}
+        {(collapsed || groupOpen) && group.items.map(({ to, label, icon: Icon }) => {
         const active = to === "/app"
           ? location.pathname === "/app"
           : to === "/app/nginx"
@@ -92,7 +100,8 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
           </Link>
         );
       })}
-      </div>)}
+      </div>;
+      })}
     </nav>
   );
 }
@@ -117,12 +126,12 @@ export function AppShell() {
     <div className="flex min-h-screen bg-background">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-56 border-r bg-sidebar text-sidebar-foreground transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(18rem,85vw)] flex-col border-r bg-sidebar text-sidebar-foreground shadow-xl transition-transform md:static md:z-auto md:w-56 md:shrink-0 md:shadow-none",
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
-        <div className="flex h-14 items-center border-b border-sidebar-border px-4 font-semibold">Gatekeeperd</div>
-        <SidebarNav onNav={() => setSidebarOpen(false)} />
+        <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4 font-semibold">Gatekeeperd</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><SidebarNav onNav={() => setSidebarOpen(false)} /></div>
       </aside>
 
       {sidebarOpen && (

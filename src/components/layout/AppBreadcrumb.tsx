@@ -30,6 +30,7 @@ export function AppBreadcrumb() {
   const section = sections.find(item => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
   const detail = location.pathname.match(/^\/app\/(projects|containers|networks|volumes|nginx\/sites)\/([^/]+)/)?.[2];
   const detailLabel = detail ? decodeURIComponent(detail) : null;
+  const settingsChild = location.pathname === "/app/settings/users" ? "Admin users" : location.pathname === "/app/settings/profile" ? "Profile" : null;
 
   if (customerMatch) {
     return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/customers" className="transition-colors hover:text-primary">Customers</Link><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{customer.isLoading ? "Loading…" : customer.data?.name ?? "Customer"}</span></h1>;
@@ -38,5 +39,5 @@ export function AppBreadcrumb() {
   if (location.pathname === "/app") return <h1 className="text-sm font-semibold sm:text-base">Dashboard</h1>;
   const childLabel = location.pathname === "/app/nginx/dead-configs" ? "Dead configs" : location.pathname === "/app/nginx/certificates" ? "Certificates" : siteDetailMatch ? site.data?.site.domain ?? detailLabel : detailLabel;
   if (advancedMatch) return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/nginx" className="transition-colors hover:text-primary">Nginx</Link><span className="text-muted-foreground/60">/</span><Link to={`/app/nginx/sites/${encodeURIComponent(siteSlug)}`} className="max-w-48 truncate transition-colors hover:text-primary">{site.data?.site.domain ?? siteSlug}</Link><span className="text-muted-foreground/60">/</span><span className="text-muted-foreground">Advanced config</span></h1>;
-  return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to={section?.to ?? "/app"} className="transition-colors hover:text-primary">{section?.label ?? "Dashboard"}</Link>{childLabel && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{childLabel}</span></>}</h1>;
+  return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to={section?.to ?? "/app"} className="transition-colors hover:text-primary">{section?.label ?? "Dashboard"}</Link>{(settingsChild ?? childLabel) && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{settingsChild ?? childLabel}</span></>}</h1>;
 }
