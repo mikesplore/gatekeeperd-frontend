@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, ExternalLink, Github, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/common/DataTable";
@@ -106,7 +106,7 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="github-credentials">
         <Card>
-          <CardHeader className="border-b pb-4"><CardTitle className="flex items-center gap-2"><Github className="h-5 w-5" />GitHub credentials</CardTitle><CardDescription>Rotate webhook verification and GitHub App credentials used by integrations and deployments.</CardDescription></CardHeader>
+          <CardHeader className="border-b pb-4"><CardDescription>Rotate webhook verification and GitHub App credentials used by integrations and deployments.</CardDescription></CardHeader>
           <CardContent className="grid gap-4 pt-5 md:grid-cols-2">
             <section className="flex flex-col justify-between gap-4 rounded-lg border p-4"><div><h3 className="text-sm font-medium">Webhook secret</h3><p className="mt-1 text-sm text-muted-foreground">Verifies incoming GitHub webhook requests.</p></div><Button variant="outline" className="self-start" onClick={() => setPanel("github-webhook")}><RotateCw className="h-4 w-4" />Set or rotate secret</Button></section>
             <section className="flex flex-col justify-between gap-4 rounded-lg border p-4"><div><h3 className="text-sm font-medium">GitHub App private key</h3><p className="mt-1 text-sm text-muted-foreground">Authenticates GitHub App operations and deployment access.</p></div><Button variant="outline" className="self-start" onClick={() => setPanel("github-key")}><RotateCw className="h-4 w-4" />Set or rotate private key</Button></section>
@@ -117,7 +117,7 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="github-connection">
         <Card>
-          <CardHeader className="border-b pb-4"><CardTitle className="flex items-center gap-2"><Github className="h-5 w-5" />GitHub connection</CardTitle><CardDescription>Connect the GitHub App installation used for private repository deployments and webhook events.</CardDescription></CardHeader>
+          <CardHeader className="border-b pb-4"><CardDescription>Connect the GitHub App installation used for private repository deployments and webhook events.</CardDescription></CardHeader>
           <CardContent className="space-y-4 pt-5">
             {github.isLoading ? <p className="text-sm text-muted-foreground">Checking GitHub connection…</p> : github.data?.connected ? <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"><div className="space-y-1"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" /><p className="font-medium">Connected</p></div><p className="text-sm text-muted-foreground">{github.data.accountLogin ?? "Installation configured"}{github.data.accountType ? ` · ${github.data.accountType}` : ""}</p>{github.data.appSlug && <p className="text-xs text-muted-foreground">GitHub App: {github.data.appSlug}</p>}</div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => void github.refetch()} disabled={github.isFetching}><RefreshCw className={`h-4 w-4 ${github.isFetching ? "animate-spin" : ""}`} />Refresh</Button><Button variant="destructive" size="sm" onClick={() => setUnlinkOpen(true)} disabled={unlink.isPending}>Unlink</Button></div></div> : <div className="rounded-lg border border-dashed p-5"><p className="font-medium">GitHub is not connected</p><p className="mt-1 text-sm text-muted-foreground">Install the GitHub App to grant repository access for deployments.</p><Button className="mt-4" onClick={async () => { try { window.location.assign((await install.mutateAsync()).url); } catch (error) { toast.error(getApiErrorMessage(error)); } }} disabled={install.isPending}><ExternalLink className="h-4 w-4" />{install.isPending ? "Preparing…" : "Connect GitHub"}</Button></div>}
           </CardContent>
@@ -126,7 +126,7 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="history">
         <Card>
-          <CardHeader className="border-b pb-4"><CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary" />Credential version history</CardTitle><CardDescription>Metadata only. This table never requests or displays secret values.</CardDescription></CardHeader>
+          <CardHeader className="border-b pb-4"><CardDescription>Metadata only. This table never requests or displays secret values.</CardDescription></CardHeader>
           <CardContent className="pt-4"><DataTable data={history} columns={columns} filters={filters} getRowKey={item => item.id} isLoading={credentials.isLoading} emptyMessage={credentials.isError ? getApiErrorMessage(credentials.error) : "No credential versions recorded yet."} searchPlaceholder="Search credentials…" /></CardContent>
         </Card>
       </TabsContent>
