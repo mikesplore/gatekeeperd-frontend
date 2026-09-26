@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { Link2, Pencil, Trash2, RotateCcw, Rocket, Upload, Info } from "lucide-react";
+import { Link2, Pencil, Trash2, RotateCcw, Rocket, Upload, Info, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -56,7 +56,7 @@ export function ProjectDetailPage() {
   const overview = useProjectOverview(slug);
   const history = useProjectDeploymentHistory(slug);
   const rotateSecrets = useProjectSecretRotation(data?.project.id ?? "", slug);
-  const [secretDraft, setSecretDraft] = useState("");
+  const [secretRows, setSecretRows] = useState<{ name: string; value: string }[]>([{ name: "", value: "" }]);
   const invoiceQuery = useProjectInvoice(slug);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
@@ -224,16 +224,25 @@ export function ProjectDetailPage() {
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader><div className="flex items-center gap-2"><CardTitle>Application environment variables</CardTitle><InfoHint>These are secrets your app reads at runtime, such as DATABASE_URL or API_TOKEN. Values are encrypted and write-only: after saving, admins cannot view them again. Edit the draft or upload a replacement .env, then save to create a new immutable version and queue a deployment. Keep a secure copy of values you may need later.</InfoHint></div></CardHeader>
+                    <CardHeader><div className="flex items-center gap-2"><CardTitle>Application environment variables</CardTitle><InfoHint>These are secrets your app reads at runtime, such as DATABASE_URL or API_TOKEN. Values are encrypted and write-only: after saving, admins cannot view them again. Edit the draft or upload a replacement .env, then save to create a new immutable version and queue a deployment. Paste KEY=value lines into the first name field or upload a .env file. Keep a secure copy of values you may need later.</InfoHint></div></CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm">Desired secret set: {overview.data?.desiredConfiguration.secretSetId ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} · Active deployment: {overview.data?.currentDeployment.secretSetId ? `Version ${overview.data.currentDeployment.secretSetVersion}` : "No secret version recorded"}</p>
-                      <Label htmlFor="project-secret-env">Variables (KEY=value, one per line)</Label>
-                      <textarea id="project-secret-env" className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-xs" value={secretDraft} onChange={event => setSecretDraft(event.target.value)} placeholder={"DATABASE_URL=postgres://…\nAPI_TOKEN=…"} />
+                      <div className="space-y-2">
+                        <div className="grid gap-2 px-1 text-xs font-medium text-muted-foreground sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2.25rem]"><span>Name</span><span>Value</span><span className="sr-only">Row actions</span></div>
+                        {secretRows.map((row, index) => <div key={index} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2.25rem]">
+                          <Input aria-label={`Variable name ${index + 1}`} className="min-w-0 font-mono text-xs" placeholder="DATABASE_URL" value={row.name} onChange={event => setSecretRows(current => current.map((item, rowIndex) => rowIndex === index ? { ...item, name: event.target.value } : item))} onPaste={event => { const pasted = event.clipboardData.getData("text"); if (!pasted.includes("=") || (!pasted.includes("\n") && !pasted.includes("\r"))) return; try { const parsed = parseSecretEnv(pasted); event.preventDefault(); setSecretRows(Object.entries(parsed).map(([name, value]) => ({ name, value }))); toast.success("Environment variables pasted into rows."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to parse pasted environment variables"); } }} />
+                          <Input aria-label={`Variable value ${index + 1}`} className="min-w-0 font-mono text-xs" placeholder="Value" value={row.value} onChange={event => setSecretRows(current => current.map((item, rowIndex) => rowIndex === index ? { ...item, value: event.target.value } : item))} />
+                          <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" aria-label={`Remove variable ${index + 1}`} disabled={secretRows.length === 1} onClick={() => setSecretRows(current => current.filter((_, rowIndex) => rowIndex !== index))}><Trash2 className="h-4 w-4" /></Button>
+                        </div>)}
+                      </div>
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"><Upload className="h-4 w-4" />Upload .env file<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); parseSecretEnv(text); setSecretDraft(text); toast.success(".env file loaded. Review it, then save and deploy."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label>
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => setSecretRows(current => [...current, { name: "", value: "" }])}><Plus className="h-4 w-4" />Add variable</Button>
+                          <label className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs font-medium hover:bg-muted"><Upload className="h-4 w-4" />Upload .env<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); const parsed = parseSecretEnv(text); setSecretRows(Object.entries(parsed).map(([name, value]) => ({ name, value }))); toast.success(".env file loaded into rows. Review, then save and deploy."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label>
+                        </div>
                         <InfoHint>Saving creates a new secret version and queues a deployment. The deployment worker supplies the values to the container when it starts.</InfoHint>
                       </div>
-                      <Button disabled={rotateSecrets.isPending || !secretDraft.trim()} onClick={async () => { try { await rotateSecrets.mutateAsync(parseSecretEnv(secretDraft)); setSecretDraft(""); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
+                      <Button disabled={rotateSecrets.isPending || !secretRows.some(row => row.name.trim())} onClick={async () => { try { const secretEnv = Object.fromEntries(secretRows.filter(row => row.name.trim()).map((row, index) => { const name = row.name.trim(); if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Invalid variable name in row ${index + 1}.`); return [name, row.value]; })); await rotateSecrets.mutateAsync(secretEnv); setSecretRows([{ name: "", value: "" }]); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
                     </CardContent>
                   </Card>
                 </div>
