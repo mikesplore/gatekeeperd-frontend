@@ -141,7 +141,7 @@ export function AppShell() {
         />
       )}
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-4">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
@@ -210,7 +210,7 @@ export function AppShell() {
           </div>
         </header>
         <Separator />
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="min-w-0 max-w-full flex-1 overflow-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>
