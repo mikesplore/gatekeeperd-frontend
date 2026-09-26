@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Github, ExternalLink, RefreshCw } from "lucide-react";
 import QRCode from "qrcode";
 import {
   Card,
@@ -14,34 +13,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/authStore";
-import {
-  useGitHubInstallUrl,
-  useGitHubStatus,
-  useUnlinkGitHub,
-} from "@/hooks/useDeployments";
 import { toast } from "sonner";
 import { api, getApiErrorMessage } from "@/lib/api";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 type Setup = { secret: string; otpauthUri: string; recoveryCodes: string[] };
-type Tab = "general" | "security" | "integrations";
+type Tab = "general" | "security";
 
 export function ProfileSettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const email = useAuthStore((s) => s.email);
   const role = useAuthStore((s) => s.role);
-  const [tab, setTab] = useState<Tab>(() => searchParams.get("tab") === "integrations" || searchParams.get("tab") === "security" ? searchParams.get("tab") as Tab : "general");
+  const [tab, setTab] = useState<Tab>(() => searchParams.get("tab") === "security" ? "security" : "general");
   const selectTab = (value: Tab) => { setTab(value); const next = new URLSearchParams(searchParams); if (value === "general") next.delete("tab"); else next.set("tab", value); setSearchParams(next); };
-  const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [setup, setSetup] = useState<Setup | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -51,9 +34,6 @@ export function ProfileSettingsPage() {
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
-  const [registry, setRegistry] = useState("");
-  const [registryUsername, setRegistryUsername] = useState("");
-  const [registryPassword, setRegistryPassword] = useState("");
   const account = useQuery({
     queryKey: ["auth", "me"],
     queryFn: async () =>
@@ -65,12 +45,6 @@ export function ProfileSettingsPage() {
         }>("/auth/me")
       ).data,
   });
-  const github = useGitHubStatus();
-  const registries = useQuery({ queryKey: ["registries"], queryFn: async () => (await api.get<{ registry: string; username: string; configured: boolean }[]>("/admin/registries")).data });
-  const saveRegistry = useMutation({ mutationFn: () => api.put(`/admin/registries/${encodeURIComponent(registry.trim().toLowerCase())}`, { username: registryUsername, password: registryPassword }), onSuccess: () => registries.refetch() });
-  const deleteRegistry = useMutation({ mutationFn: (host: string) => api.delete(`/admin/registries/${encodeURIComponent(host)}`), onSuccess: () => registries.refetch() });
-  const install = useGitHubInstallUrl();
-  const unlink = useUnlinkGitHub();
   const profile = useMutation({
     mutationFn: () => api.patch("/auth/me", { displayName }),
   });
@@ -138,12 +112,6 @@ export function ProfileSettingsPage() {
           onClick={() => selectTab("security")}
         >
           Security
-        </Button>
-        <Button
-          variant={tab === "integrations" ? "secondary" : "ghost"}
-          onClick={() => selectTab("integrations")}
-        >
-          Integrations
         </Button>
       </div>
       {tab === "general" && (
@@ -374,102 +342,6 @@ export function ProfileSettingsPage() {
           </Card>
         </div>
       )}
-      {tab === "integrations" && (
-        <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Github className="h-5 w-5" /> GitHub access
-            </CardTitle>
-            <CardDescription>
-              Connect GitHub for private repository deployments and webhooks.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {github.isLoading ? (
-              <p className="text-sm text-muted-foreground">
-                Checking GitHub connection…
-              </p>
-            ) : github.data?.connected ? (
-              <div className="flex max-w-xl flex-wrap items-center justify-between gap-3 rounded-md border p-4">
-                <div>
-                  <p className="font-medium">Connected</p>
-                  <p className="text-sm text-muted-foreground">
-                    {github.data.accountLogin ?? "Installation configured"}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => github.refetch()}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Refresh
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setUnlinkOpen(true)}
-                  >
-                    Unlink
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                onClick={async () => {
-                  try {
-                    window.location.assign((await install.mutateAsync()).url);
-                  } catch (error) {
-                    toast.error(getApiErrorMessage(error));
-                  }
-                }}
-                disabled={install.isPending}
-              >
-                <ExternalLink className="h-4 w-4" />
-                Connect GitHub
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Container registry credentials</CardTitle><CardDescription>Credentials are encrypted at rest and are never returned to the dashboard. Saving replaces the password for that registry.</CardDescription></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3"><div className="space-y-1"><Label>Registry host</Label><Input placeholder="registry.example.com" value={registry} onChange={event => setRegistry(event.target.value)} /></div><div className="space-y-1"><Label>Username</Label><Input autoComplete="username" value={registryUsername} onChange={event => setRegistryUsername(event.target.value)} /></div><div className="space-y-1"><Label>Password</Label><Input type="password" autoComplete="new-password" value={registryPassword} onChange={event => setRegistryPassword(event.target.value)} /></div></div>
-            <Button disabled={saveRegistry.isPending || !registry.trim() || !registryUsername.trim() || !registryPassword} onClick={async () => { try { await saveRegistry.mutateAsync(); setRegistry(""); setRegistryUsername(""); setRegistryPassword(""); toast.success("Registry credentials saved"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{saveRegistry.isPending ? "Saving…" : "Save credentials"}</Button>
-            <div className="divide-y rounded-md border">{registries.isLoading ? <p className="p-3 text-sm text-muted-foreground">Loading saved registries…</p> : registries.isError ? <p className="p-3 text-sm text-destructive">Unable to load registry credentials.</p> : registries.data?.length ? registries.data.map(item => <div key={item.registry} className="flex items-center justify-between gap-3 p-3"><div><p className="text-sm font-medium">{item.registry}</p><p className="text-xs text-muted-foreground">Username: {item.username} · Password stored securely</p></div><Button size="sm" variant="outline" disabled={deleteRegistry.isPending} onClick={async () => { if (!window.confirm(`Delete stored credentials for ${item.registry}?`)) return; try { await deleteRegistry.mutateAsync(item.registry); toast.success("Registry credentials deleted"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>Delete</Button></div>) : <p className="p-3 text-sm text-muted-foreground">No registries configured.</p>}</div>
-          </CardContent>
-        </Card>
-        </div>
-      )}
-      <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unlink GitHub?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes Gatekeeperd’s stored GitHub installation association.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                try {
-                  await unlink.mutateAsync();
-                  toast.success("GitHub installation unlinked");
-                } catch (error) {
-                  toast.error(getApiErrorMessage(error));
-                } finally {
-                  setUnlinkOpen(false);
-                }
-              }}
-            >
-              Unlink GitHub
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
