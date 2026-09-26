@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, ExternalLink, Github, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
@@ -9,15 +9,18 @@ import { Label } from "@/components/ui/label";
 import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/common/DataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 import { useGitHubInstallUrl, useGitHubStatus, useUnlinkGitHub } from "@/hooks/useDeployments";
 import type { ProviderCredentialMetadata } from "@/types/project";
 import { toast } from "sonner";
 
 type CredentialTab = "registry" | "github-credentials" | "github-connection" | "history";
+type CredentialPanel = "registry" | "github-webhook" | "github-key" | null;
 
 export function InfrastructureCredentialsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<CredentialTab>("registry");
+  const [panel, setPanel] = useState<CredentialPanel>(null);
   const [registry, setRegistry] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +47,8 @@ export function InfrastructureCredentialsPage() {
   const install = useGitHubInstallUrl();
   const unlink = useUnlinkGitHub();
 
-  const rotateRegistry = async () => {
+  const rotateRegistry = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setSaving(true);
     try {
       await api.put(`/admin/registries/${encodeURIComponent(registry.trim().toLowerCase())}`, { username, password });
@@ -52,6 +56,10 @@ export function InfrastructureCredentialsPage() {
       setPassword("");
       await queryClient.invalidateQueries({ queryKey: ["provider-credentials-metadata"] });
       toast.success("Registry credential rotated");
+      setRegistry("");
+      setUsername("");
+      setPassword("");
+      setPanel(null);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -59,13 +67,15 @@ export function InfrastructureCredentialsPage() {
     }
   };
 
-  const rotateGithub = async (type: "webhook_secret" | "app_private_key", value: string) => {
+  const rotateGithub = async (event: FormEvent<HTMLFormElement>, type: "webhook_secret" | "app_private_key", value: string) => {
+    event.preventDefault();
     setSavingGithub(true);
     try {
       await api.put(`/admin/github/credentials/${type}`, { value });
       if (type === "webhook_secret") setGithubWebhookSecret(""); else setGithubPrivateKey("");
       await queryClient.invalidateQueries({ queryKey: ["provider-credentials-metadata"] });
       toast.success("GitHub credential rotated");
+      setPanel(null);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -75,25 +85,21 @@ export function InfrastructureCredentialsPage() {
 
   return <div className="mx-auto max-w-6xl space-y-5">
     <Tabs value={tab} onValueChange={value => setTab(value as CredentialTab)}>
-      <div className="overflow-x-auto border-b">
-        <TabsList className="h-auto min-w-max justify-start gap-1 rounded-none bg-transparent p-0 text-muted-foreground">
-          <TabsTrigger value="registry" className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"><Boxes className="h-4 w-4" />Registry</TabsTrigger>
-          <TabsTrigger value="github-credentials" className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"><KeyRound className="h-4 w-4" />GitHub credentials</TabsTrigger>
-          <TabsTrigger value="github-connection" className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"><Github className="h-4 w-4" />GitHub connection</TabsTrigger>
-          <TabsTrigger value="history" className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"><History className="h-4 w-4" />Version history</TabsTrigger>
+      <div className="-mx-1 overflow-x-auto px-1">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="registry" className="flex-1 sm:flex-none"><Boxes className="mr-2 h-4 w-4" />Registry</TabsTrigger>
+          <TabsTrigger value="github-credentials" className="flex-1 sm:flex-none"><KeyRound className="mr-2 h-4 w-4" />GitHub credentials</TabsTrigger>
+          <TabsTrigger value="github-connection" className="flex-1 sm:flex-none"><Github className="mr-2 h-4 w-4" />GitHub connection</TabsTrigger>
+          <TabsTrigger value="history" className="flex-1 sm:flex-none"><History className="mr-2 h-4 w-4" />Version history</TabsTrigger>
         </TabsList>
       </div>
 
       <TabsContent value="registry">
         <Card>
           <CardHeader className="border-b pb-4"><CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" />Container registry</CardTitle><CardDescription>Set or rotate credentials for a private image registry. Saving creates a new encrypted version.</CardDescription></CardHeader>
-          <CardContent className="space-y-4 pt-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="registry-scope">Registry host or scope</Label><Input id="registry-scope" placeholder="docker.io or registry.example.com" value={registry} onChange={event => setRegistry(event.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="registry-username">Username</Label><Input id="registry-username" autoComplete="off" value={username} onChange={event => setUsername(event.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="registry-password">Password or access token</Label><Input id="registry-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} /></div>
-            </div>
-            <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">The previous version remains available in history.</p><Button className="sm:min-w-40" disabled={saving || !registry.trim() || !username.trim() || !password} onClick={() => void rotateRegistry()}><RotateCw className="h-4 w-4" />{saving ? "Saving…" : "Save registry credential"}</Button></div>
+          <CardContent className="flex flex-col gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-xl text-sm text-muted-foreground">Add or rotate the login Gatekeeperd uses when pulling private images. Previous versions remain available in the history tab.</p>
+            <Button className="shrink-0" onClick={() => setPanel("registry")}><RotateCw className="h-4 w-4" />Configure registry</Button>
           </CardContent>
         </Card>
       </TabsContent>
@@ -101,10 +107,10 @@ export function InfrastructureCredentialsPage() {
       <TabsContent value="github-credentials">
         <Card>
           <CardHeader className="border-b pb-4"><CardTitle className="flex items-center gap-2"><Github className="h-5 w-5" />GitHub credentials</CardTitle><CardDescription>Rotate webhook verification and GitHub App credentials used by integrations and deployments.</CardDescription></CardHeader>
-          <CardContent className="space-y-4 pt-5">
-            <section className="space-y-3 rounded-lg border bg-muted/20 p-4"><div><h3 className="text-sm font-medium">Webhook secret</h3><p className="mt-0.5 text-xs text-muted-foreground">Verifies incoming GitHub webhook requests.</p></div><div className="flex flex-col gap-3 sm:flex-row"><Input aria-label="GitHub webhook secret" type="password" autoComplete="new-password" placeholder="Enter a new webhook secret" value={githubWebhookSecret} onChange={event => setGithubWebhookSecret(event.target.value)} /><Button variant="outline" disabled={savingGithub || !githubWebhookSecret} onClick={() => void rotateGithub("webhook_secret", githubWebhookSecret)}>{savingGithub ? "Saving…" : "Save secret"}</Button></div></section>
-            <section className="space-y-3 rounded-lg border bg-muted/20 p-4"><div><h3 className="text-sm font-medium">GitHub App private key</h3><p className="mt-0.5 text-xs text-muted-foreground">Used to authenticate GitHub App operations.</p></div><textarea aria-label="GitHub App private key" className="min-h-28 w-full resize-y rounded-md border bg-background px-3 py-2 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring" value={githubPrivateKey} onChange={event => setGithubPrivateKey(event.target.value)} placeholder="Paste PEM private key" /><div className="flex justify-end"><Button variant="outline" disabled={savingGithub || !githubPrivateKey} onClick={() => void rotateGithub("app_private_key", githubPrivateKey)}>{savingGithub ? "Saving…" : "Save private key"}</Button></div></section>
-            <p className="text-xs text-muted-foreground">Saved values are cleared from these fields and cannot be retrieved later.</p>
+          <CardContent className="grid gap-4 pt-5 md:grid-cols-2">
+            <section className="flex flex-col justify-between gap-4 rounded-lg border p-4"><div><h3 className="text-sm font-medium">Webhook secret</h3><p className="mt-1 text-sm text-muted-foreground">Verifies incoming GitHub webhook requests.</p></div><Button variant="outline" className="self-start" onClick={() => setPanel("github-webhook")}><RotateCw className="h-4 w-4" />Set or rotate secret</Button></section>
+            <section className="flex flex-col justify-between gap-4 rounded-lg border p-4"><div><h3 className="text-sm font-medium">GitHub App private key</h3><p className="mt-1 text-sm text-muted-foreground">Authenticates GitHub App operations and deployment access.</p></div><Button variant="outline" className="self-start" onClick={() => setPanel("github-key")}><RotateCw className="h-4 w-4" />Set or rotate private key</Button></section>
+            <p className="text-xs text-muted-foreground md:col-span-2">Secret values are write-only. After saving, they are cleared and cannot be retrieved later.</p>
           </CardContent>
         </Card>
       </TabsContent>
@@ -125,6 +131,29 @@ export function InfrastructureCredentialsPage() {
         </Card>
       </TabsContent>
     </Tabs>
+
+    <SidePanel open={panel !== null} onOpenChange={open => { if (!open) setPanel(null); }}>
+      <SidePanelContent>
+        <SidePanelHeader className="border-b p-6 text-left">
+          <SidePanelTitle>{panel === "registry" ? "Registry credentials" : panel === "github-webhook" ? "GitHub webhook secret" : "GitHub App private key"}</SidePanelTitle>
+          <SidePanelDescription>{panel === "registry" ? "Enter the registry scope and credentials Gatekeeperd should use for private image pulls." : "Save a new encrypted credential version. The value is cleared after saving and cannot be retrieved later."}</SidePanelDescription>
+        </SidePanelHeader>
+        {panel === "registry" ? <form className="flex min-h-0 flex-col" onSubmit={event => void rotateRegistry(event)}>
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            <div className="space-y-1.5"><Label htmlFor="registry-scope">Registry host or scope</Label><Input id="registry-scope" autoFocus placeholder="docker.io or registry.example.com" value={registry} onChange={event => setRegistry(event.target.value)} required /></div>
+            <div className="space-y-1.5"><Label htmlFor="registry-username">Username</Label><Input id="registry-username" autoComplete="off" value={username} onChange={event => setUsername(event.target.value)} required /></div>
+            <div className="space-y-1.5"><Label htmlFor="registry-password">Password or access token</Label><Input id="registry-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} required /></div>
+          </div>
+          <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={saving || !registry.trim() || !username.trim() || !password}>{saving ? "Saving…" : "Save registry credential"}</Button></SidePanelFooter>
+        </form> : panel === "github-webhook" ? <form className="flex min-h-0 flex-col" onSubmit={event => void rotateGithub(event, "webhook_secret", githubWebhookSecret)}>
+          <div className="flex-1 space-y-4 overflow-y-auto p-6"><div className="space-y-1.5"><Label htmlFor="github-webhook-secret">New webhook secret</Label><Input id="github-webhook-secret" type="password" autoComplete="new-password" autoFocus placeholder="Enter a new webhook secret" value={githubWebhookSecret} onChange={event => setGithubWebhookSecret(event.target.value)} required /></div><p className="text-xs text-muted-foreground">GitHub uses this value to sign webhook requests.</p></div>
+          <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={savingGithub || !githubWebhookSecret}>{savingGithub ? "Saving…" : "Save webhook secret"}</Button></SidePanelFooter>
+        </form> : panel === "github-key" ? <form className="flex min-h-0 flex-col" onSubmit={event => void rotateGithub(event, "app_private_key", githubPrivateKey)}>
+          <div className="flex-1 space-y-4 overflow-y-auto p-6"><div className="space-y-1.5"><Label htmlFor="github-private-key">GitHub App private key</Label><textarea id="github-private-key" autoFocus className="min-h-56 w-full resize-y rounded-md border bg-background px-3 py-2 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring" value={githubPrivateKey} onChange={event => setGithubPrivateKey(event.target.value)} placeholder="Paste PEM private key" required /></div><p className="text-xs text-muted-foreground">Paste the complete PEM key, including its BEGIN and END lines.</p></div>
+          <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={savingGithub || !githubPrivateKey}>{savingGithub ? "Saving…" : "Save private key"}</Button></SidePanelFooter>
+        </form> : null}
+      </SidePanelContent>
+    </SidePanel>
 
     <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
       <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Unlink GitHub?</AlertDialogTitle><AlertDialogDescription>This removes Gatekeeperd’s stored GitHub installation association. You can reconnect the app later.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={async event => { event.preventDefault(); try { await unlink.mutateAsync(); toast.success("GitHub installation unlinked"); } catch (error) { toast.error(getApiErrorMessage(error)); } finally { setUnlinkOpen(false); } }}>Unlink GitHub</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
