@@ -96,7 +96,7 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="registry">
         <Card>
-          <CardHeader className="border-b pb-4"><CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" />Container registry</CardTitle><CardDescription>Set or rotate credentials for a private image registry. Saving creates a new encrypted version.</CardDescription></CardHeader>
+          <CardHeader className="border-b pb-4"><CardDescription>Set or rotate credentials for a private image registry. Saving creates a new encrypted version.</CardDescription></CardHeader>
           <CardContent className="flex flex-col gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-xl text-sm text-muted-foreground">Add or rotate the login Gatekeeperd uses when pulling private images. Previous versions remain available in the history tab.</p>
             <Button className="shrink-0" onClick={() => setPanel("registry")}><RotateCw className="h-4 w-4" />Configure registry</Button>
