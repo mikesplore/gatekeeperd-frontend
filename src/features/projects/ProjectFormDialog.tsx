@@ -32,7 +32,7 @@ const projectSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers, and hyphens only"),
   name: z.string().min(1, "Name is required"),
   domain: z.string().min(1, "Domain is required"),
-  containerName: z.string().min(1, "Container name is required"),
+  containerName: z.string().optional(),
   type: z.enum(["frontend", "backend"]),
   billingName: z.string().optional(),
   billingEmail: z.string().email().optional().or(z.literal("")),
@@ -92,7 +92,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
         slug: project.slug,
         name: project.name,
         domain: project.domain,
-        containerName: project.containerName,
+        containerName: project.containerName ?? "",
         type: project.type,
         amountDue: project.amountDue,
         dueDate: project.dueDate?.slice(0, 10) ?? "",
@@ -144,7 +144,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
     const normalized = {
       name: values.name,
       domain: values.domain,
-      containerName: values.containerName,
+      containerName: values.containerName?.trim() || undefined,
       type: values.type,
       billingName: billingSameAsCustomer ? customerIdentity.name : values.billingName || undefined,
       billingEmail: billingSameAsCustomer ? customerIdentity.email : values.billingEmail || undefined,
@@ -156,6 +156,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
     };
     if (isEdit) {
       const changedEntries = Object.entries(normalized).filter(([key, value]) => {
+        if (key === "containerName" && !value) return false;
         const original = project?.[key as keyof Project];
         const comparableOriginal = key === "dueDate" && typeof original === "string" ? original.slice(0, 10) : original;
         return value !== comparableOriginal;
@@ -171,9 +172,15 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
       return;
     }
 
+    if (!values.containerName?.trim()) {
+      setError("containerName", { type: "required", message: "Choose an existing container for the container-first create flow." });
+      setFocus("containerName");
+      return;
+    }
     const payload: CreateProjectPayload = {
       ...values,
       ...normalized,
+      containerName: values.containerName.trim(),
       ...(values.customerId === "__new__" ? { customerId: undefined } : {}),
     };
     create.mutate(payload, {

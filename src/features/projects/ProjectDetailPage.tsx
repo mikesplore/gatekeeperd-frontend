@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useAddProjectAdjustment, useProjectDetail, useProjectHealth, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject } from "@/hooks/useProjects";
+import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject } from "@/hooks/useProjects";
 import { useProjectPayments } from "@/hooks/usePayments";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
@@ -20,7 +20,6 @@ import { BlockUnblockDialog } from "@/features/projects/BlockUnblockDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
 import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
@@ -31,7 +30,7 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data, isLoading, isError, error } = useProjectDetail(slug);
-  const healthQuery = useProjectHealth(slug);
+  const overview = useProjectOverview(slug);
   const invoiceQuery = useProjectInvoice(slug);
   const [editOpen, setEditOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
@@ -103,6 +102,7 @@ export function ProjectDetailPage() {
                 <p className="text-sm text-muted-foreground break-all">{project.domain}</p>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" asChild><Link to={`/app/projects/setup/${project.id}?step=1`}>Project setup</Link></Button>
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none">
                   <Pencil className="h-4 w-4" />
                   <span className="sm:hidden">Edit</span>
@@ -141,27 +141,14 @@ export function ProjectDetailPage() {
             </div>
 
             <TabsContent value="overview">
-              <Card className="mb-4">
-                <CardHeader><CardTitle>Operational state</CardTitle><p className="text-sm text-muted-foreground">Access, deployment, and lifecycle are tracked separately.</p></CardHeader>
-                <CardContent className="grid gap-3 sm:grid-cols-3">
-                  <StateCard label="Access" value={formatStatus(project.status)} />
-                  <StateCard label="Deployment" value={formatStatus(project.deploymentMode)} />
-                  <StateCard label="Lifecycle" value={formatStatus(project.lifecycleStatus)} />
-                </CardContent>
-              </Card>
-              <Card className="mb-4">
-                <CardHeader><CardTitle>Runtime health</CardTitle></CardHeader>
-                <CardContent>
-                  {healthQuery.isLoading ? <Skeleton className="h-16 w-full" /> : healthQuery.data ? (
-                    <div className="grid gap-4 sm:grid-cols-4">
-                      <InfoRow label="Readiness" value={healthQuery.data.readiness.replace(/_/g, " ")} />
-                      <InfoRow label="Container" value={healthQuery.data.containerHealth ?? "unknown"} />
-                      <InfoRow label="Nginx" value={<HealthBadge active={healthQuery.data.nginxEnabled} onLabel="Enabled" offLabel="Disabled" />} />
-                      <InfoRow label="Certificate" value={<HealthBadge active={healthQuery.data.certificateInstalled} onLabel="Installed" offLabel="Missing" />} />
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground">Health data unavailable.</p>}
-                </CardContent>
-              </Card>
+              {overview.data && <div className="mb-4 grid gap-4 xl:grid-cols-2">
+                <Card><CardHeader><CardTitle>Access &amp; lifecycle</CardTitle><p className="text-sm text-muted-foreground">Business access and project lifecycle stay independent of runtime health.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><InfoRow label="Access" value={formatStatus(overview.data.accessLifecycle.accessStatus)} /><InfoRow label="Lifecycle" value={formatStatus(overview.data.accessLifecycle.lifecycleStatus)} /><InfoRow label="Service mode" value={formatStatus(overview.data.accessLifecycle.serviceMode)} />{overview.data.accessLifecycle.blockReason && <InfoRow label="Block reason" value={overview.data.accessLifecycle.blockReason} />}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Desired configuration</CardTitle><p className="text-sm text-muted-foreground">Editable source and runtime target for the next deployment.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Repository" value={overview.data.desiredConfiguration.repository ?? "Not configured"} /><InfoRow label="Ref" value={overview.data.desiredConfiguration.gitRef ?? "Not configured"} /><InfoRow label="Image" value={overview.data.desiredConfiguration.imageName ? `${overview.data.desiredConfiguration.registry}/${overview.data.desiredConfiguration.imageName}:${overview.data.desiredConfiguration.imageTag}` : "Not configured"} /><InfoRow label="Environment" value={overview.data.desiredConfiguration.environment ?? "Not configured"} /><InfoRow label="Environment keys" value={overview.data.desiredConfiguration.envKeys.join(", ") || "None"} /><InfoRow label="Secret set" value={overview.data.desiredConfiguration.secretSetVersion ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} /></CardContent></Card>
+                <Card><CardHeader><CardTitle>Current deployment &amp; runtime</CardTitle><p className="text-sm text-muted-foreground">The canonical active deployment pointer supplies runtime identity.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Deployment" value={overview.data.currentDeployment.id ?? "No active deployment"} /><InfoRow label="State" value={formatStatus(overview.data.currentDeployment.status)} /><InfoRow label="Image digest" value={overview.data.currentDeployment.imageDigest ?? "Not available"} /><InfoRow label="Commit" value={overview.data.currentDeployment.commitSha ?? "Not available"} /><InfoRow label="Runtime" value={overview.data.currentDeployment.runtimeContainerName ?? "No runtime"} /><InfoRow label="Runtime health" value={formatStatus(overview.data.currentDeployment.runtimeHealth)} /><InfoRow label="Runtime upstream" value={overview.data.currentDeployment.runtimeUpstreamHost && overview.data.currentDeployment.runtimeUpstreamPort ? `${overview.data.currentDeployment.runtimeUpstreamHost}:${overview.data.currentDeployment.runtimeUpstreamPort}` : "Not resolved"} /><InfoRow label="Credential version" value={overview.data.currentDeployment.credentialSetVersion ? `Version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"} /></CardContent></Card>
+                <Card><CardHeader><CardTitle>Domain &amp; gateway</CardTitle><p className="text-sm text-muted-foreground">Domain identity belongs to the project; upstream follows the active deployment.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Domain" value={overview.data.domainsGateway.domain} /><InfoRow label="Site" value={overview.data.domainsGateway.configured ? formatStatus(overview.data.domainsGateway.reconciliationStatus ?? "configured") : "Not configured"} /><InfoRow label="TLS" value={formatStatus(overview.data.domainsGateway.tlsMode ?? "not configured")} /><InfoRow label="Payment gate" value={overview.data.domainsGateway.gateEnabled ? "Enabled" : "Disabled"} /><InfoRow label="Resolved upstream" value={overview.data.domainsGateway.resolvedUpstreamHost && overview.data.domainsGateway.resolvedUpstreamPort ? `${overview.data.domainsGateway.resolvedUpstreamHost}:${overview.data.domainsGateway.resolvedUpstreamPort}` : "No active target"} /></CardContent></Card>
+                <Card className="xl:col-span-2"><CardHeader><CardTitle>Customer &amp; billing</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><InfoRow label="Customer" value={overview.data.customerBilling.customerId && overview.data.customerBilling.customerName ? <Link to={`/app/customers/${overview.data.customerBilling.customerId}`} className="text-primary hover:underline">{overview.data.customerBilling.customerName}</Link> : "Not set"} /><InfoRow label="Billing contact" value={overview.data.customerBilling.billingName ?? overview.data.customerBilling.customerName ?? "Not set"} /><InfoRow label="Billed" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.billed.toLocaleString()}`} /><InfoRow label="Paid" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.paid.toLocaleString()}`} /><InfoRow label="Balance" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.balance.toLocaleString()}`} /><InfoRow label="Due date" value={overview.data.customerBilling.dueDate ?? "Not set"} /></CardContent></Card>
+              </div>}
+              {overview.isError && <Alert><AlertTitle>Project overview unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(overview.error)}. Existing project details are still shown below.</AlertDescription></Alert>}
               <div className="grid items-stretch gap-4 lg:grid-cols-2">
               <Card className="h-full">
                 <CardHeader><CardTitle>Customer &amp; Billing</CardTitle></CardHeader>
@@ -313,17 +300,4 @@ function formatStatus(value: string) {
   return value
     .replace(/_/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function HealthBadge({ active, onLabel, offLabel }: { active: boolean; onLabel: string; offLabel: string }) {
-  return <Badge variant="outline" className={active ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : "border-amber-500/40 text-amber-700 dark:text-amber-400"}><span className={active ? "mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" : "mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500"} />{active ? onLabel : offLabel}</Badge>;
-}
-
-function StateCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border bg-muted/30 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-2 text-sm font-semibold capitalize">{value}</p>
-    </div>
-  );
 }

@@ -27,6 +27,7 @@ import { SiteDetailPage } from "@/features/dashboard/SiteDetailPage";
 import { CustomerDetailPage, CustomersPage } from "@/features/dashboard/CustomersPage";
 import { DeadConfigsPage } from "@/features/dashboard/DeadConfigsPage";
 import { SiteAdvancedConfigPage } from "@/features/nginx/SiteAdvancedConfigPage";
+import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
 
 export const router = createBrowserRouter([
   {
@@ -48,6 +49,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardOverviewPage /> },
           { path: "projects", element: <ProjectsListPage /> },
+          { path: "projects/setup", element: <ProjectSetupWizardPage /> },
+          { path: "projects/setup/:projectId", element: <ProjectSetupWizardPage /> },
           { path: "projects/:slug", element: <ProjectDetailPage /> },
           { path: "payments", element: <PaymentsPage /> },
           { path: "payments/events", element: <PaymentEventsPage /> },

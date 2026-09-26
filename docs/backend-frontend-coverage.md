@@ -1,6 +1,6 @@
 # Gatekeeperd frontend coverage plan
 
-This plan keeps the dashboard aligned with the backend. A feature is complete only when its endpoint, UI state, mutation feedback, error state, and verification path are covered.
+This plan keeps the dashboard aligned with the backend. A feature is complete only when its endpoint, UI state, mutation feedback, error state, and verification path are covered. The project-centered setup API is additive; keep the legacy project creation form working during its rollout.
 
 ## 1. Dashboard and operations
 
@@ -35,6 +35,8 @@ Dashboard requirements:
 | Audit history | Project audit routes | Timeline and filtering |
 
 The UI must not collapse deployment state into payment/access state.
+
+Project-centered setup is additive alongside the existing container-first form. `ProjectSetupWizardPage` uses `POST /admin/project-setup/projects`, the independently repeatable source/runtime, credentials, and domain/gateway updates, and an explicit deploy action. It can resume with the project UUID. The project detail overview reads its runtime identity/health and upstream from `GET /admin/projects/{slug}/overview`, not the legacy `containerName` projection. Keep existing project and container-first flows working during rollout.
 
 ## 3. Payments and providers
 

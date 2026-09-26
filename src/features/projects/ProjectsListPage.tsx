@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ import type { Project } from "@/types/project";
 import { api, getApiErrorMessage } from "@/lib/api";
 
 export function ProjectsListPage() {
+  const navigate = useNavigate();
   const { data, isLoading, isError, error } = useProjects();
   const [formOpen, setFormOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -31,7 +33,7 @@ export function ProjectsListPage() {
         <div>
           <p className="text-muted-foreground">Manage client projects and access control.</p>
         </div>
-        <div className="flex flex-wrap gap-2">{selectedSlugs.length > 0 && <><Button variant="outline" disabled={bulkAction.isPending} onClick={() => void runBulk("block")}><ShieldAlert className="mr-2 h-4 w-4"/>Block {selectedSlugs.length}</Button><Button variant="outline" disabled={bulkAction.isPending} onClick={() => void runBulk("unblock")}><ShieldCheck className="mr-2 h-4 w-4"/>Unblock {selectedSlugs.length}</Button></>}<Button onClick={() => { setEditProject(null); setFormOpen(true); }} className="w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2">{selectedSlugs.length > 0 && <><Button variant="outline" disabled={bulkAction.isPending} onClick={() => void runBulk("block")}><ShieldAlert className="mr-2 h-4 w-4"/>Block {selectedSlugs.length}</Button><Button variant="outline" disabled={bulkAction.isPending} onClick={() => void runBulk("unblock")}><ShieldCheck className="mr-2 h-4 w-4"/>Unblock {selectedSlugs.length}</Button></>}<Button variant="outline" onClick={() => navigate("/app/projects/setup")} className="w-full sm:w-auto">Project setup</Button><Button onClick={() => { setEditProject(null); setFormOpen(true); }} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           New Project
         </Button></div>

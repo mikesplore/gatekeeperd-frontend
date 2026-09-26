@@ -25,6 +25,8 @@ import type {
   ProjectHealthResponse,
   ProjectWizardContext,
   UpdateProjectPayload,
+  ProjectOverview,
+  ProjectSetupStatus,
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
 import type { ProjectInvoiceStatus } from "@/types/payment";
@@ -123,6 +125,82 @@ export function useCreateProject() {
     mutationFn: (payload: CreateProjectPayload) =>
       api.post<Project>("/admin/projects", payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+}
+
+export function useProjectSetupStatus(projectId: string) {
+  return useQuery({
+    queryKey: ["project-setup", projectId],
+    queryFn: async () => (await api.get<ProjectSetupStatus>(`/admin/project-setup/projects/${projectId}`)).data,
+    enabled: Boolean(projectId),
+    refetchInterval: 5_000,
+  });
+}
+
+function invalidateSetup(queryClient: ReturnType<typeof useQueryClient>, projectId?: string) {
+  queryClient.invalidateQueries({ queryKey: ["project-setup", projectId] });
+  queryClient.invalidateQueries({ queryKey: ["projects"] });
+  if (projectId) {
+    queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["project-overview", projectId] });
+  }
+}
+
+export function useCreateProjectSetup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { slug: string; name: string; domain: string; type: "frontend" | "backend"; customerId?: string }) =>
+      (await api.post<{ projectId: string; slug: string; status: string }>("/admin/project-setup/projects", payload)).data,
+    onSuccess: () => invalidateSetup(qc),
+  });
+}
+
+export type ProjectSetupRuntimeInput = {
+  repository: string; gitRef: string; registry: string; imageName: string; imageTag: string; containerPort?: number;
+  hostPort?: number; network: string; restartPolicy: string; env?: Record<string, string>; environment: string;
+  readinessType?: string; readinessTarget?: string;
+};
+export function useSaveProjectSetupRuntime(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: ProjectSetupRuntimeInput) =>
+      (await api.put(`/admin/project-setup/projects/${projectId}/source-runtime`, payload)).data,
+    onSuccess: () => invalidateSetup(qc, projectId),
+  });
+}
+
+export function useSaveProjectSetupCredentials(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { registry?: string; username?: string; password?: string; secretEnv?: Record<string, string> }) =>
+      (await api.put(`/admin/project-setup/projects/${projectId}/credentials`, payload)).data,
+    onSuccess: () => invalidateSetup(qc, projectId),
+  });
+}
+
+export function useSaveProjectSetupGateway(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { domain: string; tlsMode: string; gateEnabled: boolean }) =>
+      (await api.put(`/admin/project-setup/projects/${projectId}/domain-gateway`, payload)).data,
+    onSuccess: () => invalidateSetup(qc, projectId),
+  });
+}
+
+export function useDeployProjectSetup(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post<{ deploymentId: string; status: string }>(`/admin/project-setup/projects/${projectId}/deploy`)).data,
+    onSuccess: () => { invalidateSetup(qc, projectId); qc.invalidateQueries({ queryKey: ["deployments"] }); },
+  });
+}
+
+export function useProjectOverview(slug: string) {
+  return useQuery({
+    queryKey: ["project-overview", slug],
+    queryFn: async () => (await api.get<ProjectOverview>(`/admin/projects/${encodeURIComponent(slug)}/overview`)).data,
+    enabled: Boolean(slug),
+    refetchInterval: 15_000,
   });
 }
 
