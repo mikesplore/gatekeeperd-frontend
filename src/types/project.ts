@@ -105,3 +105,16 @@ export interface ProjectOverview {
   domainsGateway: { siteId?: string | null; domain: string; configured: boolean; tlsMode?: string | null; gateEnabled?: boolean | null; reconciliationStatus?: string | null; resolvedUpstreamHost?: string | null; resolvedUpstreamPort?: number | null };
   customerBilling: { customerId?: string | null; customerName?: string | null; customerEmail?: string | null; billingName?: string | null; billingEmail?: string | null; billingAddress?: string | null; currency: string; billed: number; paid: number; balance: number; dueDate?: string | null };
 }
+
+export interface ProjectDeploymentHistoryItem {
+  id: string; environment: string; sourceCommit?: string | null; imageName: string; imageTag: string;
+  imageDigest?: string | null; trigger: string; actor?: string | null; status: string; createdAt: string;
+  activeAt?: string | null; healthCheckResult: string; failureReason?: string | null;
+  credentialSetId?: string | null; credentialSetVersion?: number | null;
+  secretSetId?: string | null; secretSetVersion?: number | null; configurationId: string; actions: string[];
+}
+
+export interface ProviderCredentialMetadata {
+  id: string; provider: "docker" | "github"; type: string; displayName: string; scope: string;
+  version: number; current: boolean; rotatedAt?: string | null; rotatedBy?: string | null; createdAt: string;
+}

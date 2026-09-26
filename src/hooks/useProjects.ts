@@ -27,6 +27,8 @@ import type {
   UpdateProjectPayload,
   ProjectOverview,
   ProjectSetupStatus,
+  ProjectDeploymentHistoryItem,
+  ProviderCredentialMetadata,
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
 import type { ProjectInvoiceStatus } from "@/types/payment";
@@ -201,6 +203,34 @@ export function useProjectOverview(slug: string) {
     queryFn: async () => (await api.get<ProjectOverview>(`/admin/projects/${encodeURIComponent(slug)}/overview`)).data,
     enabled: Boolean(slug),
     refetchInterval: 15_000,
+  });
+}
+
+export function useProjectDeploymentHistory(slug: string) {
+  return useQuery({
+    queryKey: ["project-deployment-history", slug],
+    queryFn: async () => (await api.get<{ projectId: string; environment: string; items: ProjectDeploymentHistoryItem[] }>(`/admin/projects/${encodeURIComponent(slug)}/deployments/history`)).data,
+    enabled: Boolean(slug),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useProjectSecretRotation(projectId: string, slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (secretEnv: Record<string, string>) => (await api.post<{ deploymentId: string; status: string }>(`/admin/projects/${projectId}/secret-sets/rotate-and-deploy`, { secretEnv })).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project-deployment-history", slug] });
+      qc.invalidateQueries({ queryKey: ["project-overview", slug] });
+      qc.invalidateQueries({ queryKey: ["deployments"] });
+    },
+  });
+}
+
+export function useProviderCredentialMetadata() {
+  return useQuery({
+    queryKey: ["provider-credentials-metadata"],
+    queryFn: async () => (await api.get<ProviderCredentialMetadata[]>("/admin/project-setup/provider-credentials")).data,
   });
 }
 

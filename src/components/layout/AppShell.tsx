@@ -37,6 +37,7 @@ const navGroups = [
     label: "Delivery",
     items: [
       { to: "/app/deployments", label: "Deployments", icon: Rocket },
+      { to: "/app/credentials", label: "Credentials", icon: ShieldCheck },
       { to: "/app/nginx", label: "Nginx", icon: Server },
       { to: "/app/nginx/certificates", label: "Certificates", icon: ShieldCheck },
     ],

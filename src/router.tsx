@@ -28,6 +28,7 @@ import { CustomerDetailPage, CustomersPage } from "@/features/dashboard/Customer
 import { DeadConfigsPage } from "@/features/dashboard/DeadConfigsPage";
 import { SiteAdvancedConfigPage } from "@/features/nginx/SiteAdvancedConfigPage";
 import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
+import { InfrastructureCredentialsPage } from "@/features/settings/InfrastructureCredentialsPage";
 
 export const router = createBrowserRouter([
   {
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
           { path: "notifications", element: <NotificationsPage /> },
           { path: "deployments", element: <DeploymentsPage /> },
           { path: "settings/profile", element: <ProfileSettingsPage /> },
+          { path: "credentials", element: <InfrastructureCredentialsPage /> },
           { path: "settings/users", element: <AdminUsersPage /> },
           { path: "networks", element: <DockerResourcesPage kind="networks" /> },
           { path: "networks/:name", element: <NetworkDetailPage /> },
