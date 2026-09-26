@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Github, History, KeyRound, LockKeyhole, RotateCw, ShieldCheck } from "lucide-react";
+import { Boxes, Github, History, KeyRound, RotateCw } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,19 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProviderCredentialMetadata } from "@/types/project";
 import { toast } from "sonner";
-
-function SummaryCard({ icon: Icon, label, value, detail }: { icon: typeof ShieldCheck; label: string; value: string; detail: string }) {
-  return <Card>
-    <CardContent className="flex items-start gap-3 p-4">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="mt-0.5 truncate text-lg font-semibold">{value}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>
-      </div>
-    </CardContent>
-  </Card>;
-}
 
 export function InfrastructureCredentialsPage() {
   const queryClient = useQueryClient();
@@ -36,9 +23,6 @@ export function InfrastructureCredentialsPage() {
     queryFn: async () => (await api.get<ProviderCredentialMetadata[]>("/admin/project-setup/provider-credentials")).data,
   });
   const history = useMemo(() => [...(credentials.data ?? [])].sort((a, b) => a.provider.localeCompare(b.provider) || a.scope.localeCompare(b.scope) || b.version - a.version), [credentials.data]);
-  const currentCount = history.filter(item => item.current).length;
-  const providerCount = new Set(history.map(item => item.provider)).size;
-
   const rotateRegistry = async () => {
     setSaving(true);
     try {
@@ -69,21 +53,6 @@ export function InfrastructureCredentialsPage() {
   };
 
   return <div className="mx-auto max-w-6xl space-y-6">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2 text-sm font-medium text-primary"><ShieldCheck className="h-4 w-4" /> Infrastructure security</div>
-        <h1 className="text-2xl font-semibold tracking-tight">Credentials</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">Manage the credentials Gatekeeperd uses to access private registries and GitHub. Secret values are write-only and never displayed after saving.</p>
-      </div>
-      <div className="flex items-center gap-2 self-start rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground sm:self-auto"><LockKeyhole className="h-3.5 w-3.5 text-primary" /> Encrypted at rest</div>
-    </div>
-
-    <div className="grid gap-3 sm:grid-cols-3">
-      <SummaryCard icon={KeyRound} label="Credential versions" value={credentials.isLoading ? "…" : String(history.length)} detail="Encrypted versions on record" />
-      <SummaryCard icon={ShieldCheck} label="Current credentials" value={credentials.isLoading ? "…" : String(currentCount)} detail="Latest active version per scope" />
-      <SummaryCard icon={Boxes} label="Connected providers" value={credentials.isLoading ? "…" : String(providerCount)} detail="Registry and GitHub access" />
-    </div>
-
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <Card>
         <CardHeader className="border-b pb-4">
