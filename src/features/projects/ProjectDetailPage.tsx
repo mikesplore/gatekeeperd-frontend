@@ -26,22 +26,42 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
-function parseSecretEnv(text: string): Record<string, string> {
+function parseSecretEnv(text: string): [string, string][] {
   const entries: [string, string][] = [];
-  text.split(/\r?\n/).forEach((rawLine, index) => {
+  let multiline: { name: string; value: string; quote: string; line: number } | null = null;
+  const lines = text.split(/\r\n|\n|\r/);
+  for (const [index, rawLine] of lines.entries()) {
+    if (multiline) {
+      const ending = rawLine.trimEnd();
+      if (ending.endsWith(multiline.quote)) {
+        multiline.value += `\n${ending.slice(0, -1)}`;
+        entries.push([multiline.name, multiline.value]);
+        multiline = null;
+      } else {
+        multiline.value += `\n${rawLine}`;
+      }
+      continue;
+    }
     let line = rawLine.trim();
-    if (!line || line.startsWith("#")) return;
+    if (!line || line.startsWith("#")) continue;
     line = line.replace(/^export\s+/, "");
     const separator = line.indexOf("=");
     if (separator < 1) throw new Error(`Invalid .env entry on line ${index + 1}; expected KEY=value.`);
-    const key = line.slice(0, separator).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`Invalid variable name on line ${index + 1}.`);
-    let value = line.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    entries.push([key, value]);
-  });
+    const name = line.slice(0, separator).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Invalid variable name on line ${index + 1}.`);
+    const rawValue = line.slice(separator + 1).trim();
+    const quote = rawValue[0];
+    if ((quote === '"' || quote === "'") && !rawValue.slice(1).endsWith(quote)) {
+      multiline = { name, value: rawValue.slice(1), quote, line: index + 1 };
+    } else if ((quote === '"' || quote === "'") && rawValue.endsWith(quote)) {
+      entries.push([name, rawValue.slice(1, -1)]);
+    } else {
+      entries.push([name, rawValue]);
+    }
+  }
+  if (multiline) throw new Error(`Unclosed quoted value for ${multiline.name}, starting on line ${multiline.line}.`);
   if (!entries.length) throw new Error("The .env file contains no variables.");
-  return Object.fromEntries(entries);
+  return entries;
 }
 
 function InfoHint({ children }: { children: string }) {
@@ -229,20 +249,22 @@ export function ProjectDetailPage() {
                       <p className="text-sm">Desired secret set: {overview.data?.desiredConfiguration.secretSetId ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} · Active deployment: {overview.data?.currentDeployment.secretSetId ? `Version ${overview.data.currentDeployment.secretSetVersion}` : "No secret version recorded"}</p>
                       <div className="space-y-2">
                         <div className="grid gap-2 px-1 text-xs font-medium text-muted-foreground sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2.25rem]"><span>Name</span><span>Value</span><span className="sr-only">Row actions</span></div>
-                        {secretRows.map((row, index) => <div key={index} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2.25rem]">
-                          <Input aria-label={`Variable name ${index + 1}`} className="min-w-0 font-mono text-xs" placeholder="DATABASE_URL" value={row.name} onChange={event => setSecretRows(current => current.map((item, rowIndex) => rowIndex === index ? { ...item, name: event.target.value } : item))} onPaste={event => { const pasted = event.clipboardData.getData("text"); if (!pasted.includes("=") || (!pasted.includes("\n") && !pasted.includes("\r"))) return; try { const parsed = parseSecretEnv(pasted); event.preventDefault(); setSecretRows(Object.entries(parsed).map(([name, value]) => ({ name, value }))); toast.success("Environment variables pasted into rows."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to parse pasted environment variables"); } }} />
+                        <div className="max-h-96 space-y-2 overflow-y-auto overscroll-contain pr-2">
+                          {secretRows.map((row, index) => <div key={index} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2.25rem]">
+                          <Input aria-label={`Variable name ${index + 1}`} className="min-w-0 font-mono text-xs" placeholder="DATABASE_URL" value={row.name} onChange={event => setSecretRows(current => current.map((item, rowIndex) => rowIndex === index ? { ...item, name: event.target.value } : item))} onPaste={event => { const pasted = event.clipboardData.getData("text"); if (!pasted.includes("=") || (!pasted.includes("\n") && !pasted.includes("\r"))) return; try { const parsed = parseSecretEnv(pasted); event.preventDefault(); setSecretRows(parsed.map(([name, value]) => ({ name, value }))); toast.success("Environment variables pasted into rows."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to parse pasted environment variables"); } }} />
                           <Input aria-label={`Variable value ${index + 1}`} className="min-w-0 font-mono text-xs" placeholder="Value" value={row.value} onChange={event => setSecretRows(current => current.map((item, rowIndex) => rowIndex === index ? { ...item, value: event.target.value } : item))} />
                           <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" aria-label={`Remove variable ${index + 1}`} disabled={secretRows.length === 1} onClick={() => setSecretRows(current => current.filter((_, rowIndex) => rowIndex !== index))}><Trash2 className="h-4 w-4" /></Button>
                         </div>)}
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap gap-2">
                           <Button type="button" variant="outline" size="sm" onClick={() => setSecretRows(current => [...current, { name: "", value: "" }])}><Plus className="h-4 w-4" />Add variable</Button>
-                          <label className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs font-medium hover:bg-muted"><Upload className="h-4 w-4" />Upload .env<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); const parsed = parseSecretEnv(text); setSecretRows(Object.entries(parsed).map(([name, value]) => ({ name, value }))); toast.success(".env file loaded into rows. Review, then save and deploy."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label>
+                          <label className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs font-medium hover:bg-muted"><Upload className="h-4 w-4" />Upload .env<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); const parsed = parseSecretEnv(text); setSecretRows(parsed.map(([name, value]) => ({ name, value }))); toast.success(".env file loaded into rows. Review, then save and deploy."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label>
                         </div>
                         <InfoHint>Saving creates a new secret version and queues a deployment. The deployment worker supplies the values to the container when it starts.</InfoHint>
                       </div>
-                      <Button disabled={rotateSecrets.isPending || !secretRows.some(row => row.name.trim())} onClick={async () => { try { const secretEnv = Object.fromEntries(secretRows.filter(row => row.name.trim()).map((row, index) => { const name = row.name.trim(); if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Invalid variable name in row ${index + 1}.`); return [name, row.value]; })); await rotateSecrets.mutateAsync(secretEnv); setSecretRows([{ name: "", value: "" }]); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
+                      <Button disabled={rotateSecrets.isPending || !secretRows.some(row => row.name.trim())} onClick={async () => { try { const secretEnv: Record<string, string> = {}; const names = new Set<string>(); secretRows.filter(row => row.name.trim()).forEach((row, index) => { const name = row.name.trim(); if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Invalid variable name in row ${index + 1}.`); if (names.has(name)) throw new Error(`Variable name ${name} appears more than once.`); names.add(name); secretEnv[name] = row.value; }); await rotateSecrets.mutateAsync(secretEnv); setSecretRows([{ name: "", value: "" }]); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
                     </CardContent>
                   </Card>
                 </div>
