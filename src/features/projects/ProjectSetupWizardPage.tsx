@@ -42,12 +42,12 @@ const initialRuntime: ProjectSetupRuntimeInput = {
   environment: "production", readinessType: "http", readinessTarget: "80/", env: {},
 };
 
-export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+export function ProjectSetupWizardPage({ open, onOpenChange, projectId: providedProjectId, initialStep = 1 }: { open?: boolean; onOpenChange?: (open: boolean) => void; projectId?: string; initialStep?: number }) {
   const { projectId: routeProjectId = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const projectId = routeProjectId;
-  const requestedStep = Number(searchParams.get("step") ?? "1");
+  const projectId = providedProjectId ?? routeProjectId;
+  const requestedStep = Number(searchParams.get("step") ?? String(initialStep));
   const [step, setStep] = useState(projectId ? Math.max(1, Math.min(4, requestedStep)) : 0);
   const [projectForm, setProjectForm] = useState({ name: "", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
@@ -161,7 +161,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
   const projectName = status.data?.name ?? projectForm.name;
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && onOpenChange && !routeProjectId) {
+    if (!nextOpen && onOpenChange && !projectId) {
       setStep(0);
       setProjectForm({ name: "", customerId: "" });
     }
@@ -173,14 +173,14 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
   return (
     <SidePanel open={open ?? true} onOpenChange={handleOpenChange}>
       <SidePanelContent className="sm:max-w-3xl">
-        {projectId ? <SidePanelHeader className="border-b px-6 py-5 pr-14">
+        {projectId ? <SidePanelHeader className="shrink-0 border-b px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
           <SidePanelTitle>{projectName || "Project setup"}</SidePanelTitle>
           <SidePanelDescription>{status.data ? `${status.data.slug}${status.data.domain ? ` · ${status.data.domain}` : ""}` : "Configure deployment settings for this project."}</SidePanelDescription>
-        </SidePanelHeader> : <SidePanelHeader className="border-b px-6 py-5 pr-14">
+        </SidePanelHeader> : <SidePanelHeader className="shrink-0 border-b px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
           <SidePanelTitle>Create project</SidePanelTitle>
           <SidePanelDescription>Add the project name and customer. Configure deployment whenever you are ready.</SidePanelDescription>
         </SidePanelHeader>}
-        <div className="space-y-6 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 space-y-5 overflow-y-auto px-4 py-4 sm:space-y-6 sm:px-6 sm:py-5">
           {status.data && <div className="flex justify-end"><Button variant="outline" asChild><Link to={`/app/projects/${status.data.slug}`}>Project overview</Link></Button></div>}
 
       {projectId && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

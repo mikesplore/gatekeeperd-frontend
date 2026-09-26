@@ -18,7 +18,7 @@ export const SidePanelContent = React.forwardRef<
   <DialogContent
     ref={ref}
     className={cn(
-      "!left-auto !right-0 !top-0 !translate-x-0 !translate-y-0 h-screen max-h-screen w-full grid-rows-[auto_1fr] items-start justify-items-stretch gap-0 overflow-y-auto rounded-none border-y-0 border-r-0 p-0 duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right sm:max-w-xl",
+      "!left-auto !right-0 !top-0 !translate-x-0 !translate-y-0 h-dvh max-h-dvh w-full min-h-0 grid-rows-[auto_minmax(0,1fr)] items-start justify-items-stretch gap-0 overflow-hidden rounded-none border-y-0 border-r-0 p-0 duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right sm:max-w-xl",
       className,
     )}
     {...props}

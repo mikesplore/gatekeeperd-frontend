@@ -19,6 +19,7 @@ import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
 import { BlockUnblockDialog } from "@/features/projects/BlockUnblockDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
+import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
 import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,6 +80,8 @@ export function ProjectDetailPage() {
   const [secretRows, setSecretRows] = useState<{ name: string; value: string }[]>([{ name: "", value: "" }]);
   const invoiceQuery = useProjectInvoice(slug);
   const [editOpen, setEditOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupStep, setSetupStep] = useState(1);
   const [payOpen, setPayOpen] = useState(false);
   const [cashPayOpen, setCashPayOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
@@ -96,6 +99,11 @@ export function ProjectDetailPage() {
   const addAdjustment = useAddProjectAdjustment(slug);
   const resyncInvoice = useResyncProjectInvoice(slug);
   const createInvoice = useCreateProjectInvoice(slug);
+
+  const openProjectSetup = (step: number) => {
+    setSetupStep(step);
+    setSetupOpen(true);
+  };
 
   const defaultTab = searchParams.get("tab") === "payments" ? "payments" : "overview";
 
@@ -145,7 +153,7 @@ export function ProjectDetailPage() {
                 <p className="text-sm text-muted-foreground break-all">{project.domain}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" asChild><Link to={`/app/projects/setup/${project.id}?step=1`}>Project setup</Link></Button>
+                <Button variant="outline" size="sm" onClick={() => openProjectSetup(1)}>Project setup</Button>
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none">
                   <Pencil className="h-4 w-4" />
                   <span className="sm:hidden">Edit</span>
@@ -191,7 +199,7 @@ export function ProjectDetailPage() {
                 <Card><CardHeader><CardTitle>Desired configuration</CardTitle><p className="text-sm text-muted-foreground">Editable source and runtime target for the next deployment.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Repository" value={overview.data.desiredConfiguration.repository ?? "Not configured"} /><InfoRow label="Ref" value={overview.data.desiredConfiguration.gitRef ?? "Not configured"} /><InfoRow label="Image" value={overview.data.desiredConfiguration.imageName ? `${overview.data.desiredConfiguration.registry}/${overview.data.desiredConfiguration.imageName}:${overview.data.desiredConfiguration.imageTag}` : "Not configured"} /><InfoRow label="Environment" value={overview.data.desiredConfiguration.environment ?? "Not configured"} /><InfoRow label="Environment keys" value={overview.data.desiredConfiguration.envKeys.join(", ") || "None"} /><InfoRow label="Secret set" value={overview.data.desiredConfiguration.secretSetVersion ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} /></CardContent></Card>
                 <Card><CardHeader><CardTitle>Current deployment &amp; runtime</CardTitle><p className="text-sm text-muted-foreground">The canonical active deployment pointer supplies runtime identity.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Deployment" value={overview.data.currentDeployment.id ?? "No active deployment"} /><InfoRow label="State" value={formatStatus(overview.data.currentDeployment.status)} /><InfoRow label="Image digest" value={overview.data.currentDeployment.imageDigest ?? "Not available"} /><InfoRow label="Commit" value={overview.data.currentDeployment.commitSha ?? "Not available"} /><InfoRow label="Runtime" value={overview.data.currentDeployment.status === "active" ? "Active deployment runtime" : "No active runtime"} /><InfoRow label="Runtime health" value={formatStatus(overview.data.currentDeployment.runtimeHealth)} /><InfoRow label="Runtime upstream" value={overview.data.currentDeployment.runtimeUpstreamHost && overview.data.currentDeployment.runtimeUpstreamPort ? `${overview.data.currentDeployment.runtimeUpstreamHost}:${overview.data.currentDeployment.runtimeUpstreamPort}` : "Not resolved"} /><InfoRow label="Credential version" value={overview.data.currentDeployment.credentialSetVersion ? `Version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"} /></CardContent></Card>
                 <Card><CardHeader><CardTitle>Domain &amp; gateway</CardTitle><p className="text-sm text-muted-foreground">Domain identity belongs to the project; upstream follows the active deployment.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Domain" value={overview.data.domainsGateway.domain || "Not configured"} /><InfoRow label="Site" value={overview.data.domainsGateway.configured ? formatStatus(overview.data.domainsGateway.reconciliationStatus ?? "configured") : "Not configured"} /><InfoRow label="TLS" value={formatStatus(overview.data.domainsGateway.tlsMode ?? "not configured")} /><InfoRow label="Payment gate" value={overview.data.domainsGateway.gateEnabled ? "Enabled" : "Disabled"} /><InfoRow label="Resolved upstream" value={overview.data.domainsGateway.resolvedUpstreamHost && overview.data.domainsGateway.resolvedUpstreamPort ? `${overview.data.domainsGateway.resolvedUpstreamHost}:${overview.data.domainsGateway.resolvedUpstreamPort}` : "No active target"} /></CardContent></Card>
-                <Card className="xl:col-span-2"><CardHeader><CardTitle>Optional setup</CardTitle><p className="text-sm text-muted-foreground">Configure these whenever you are ready. A project can exist without a deployment.</p></CardHeader><CardContent className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => navigate(`/app/projects/setup/${project.id}?step=1`)}>Source &amp; runtime</Button><Button variant="outline" onClick={() => navigate(`/app/projects/setup/${project.id}?step=2`)}>Credentials</Button><Button variant="outline" onClick={() => navigate(`/app/projects/setup/${project.id}?step=3`)}>Domain &amp; gateway</Button><Button variant="outline" onClick={() => navigate(`/app/projects/setup/${project.id}?step=4`)}>Deploy</Button></CardContent></Card>
+                <Card className="xl:col-span-2"><CardHeader><CardTitle>Optional setup</CardTitle><p className="text-sm text-muted-foreground">Configure these whenever you are ready. A project can exist without a deployment.</p></CardHeader><CardContent className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => openProjectSetup(1)}>Source &amp; runtime</Button><Button variant="outline" onClick={() => openProjectSetup(2)}>Credentials</Button><Button variant="outline" onClick={() => openProjectSetup(3)}>Domain &amp; gateway</Button><Button variant="outline" onClick={() => openProjectSetup(4)}>Deploy</Button></CardContent></Card>
                 <Card className="xl:col-span-2"><CardHeader><CardTitle>Customer &amp; billing</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><InfoRow label="Customer" value={overview.data.customerBilling.customerId && overview.data.customerBilling.customerName ? <Link to={`/app/customers/${overview.data.customerBilling.customerId}`} className="text-primary hover:underline">{overview.data.customerBilling.customerName}</Link> : "Not set"} /><InfoRow label="Billing contact" value={overview.data.customerBilling.billingName ?? overview.data.customerBilling.customerName ?? "Not set"} /><InfoRow label="Billed" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.billed.toLocaleString()}`} /><InfoRow label="Paid" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.paid.toLocaleString()}`} /><InfoRow label="Balance" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.balance.toLocaleString()}`} /><InfoRow label="Due date" value={overview.data.customerBilling.dueDate ?? "Not set"} /></CardContent></Card>
               </div>}
               {overview.isError && <Alert><AlertTitle>Project overview unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(overview.error)}. Existing project details are still shown below.</AlertDescription></Alert>}
@@ -231,7 +239,7 @@ export function ProjectDetailPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="deployment"><Card><CardHeader><CardTitle>Deployment configuration</CardTitle><p className="text-sm text-muted-foreground">Source, runtime, credentials, and gateway settings are managed in project setup.</p></CardHeader><CardContent><Button variant="outline" onClick={() => navigate(`/app/projects/setup/${project.id}?step=1`)}>Edit deployment setup</Button></CardContent></Card></TabsContent>
+            <TabsContent value="deployment"><Card><CardHeader><CardTitle>Deployment configuration</CardTitle><p className="text-sm text-muted-foreground">Source, runtime, credentials, and gateway settings are managed in project setup.</p></CardHeader><CardContent><Button variant="outline" onClick={() => openProjectSetup(1)}>Edit deployment setup</Button></CardContent></Card></TabsContent>
             <TabsContent value="history"><Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Deployment history</CardTitle><p className="text-sm text-muted-foreground">Canonical deployment records, readiness results, and immutable version references.</p></div><Button variant="outline" size="sm" onClick={() => history.refetch()}>Refresh</Button></CardHeader><CardContent className="space-y-3">{history.isLoading ? <Skeleton className="h-32 w-full" /> : history.isError ? <Alert variant="destructive"><AlertTitle>History unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(history.error)}</AlertDescription></Alert> : history.data?.items.length ? history.data.items.map(item => <div key={item.id} className="rounded-lg border p-4"><div className="flex flex-col justify-between gap-3 md:flex-row"><div className="space-y-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{item.imageName}:{item.imageTag}</span><span className="rounded bg-muted px-2 py-1 text-xs">{item.status}</span></div><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.trigger} · {item.environment}</p><p className="text-xs">Commit {item.sourceCommit ?? "not recorded"} · digest {item.imageDigest ?? "not recorded"}</p><p className="text-xs">Readiness: {item.healthCheckResult}{item.failureReason ? ` · ${item.failureReason}` : ""}</p><p className="text-xs text-muted-foreground">Credential {item.credentialSetId ? `${item.credentialSetId} v${item.credentialSetVersion}` : "not recorded"} · Secrets {item.secretSetId ? `${item.secretSetId} v${item.secretSetVersion}` : "not recorded"}</p></div><div className="flex gap-2">{item.actions.includes("redeploy") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/redeploy`); toast.success("Redeployment queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><Rocket className="h-4 w-4" />Redeploy</Button>}{item.actions.includes("rollback") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/rollback`); toast.success("Auditable rollback queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><RotateCcw className="h-4 w-4" />Rollback</Button>}</div></div></div>) : <p className="py-8 text-center text-sm text-muted-foreground">No canonical deployments recorded.</p>}</CardContent></Card></TabsContent>
             <TabsContent value="credentials">
               <TooltipProvider delayDuration={200}>
@@ -332,6 +340,7 @@ export function ProjectDetailPage() {
           </Tabs>
 
           <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
+          <ProjectSetupWizardPage open={setupOpen} onOpenChange={setSetupOpen} projectId={project.id} initialStep={setupStep} />
           <Dialog open={adjustmentOpen} onOpenChange={setAdjustmentOpen}>
             <AdjustmentDialogBody
               pending={addAdjustment.isPending}
