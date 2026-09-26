@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Check, ChevronLeft, ChevronRight, Rocket, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ import {
 import { getApiErrorMessage } from "@/lib/api";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
-const steps = ["Project", "Source & runtime", "Credentials", "Domain & gateway", "Deploy"];
+const steps = ["Source & runtime", "Credentials", "Domain & gateway", "Deploy"];
 
 function parseEnv(text: string): Record<string, string> {
   return Object.fromEntries(text.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#")).map(line => {
@@ -45,10 +45,11 @@ const initialRuntime: ProjectSetupRuntimeInput = {
 export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const { projectId: routeProjectId = "" } = useParams();
   const navigate = useNavigate();
-  const [createdProjectId, setCreatedProjectId] = useState("");
-  const projectId = createdProjectId || routeProjectId;
-  const [step, setStep] = useState(projectId ? 1 : 0);
-  const [projectForm, setProjectForm] = useState({ name: "", domain: "", type: "frontend" as "frontend" | "backend", customerId: "" });
+  const [searchParams] = useSearchParams();
+  const projectId = routeProjectId;
+  const requestedStep = Number(searchParams.get("step") ?? "1");
+  const [step, setStep] = useState(projectId ? Math.max(1, Math.min(4, requestedStep)) : 0);
+  const [projectForm, setProjectForm] = useState({ name: "", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
   const [registryUser, setRegistryUser] = useState("");
@@ -71,7 +72,6 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
   const saveGateway = useSaveProjectSetupGateway(projectId);
   const deploy = useDeployProjectSetup(projectId);
   const customerList = customers.data?.customers ?? [];
-  const stepsAvailable = Boolean(projectId);
   const configuredRegistry = status.data?.sourceRuntime?.registry ?? runtime.registry;
   const currentDeployment = status.data?.latestDeploymentStatus ?? status.data?.activeDeploymentStatus ?? "none";
   const active = status.data?.activeDeploymentStatus === "active";
@@ -98,8 +98,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
   }, [savedGatewayDomain, savedGatewayTlsMode, savedGatewayEnabled, savedProjectDomain]);
 
   useEffect(() => {
-    if (projectId) setStep(current => current === 0 ? 1 : current);
-  }, [projectId]);
+    if (projectId) setStep(Math.max(1, Math.min(4, requestedStep)));
+  }, [projectId, requestedStep]);
 
   const deploymentBadge = useMemo(() => active ? "default" : currentDeployment === "failed" ? "destructive" : "secondary", [active, currentDeployment]);
 
@@ -110,13 +110,10 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
 
   const create = async () => {
     try {
-      const created = await createProject.mutateAsync({
-        ...projectForm,
-        customerId: projectForm.customerId || undefined,
-      });
-      toast.success("Project created without a runtime");
-      setCreatedProjectId(created.projectId);
-      setStep(1);
+      const created = await createProject.mutateAsync(projectForm);
+      toast.success("Project created. Deployment setup can be completed later.");
+      onOpenChange?.(false);
+      navigate(`/app/projects/${encodeURIComponent(created.slug)}`);
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
@@ -165,9 +162,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && onOpenChange && !routeProjectId) {
-      setCreatedProjectId("");
       setStep(0);
-      setProjectForm({ name: "", domain: "", type: "frontend", customerId: "" });
+      setProjectForm({ name: "", customerId: "" });
     }
     if (onOpenChange) onOpenChange(nextOpen);
     else if (!nextOpen) navigate("/app/projects");
@@ -177,47 +173,42 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
   return (
     <SidePanel open={open ?? true} onOpenChange={handleOpenChange}>
       <SidePanelContent className="sm:max-w-3xl">
-        <SidePanelHeader className="border-b px-6 py-5 pr-14">
+        {projectId ? <SidePanelHeader className="border-b px-6 py-5 pr-14">
           <SidePanelTitle>{projectName || "Project setup"}</SidePanelTitle>
-          <SidePanelDescription>{status.data ? `${status.data.slug} · ${status.data.domain}` : "Create a project, then configure its runtime, credentials, and gateway."}</SidePanelDescription>
-        </SidePanelHeader>
+          <SidePanelDescription>{status.data ? `${status.data.slug}${status.data.domain ? ` · ${status.data.domain}` : ""}` : "Configure deployment settings for this project."}</SidePanelDescription>
+        </SidePanelHeader> : <SidePanelHeader className="border-b px-6 py-5 pr-14">
+          <SidePanelTitle>Create project</SidePanelTitle>
+          <SidePanelDescription>Add the project name and customer. Configure deployment whenever you are ready.</SidePanelDescription>
+        </SidePanelHeader>}
         <div className="space-y-6 overflow-y-auto px-6 py-5">
-          <div className="flex justify-end">{status.data && <Button variant="outline" asChild><Link to={`/app/projects/${status.data.slug}`}>Project overview</Link></Button>}</div>
+          {status.data && <div className="flex justify-end"><Button variant="outline" asChild><Link to={`/app/projects/${status.data.slug}`}>Project overview</Link></Button></div>}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      {projectId && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {steps.map((label, index) => {
-          const stepIndex = index;
-          const done = projectId && (
-            (index === 0) ||
-            (index === 1 && Boolean(status.data?.sourceRuntime)) ||
-            (index === 2 && (status.data?.credentialsConfigured || Boolean(status.data?.sourceRuntime?.secretSetVersion))) ||
-            (index === 3 && Boolean(status.data?.gateway)) ||
-            (index === 4 && active)
-          );
-          return <button key={label} type="button" disabled={(index > 0 && !stepsAvailable) || Boolean(projectId && index === 0)} onClick={() => goToStep(stepIndex)} className={`flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${step === stepIndex ? "border-primary bg-primary/5" : "hover:bg-muted/60"} ${index > 0 && !stepsAvailable ? "opacity-50" : ""}`}>
+          const stepIndex = index + 1;
+          const done = (stepIndex === 1 && Boolean(status.data?.sourceRuntime)) ||
+            (stepIndex === 2 && (status.data?.credentialsConfigured || Boolean(status.data?.sourceRuntime?.secretSetVersion))) ||
+            (stepIndex === 3 && Boolean(status.data?.gateway)) ||
+            (stepIndex === 4 && active);
+          return <button key={label} type="button" onClick={() => goToStep(stepIndex)} className={`flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${step === stepIndex ? "border-primary bg-primary/5" : "hover:bg-muted/60"}`}>
             {done && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
             <span>{label}</span>
           </button>;
         })}
-      </div>
+      </div>}
 
       {!projectId ? (
-        <Card>
-          <CardHeader><CardTitle>1. Create the project</CardTitle><CardDescription>This creates the durable project record. Docker is not required, and you can return to the remaining setup later.</CardDescription></CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><Label htmlFor="setup-name">Project name</Label><Input id="setup-name" value={projectForm.name} onChange={e => setProjectForm({ ...projectForm, name: e.target.value })} placeholder="Acme Portal" /></div>
-            <div className="space-y-2"><Label htmlFor="setup-domain">Primary domain</Label><Input id="setup-domain" value={projectForm.domain} onChange={e => setProjectForm({ ...projectForm, domain: e.target.value })} placeholder="portal.example.com" /></div>
-            <div className="space-y-2"><Label htmlFor="setup-type">Application type</Label><select id="setup-type" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={projectForm.type} onChange={e => setProjectForm({ ...projectForm, type: e.target.value as "frontend" | "backend" })}><option value="frontend">Frontend</option><option value="backend">Backend</option></select></div>
-            <div className="space-y-2 sm:col-span-2"><Label htmlFor="setup-customer">Customer (optional)</Label><select id="setup-customer" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={projectForm.customerId} onChange={e => setProjectForm({ ...projectForm, customerId: e.target.value })}><option value="">No customer selected</option>{customerList.map(customer => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></div>
-            <div className="flex justify-end sm:col-span-2"><Button disabled={createProject.isPending || !projectForm.name || !projectForm.domain} onClick={() => void create()}>{createProject.isPending ? "Creating…" : "Create project"}</Button></div>
-          </CardContent>
-        </Card>
+            <div className="space-y-2 sm:col-span-2"><Label htmlFor="setup-customer">Customer</Label>{customerList.length ? <select id="setup-customer" required className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={projectForm.customerId} onChange={e => setProjectForm({ ...projectForm, customerId: e.target.value })}><option value="">Select a customer</option>{customerList.map(customer => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select> : <p className="text-sm text-muted-foreground">Create a customer before creating a project. <Link to="/app/customers" className="text-primary underline">Go to customers</Link></p>}</div>
+            <div className="flex justify-end sm:col-span-2"><Button disabled={createProject.isPending || !projectForm.name.trim() || !projectForm.customerId} onClick={() => void create()}>{createProject.isPending ? "Creating…" : "Create project"}</Button></div>
+        </div>
       ) : (
         <QueryState isLoading={status.isLoading} isError={status.isError} error={status.error} data={status.data}>
           {(setup) => (
             <>
               {step === 1 && <Card>
-                <CardHeader><CardTitle>2. Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2"><Label>GitHub repository (owner/name)</Label><Input value={runtime.repository} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /></div>
                   <div className="space-y-2"><Label>Git ref</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} /></div>
@@ -235,7 +226,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
               </Card>}
 
               {step === 2 && <Card>
-                <CardHeader><CardTitle>3. Credentials</CardTitle><CardDescription>Registry and application values are write-only here. Saving new values creates versions; this does not deploy them.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Credentials</CardTitle><CardDescription>Registry and application values are write-only here. Saving new values creates versions; this does not deploy them.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
                   <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2"><Label>Registry</Label><Input value={configuredRegistry} readOnly /></div><div className="space-y-2"><Label>Registry username</Label><Input value={registryUser} onChange={e => setRegistryUser(e.target.value)} placeholder={setup.credentialsConfigured ? "Configured; enter to rotate" : "Optional for public images"} /></div><div className="space-y-2"><Label>Registry password</Label><Input type="password" autoComplete="new-password" value={registryPassword} onChange={e => setRegistryPassword(e.target.value)} placeholder={setup.credentialsConfigured ? "Write-only; enter to rotate" : "Optional for public images"} /></div></div>
                   {setup.credentialsConfigured && <p className="text-xs text-muted-foreground">Current registry credential version: {setup.credentialVersion}. The password is never returned.</p>}
@@ -246,7 +237,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
               </Card>}
 
               {step === 3 && <Card>
-                <CardHeader><CardTitle>4. Domain and gateway</CardTitle><CardDescription>Save the domain/site intent before the runtime exists. The deployment cutover applies the gateway route after readiness succeeds.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Domain and gateway</CardTitle><CardDescription>Save the domain/site intent before the runtime exists. The deployment cutover applies the gateway route after readiness succeeds.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2 sm:col-span-2"><Label>Primary domain</Label><Input value={gateway.domain || setup.domain} onChange={e => setGateway({ ...gateway, domain: e.target.value })} /></div>
                   <div className="space-y-2"><Label>TLS mode</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={gateway.tlsMode} onChange={e => setGateway({ ...gateway, tlsMode: e.target.value })}><option value="http_only">HTTP only</option><option value="https">HTTPS</option><option value="https_http2">HTTPS with HTTP/2</option></select></div>
@@ -257,7 +248,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
               </Card>}
 
               {step === 4 && <Card>
-                <CardHeader><CardTitle>5. Deploy</CardTitle><CardDescription>Deployment is explicit. Saving credentials and runtime settings alone does not change the active service.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Deploy</CardTitle><CardDescription>Deployment is explicit. Saving credentials and runtime settings alone does not change the active service.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
                   <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Gateway domain</p><p className="mt-1 font-medium">{setup.gateway?.domain ?? setup.domain}</p></div></div>
                   <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
