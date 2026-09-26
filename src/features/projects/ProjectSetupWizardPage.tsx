@@ -26,6 +26,7 @@ import { getApiErrorMessage } from "@/lib/api";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
 const steps = ["Source & runtime", "Credentials", "Domain & gateway", "Deploy"];
+const inProgressDeploymentStatuses = new Set(["queued", "building", "starting", "health-checking"]);
 
 function parseEnv(text: string): Record<string, string> {
   return Object.fromEntries(text.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#")).map(line => {
@@ -60,7 +61,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [secretText, setSecretText] = useState("");
   const [clearSecrets, setClearSecrets] = useState(false);
   const [gateway, setGateway] = useState({ domain: "", tlsMode: "http_only", gateEnabled: true });
-  const [lastDeploymentId, setLastDeploymentId] = useState("");
+  const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
   const status = useProjectSetupStatus(projectId);
@@ -83,6 +84,14 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const configuredRegistry = status.data?.sourceRuntime?.registry ?? runtime.registry;
   const currentDeployment = status.data?.latestDeploymentStatus ?? status.data?.activeDeploymentStatus ?? "none";
   const active = status.data?.activeDeploymentStatus === "active";
+  const deploymentInProgress = inProgressDeploymentStatuses.has(currentDeployment) || Boolean(queuedDeploymentId);
+
+  useEffect(() => {
+    if (!queuedDeploymentId || !status.data?.latestDeploymentId) return;
+    if (status.data.latestDeploymentId === queuedDeploymentId && !inProgressDeploymentStatuses.has(status.data.latestDeploymentStatus ?? "")) {
+      setQueuedDeploymentId("");
+    }
+  }, [queuedDeploymentId, status.data?.latestDeploymentId, status.data?.latestDeploymentStatus]);
 
   useEffect(() => {
     if (!savedRuntime || loadedConfiguration.current === `${projectId}:${savedRuntime.id}`) return;
@@ -116,11 +125,27 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setStep(bounded);
   };
 
+  const resetProjectCreation = () => {
+    setStep(0);
+    setProjectForm({ name: "", customerId: "" });
+    setRuntime(initialRuntime);
+    setEnvText("");
+    setRegistryUser("");
+    setRegistryPassword("");
+    setSecretText("");
+    setClearSecrets(false);
+    setGateway({ domain: "", tlsMode: "http_only", gateEnabled: true });
+    setQueuedDeploymentId("");
+    setAdoptContainerId("");
+    setAdoptContainerPort("");
+    loadedConfiguration.current = "";
+  };
+
   const create = async () => {
     try {
       const created = await createProject.mutateAsync(projectForm);
       toast.success("Project created. Deployment setup can be completed later.");
-      onOpenChange?.(false);
+      handleOpenChange(false);
       navigate(`/app/projects/${encodeURIComponent(created.slug)}`);
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
@@ -161,7 +186,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const queueDeployment = async () => {
     try {
       const queued = await deploy.mutateAsync();
-      setLastDeploymentId(queued.deploymentId);
+      setQueuedDeploymentId(queued.deploymentId);
       toast.success("Deployment queued");
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
@@ -171,7 +196,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     try {
       const result = await adoptContainer.mutateAsync({ containerId: adoptContainerId, containerPort: Number(adoptContainerPort) });
       toast.success("Running container attached", { description: result.message });
-      setStep(4);
+      setAdoptContainerId("");
+      setAdoptContainerPort("");
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
@@ -180,10 +206,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const projectName = status.data?.name ?? projectForm.name;
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && onOpenChange && !projectId) {
-      setStep(0);
-      setProjectForm({ name: "", customerId: "" });
-    }
+    if (!nextOpen && !projectId) resetProjectCreation();
     if (onOpenChange) onOpenChange(nextOpen);
     else if (!nextOpen) navigate("/app/projects");
   };
@@ -281,9 +304,9 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                 <CardContent className="space-y-5">
                   <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Gateway domain</p><p className="mt-1 font-medium">{setup.gateway?.domain ?? setup.domain}</p></div></div>
                   <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
-                  {lastDeploymentId && <p className="text-sm text-muted-foreground">Queued deployment <code>{lastDeploymentId}</code>. This page polls the active deployment pointer as the worker progresses.</p>}
+                  {queuedDeploymentId && deploymentInProgress && <p className="text-sm text-muted-foreground">Deployment <code>{queuedDeploymentId}</code> is in progress. This page updates as the worker advances it.</p>}
                   {active && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">An active deployment is recorded. Review its runtime and version references on the project overview.</div>}
-                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(3)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : "Deploy"}</Button></div></div>
+                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(3)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || deploymentInProgress || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : deploymentInProgress ? "Deployment in progress" : "Deploy"}</Button></div></div>
                 </CardContent>
               </Card>}
             </>
