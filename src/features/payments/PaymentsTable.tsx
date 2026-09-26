@@ -1,116 +1,38 @@
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { ReactNode } from "react";
+import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/ui/data-table";
 import type { PaymentRecord } from "@/types/payment";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
-import { Badge } from "@/components/ui/badge";
-import { DataTable } from "@/components/common/DataTable";
 
 interface PaymentsTableProps {
   payments: PaymentRecord[];
   currency?: string;
+  toolbarContent?: ReactNode;
 }
 
-export function PaymentsTable({ payments, currency = "KES" }: PaymentsTableProps) {
+export function PaymentsTable({ payments, currency = "KES", toolbarContent }: PaymentsTableProps) {
   const navigate = useNavigate();
 
-  return <DataTable data={payments} getRowKey={payment => payment.id} searchPlaceholder="Search payments..." columns={[{ key: "project", header: "Project", searchable: true, searchValue: payment => `${payment.projectName} ${payment.projectSlug}`, render: payment => <button type="button" className="text-left font-medium text-primary hover:underline" onClick={() => navigate(`/app/projects/${payment.projectSlug}?tab=payments`)}>{payment.projectName}<span className="block text-xs font-normal text-muted-foreground">{payment.projectSlug}</span></button> }, { key: "provider", header: "Provider", render: payment => <Badge variant="outline" className="capitalize">{payment.provider}</Badge> }, { key: "reference", header: "Reference", render: payment => <span className="font-mono text-xs">{payment.paystackReference}</span> }, { key: "amount", header: "Amount", render: payment => `${currency} ${payment.amount.toLocaleString()}` }, { key: "status", header: "Status", render: payment => <PaymentStatusBadge status={payment.gatewayStatus} /> }, { key: "verified", header: "Verified via", render: payment => payment.verifiedVia ?? "Not set" }, { key: "paidAt", header: "Paid at", render: payment => payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set" }]} />;
-
-  if (payments.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">No payments found.</p>;
-  }
-
   return (
-    <>
-      {/* Desktop table */}
-      <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Provider</TableHead>
-              <TableHead>Reference</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Verified via</TableHead>
-              <TableHead>Paid at</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.map((payment) => (
-              <TableRow
-                key={payment.id}
-                className="cursor-pointer"
-                onClick={() => navigate(`/app/projects/${payment.projectSlug}?tab=payments`)}
-              >
-                <TableCell>
-                  <div>
-                    <p className="font-medium">{payment.projectName}</p>
-                    <p className="text-xs text-muted-foreground">{payment.projectSlug}</p>
-                  </div>
-                </TableCell>
-                <TableCell><Badge variant="outline" className="capitalize">{payment.provider}</Badge></TableCell>
-                <TableCell className="font-mono text-xs">{payment.paystackReference}</TableCell>
-                <TableCell>
-                  {currency} {payment.amount.toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <PaymentStatusBadge status={payment.gatewayStatus} />
-                </TableCell>
-                <TableCell className="capitalize text-muted-foreground">
-                  {payment.verifiedVia ?? "Not set"}
-                </TableCell>
-                <TableCell>
-                  {payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Mobile card layout */}
-      <div className="md:hidden space-y-3">
-        {payments.map((payment) => (
-          <div
-            key={payment.id}
-            className="rounded-lg border bg-card p-3 shadow-sm cursor-pointer active:bg-muted/50"
-            onClick={() => navigate(`/app/projects/${payment.projectSlug}?tab=payments`)}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">{payment.projectName}</p>
-                <p className="text-xs text-muted-foreground truncate">{payment.projectSlug}</p>
-              </div>
-              <PaymentStatusBadge status={payment.gatewayStatus} />
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-1.5 text-sm">
-              <div>
-                <span className="text-xs text-muted-foreground">Amount</span>
-                <p className="font-medium">
-                  {currency} {payment.amount.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Provider</span>
-                <p className="capitalize">{payment.provider}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Reference</span>
-                <p className="font-mono text-xs truncate">{payment.paystackReference}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Verified via</span>
-                <p className="capitalize">{payment.verifiedVia ?? "Not set"}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Paid at</span>
-                <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, HH:mm") : "Not set"}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
+    <DataTable
+      data={payments}
+      getRowKey={payment => payment.id}
+      pageSize={50}
+      hidePagination
+      searchPlaceholder="Search payments…"
+      emptyMessage="No payments found."
+      toolbarContent={toolbarContent}
+      columns={[
+        { key: "project", header: "Project", searchable: true, searchValue: payment => `${payment.projectName} ${payment.projectSlug}`, render: payment => <button type="button" className="text-left font-medium text-primary hover:underline" onClick={() => navigate(`/app/projects/${payment.projectSlug}?tab=payments`)}>{payment.projectName}<span className="block text-xs font-normal text-muted-foreground">{payment.projectSlug}</span></button> },
+        { key: "provider", header: "Provider", render: payment => <Badge variant="outline" className="capitalize">{payment.provider}</Badge> },
+        { key: "reference", header: "Reference", render: payment => <span className="font-mono text-xs">{payment.paystackReference}</span> },
+        { key: "amount", header: "Amount", render: payment => `${currency} ${payment.amount.toLocaleString()}` },
+        { key: "status", header: "Status", render: payment => <PaymentStatusBadge status={payment.gatewayStatus} /> },
+        { key: "verified", header: "Verified via", render: payment => payment.verifiedVia ?? "Not set" },
+        { key: "paidAt", header: "Paid at", render: payment => payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set" },
+      ]}
+    />
   );
 }
