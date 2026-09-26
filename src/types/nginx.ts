@@ -97,6 +97,14 @@ export interface CertificateListResponse {
   certificates: CertificateInfo[];
 }
 
+export interface CertificateRenewalResponse {
+  domain: string;
+  renewed: boolean;
+  certificateExpiresAt?: string | null;
+  certificateDaysRemaining?: number | null;
+  message: string;
+}
+
 export interface CertificateStatusResponse {
   domain: string;
   installed: boolean;

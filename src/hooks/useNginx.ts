@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   CertificateListResponse,
+  CertificateRenewalResponse,
   EnableNginxPayload,
   EnableNginxResponse,
   NginxStatus,
@@ -134,6 +135,15 @@ export function useRemoveCertificate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["nginx", "certificates"] });
     },
+  });
+}
+
+export function useRenewCertificate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (domain: string) =>
+      (await api.post<CertificateRenewalResponse>(`/admin/nginx/certificate/renew/${encodeURIComponent(domain)}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["nginx", "certificates"] }),
   });
 }
 
