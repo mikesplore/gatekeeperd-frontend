@@ -13,6 +13,7 @@ const sections = [
   { to: "/app/audit", label: "Audit log" },
   { to: "/app/notifications", label: "Notifications" },
   { to: "/app/deployments", label: "Deployments" },
+  { to: "/app/credentials", label: "Credentials" },
   { to: "/app/settings", label: "Settings" },
 ];
 

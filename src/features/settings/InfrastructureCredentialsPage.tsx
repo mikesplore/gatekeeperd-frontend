@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Boxes, Github, History, KeyRound, LockKeyhole, RotateCw, ShieldCheck } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProviderCredentialMetadata } from "@/types/project";
 import { toast } from "sonner";
+
+function SummaryCard({ icon: Icon, label, value, detail }: { icon: typeof ShieldCheck; label: string; value: string; detail: string }) {
+  return <Card>
+    <CardContent className="flex items-start gap-3 p-4">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="mt-0.5 truncate text-lg font-semibold">{value}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>
+      </div>
+    </CardContent>
+  </Card>;
+}
 
 export function InfrastructureCredentialsPage() {
   const queryClient = useQueryClient();
@@ -22,6 +36,8 @@ export function InfrastructureCredentialsPage() {
     queryFn: async () => (await api.get<ProviderCredentialMetadata[]>("/admin/project-setup/provider-credentials")).data,
   });
   const history = useMemo(() => [...(credentials.data ?? [])].sort((a, b) => a.provider.localeCompare(b.provider) || a.scope.localeCompare(b.scope) || b.version - a.version), [credentials.data]);
+  const currentCount = history.filter(item => item.current).length;
+  const providerCount = new Set(history.map(item => item.provider)).size;
 
   const rotateRegistry = async () => {
     setSaving(true);
@@ -52,20 +68,79 @@ export function InfrastructureCredentialsPage() {
     }
   };
 
-  return <div className="max-w-5xl space-y-6">
-    <div><h1 className="text-2xl font-semibold">Infrastructure credentials</h1><p className="text-sm text-muted-foreground">Registry and GitHub credential versions. Values are write-only and never shown after saving.</p></div>
-    <Card><CardHeader><CardTitle>Rotate registry credential</CardTitle><CardDescription>Saving creates a new encrypted version and marks the previous version superseded.</CardDescription></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3">
-      <div className="space-y-1"><Label>Registry scope</Label><Input placeholder="docker.io" value={registry} onChange={event => setRegistry(event.target.value)} /></div>
-      <div className="space-y-1"><Label>Username</Label><Input autoComplete="off" value={username} onChange={event => setUsername(event.target.value)} /></div>
-      <div className="space-y-1"><Label>Password or token</Label><Input type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} /></div>
-      <div className="sm:col-span-3"><Button disabled={saving || !registry.trim() || !username.trim() || !password} onClick={() => void rotateRegistry()}>{saving ? "Saving…" : "Save new version"}</Button></div>
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle>Rotate GitHub credentials</CardTitle><CardDescription>New versions are encrypted and supersede the previous version. Values are cleared after a successful save.</CardDescription></CardHeader><CardContent className="grid gap-4 lg:grid-cols-2">
-      <div className="space-y-2"><Label>Webhook secret</Label><Input type="password" autoComplete="new-password" value={githubWebhookSecret} onChange={event => setGithubWebhookSecret(event.target.value)} /><Button disabled={savingGithub || !githubWebhookSecret} onClick={() => void rotateGithub("webhook_secret", githubWebhookSecret)}>Save webhook secret</Button></div>
-      <div className="space-y-2"><Label>GitHub App private key</Label><textarea className="min-h-24 w-full rounded-md border bg-background p-2 font-mono text-xs" value={githubPrivateKey} onChange={event => setGithubPrivateKey(event.target.value)} placeholder="Paste PEM private key" /><Button disabled={savingGithub || !githubPrivateKey} onClick={() => void rotateGithub("app_private_key", githubPrivateKey)}>Save private key</Button></div>
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle>Credential versions</CardTitle><CardDescription>Metadata only. No credential payload or plaintext values are requested by this page.</CardDescription></CardHeader><CardContent>
-      {credentials.isLoading ? <p className="text-sm text-muted-foreground">Loading metadata…</p> : credentials.isError ? <p className="text-sm text-destructive">{getApiErrorMessage(credentials.error)}</p> : history.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No provider credentials are recorded.</p> : <div className="space-y-2">{history.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"><div><p className="font-medium">{item.displayName || item.scope}</p><p className="text-xs text-muted-foreground">{item.provider} · {item.type} · {item.scope} · version {item.version}</p><p className="text-xs text-muted-foreground">Created {new Date(item.createdAt).toLocaleString()}{item.rotatedAt ? ` · rotated ${new Date(item.rotatedAt).toLocaleString()}` : ""}</p></div><span className={`rounded-full px-2 py-1 text-xs ${item.current ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground"}`}>{item.current ? "Current" : "Superseded"}</span></div>)}</div>}
-    </CardContent></Card>
+  return <div className="mx-auto max-w-6xl space-y-6">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-sm font-medium text-primary"><ShieldCheck className="h-4 w-4" /> Infrastructure security</div>
+        <h1 className="text-2xl font-semibold tracking-tight">Credentials</h1>
+        <p className="max-w-2xl text-sm text-muted-foreground">Manage the credentials Gatekeeperd uses to access private registries and GitHub. Secret values are write-only and never displayed after saving.</p>
+      </div>
+      <div className="flex items-center gap-2 self-start rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground sm:self-auto"><LockKeyhole className="h-3.5 w-3.5 text-primary" /> Encrypted at rest</div>
+    </div>
+
+    <div className="grid gap-3 sm:grid-cols-3">
+      <SummaryCard icon={KeyRound} label="Credential versions" value={credentials.isLoading ? "…" : String(history.length)} detail="Encrypted versions on record" />
+      <SummaryCard icon={ShieldCheck} label="Current credentials" value={credentials.isLoading ? "…" : String(currentCount)} detail="Latest active version per scope" />
+      <SummaryCard icon={Boxes} label="Connected providers" value={credentials.isLoading ? "…" : String(providerCount)} detail="Registry and GitHub access" />
+    </div>
+
+    <div className="grid items-start gap-5 xl:grid-cols-2">
+      <Card>
+        <CardHeader className="border-b pb-4">
+          <CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Container registry</CardTitle>
+          <CardDescription>Set or rotate credentials for a private image registry. A save creates a new encrypted version.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="registry-scope">Registry host or scope</Label><Input id="registry-scope" placeholder="docker.io or registry.example.com" value={registry} onChange={event => setRegistry(event.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="registry-username">Username</Label><Input id="registry-username" autoComplete="off" value={username} onChange={event => setUsername(event.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="registry-password">Password or access token</Label><Input id="registry-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} /></div>
+          </div>
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">The previous version remains available in history.</p>
+            <Button className="sm:min-w-40" disabled={saving || !registry.trim() || !username.trim() || !password} onClick={() => void rotateRegistry()}><RotateCw className="h-4 w-4" />{saving ? "Saving…" : "Save registry credential"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="border-b pb-4">
+          <CardTitle className="flex items-center gap-2"><Github className="h-5 w-5" /> GitHub access</CardTitle>
+          <CardDescription>Rotate webhook verification and GitHub App credentials used by integrations and deployments.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-5">
+          <section className="space-y-3 rounded-lg border bg-muted/20 p-4">
+            <div><h3 className="text-sm font-medium">Webhook secret</h3><p className="mt-0.5 text-xs text-muted-foreground">Verifies incoming GitHub webhook requests.</p></div>
+            <div className="flex flex-col gap-3 sm:flex-row"><Input aria-label="GitHub webhook secret" type="password" autoComplete="new-password" placeholder="Enter a new webhook secret" value={githubWebhookSecret} onChange={event => setGithubWebhookSecret(event.target.value)} /><Button variant="outline" disabled={savingGithub || !githubWebhookSecret} onClick={() => void rotateGithub("webhook_secret", githubWebhookSecret)}>{savingGithub ? "Saving…" : "Save secret"}</Button></div>
+          </section>
+          <section className="space-y-3 rounded-lg border bg-muted/20 p-4">
+            <div><h3 className="text-sm font-medium">GitHub App private key</h3><p className="mt-0.5 text-xs text-muted-foreground">Used to authenticate GitHub App operations.</p></div>
+            <textarea aria-label="GitHub App private key" className="min-h-28 w-full resize-y rounded-md border bg-background px-3 py-2 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring" value={githubPrivateKey} onChange={event => setGithubPrivateKey(event.target.value)} placeholder="Paste PEM private key" />
+            <div className="flex justify-end"><Button variant="outline" disabled={savingGithub || !githubPrivateKey} onClick={() => void rotateGithub("app_private_key", githubPrivateKey)}>{savingGithub ? "Saving…" : "Save private key"}</Button></div>
+          </section>
+          <p className="text-xs text-muted-foreground">Saved values are cleared from these fields and cannot be retrieved later.</p>
+        </CardContent>
+      </Card>
+    </div>
+
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 border-b pb-4">
+        <div className="space-y-1"><CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Version history</CardTitle><CardDescription>Provider, scope, and rotation metadata only. Secret values are never requested here.</CardDescription></div>
+        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{history.length} {history.length === 1 ? "version" : "versions"}</span>
+      </CardHeader>
+      <CardContent className="pt-4">
+        {credentials.isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading credential metadata…</p>
+          : credentials.isError ? <div className="py-8 text-center"><p className="text-sm text-destructive">{getApiErrorMessage(credentials.error)}</p><Button className="mt-3" variant="outline" size="sm" onClick={() => void credentials.refetch()}>Try again</Button></div>
+          : history.length === 0 ? <div className="rounded-lg border border-dashed px-5 py-10 text-center"><KeyRound className="mx-auto h-5 w-5 text-muted-foreground" /><p className="mt-3 text-sm font-medium">No credential versions yet</p><p className="mt-1 text-sm text-muted-foreground">Saved registry or GitHub credentials will appear here.</p></div>
+          : <div className="divide-y">{history.map(item => <div key={item.id} className="flex flex-col gap-3 py-4 first:pt-1 last:pb-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2"><p className="font-medium">{item.displayName || item.scope}</p><span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium capitalize text-muted-foreground">{item.provider}</span><span className="text-xs text-muted-foreground">v{item.version}</span></div>
+              <p className="break-words text-xs text-muted-foreground">{item.type} <span aria-hidden="true">·</span> {item.scope}</p>
+              <p className="text-xs text-muted-foreground">Created {new Date(item.createdAt).toLocaleString()}{item.rotatedAt ? ` · rotated ${new Date(item.rotatedAt).toLocaleString()}` : ""}</p>
+            </div>
+            <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${item.current ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-muted text-muted-foreground"}`}><span className={`h-1.5 w-1.5 rounded-full ${item.current ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />{item.current ? "Current" : "Superseded"}</span>
+          </div>)}</div>}
+      </CardContent>
+    </Card>
   </div>;
 }
