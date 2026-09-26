@@ -184,7 +184,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
         <div className="space-y-6 overflow-y-auto px-6 py-5">
           <div className="flex justify-end">{status.data && <Button variant="outline" asChild><Link to={`/app/projects/${status.data.slug}`}>Project overview</Link></Button>}</div>
 
-      <div className="grid gap-2 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {steps.map((label, index) => {
           const stepIndex = index;
           const done = projectId && (
@@ -194,9 +194,9 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
             (index === 3 && Boolean(status.data?.gateway)) ||
             (index === 4 && active)
           );
-          return <button key={label} type="button" disabled={(index > 0 && !stepsAvailable) || Boolean(projectId && index === 0)} onClick={() => goToStep(stepIndex)} className={`rounded-lg border p-3 text-left transition-colors ${step === stepIndex ? "border-primary bg-primary/5" : "hover:bg-muted/60"} ${index > 0 && !stepsAvailable ? "opacity-50" : ""}`}>
-            <span className="flex items-center gap-2 text-xs text-muted-foreground">{done ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : `0${index + 1}`} · Step {index + 1}</span>
-            <span className="mt-1 block text-sm font-medium">{label}</span>
+          return <button key={label} type="button" disabled={(index > 0 && !stepsAvailable) || Boolean(projectId && index === 0)} onClick={() => goToStep(stepIndex)} className={`flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${step === stepIndex ? "border-primary bg-primary/5" : "hover:bg-muted/60"} ${index > 0 && !stepsAvailable ? "opacity-50" : ""}`}>
+            {done && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
+            <span>{label}</span>
           </button>;
         })}
       </div>
