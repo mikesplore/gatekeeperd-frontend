@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { Link2, Pencil, Trash2, RotateCcw, Rocket } from "lucide-react";
+import { Link2, Pencil, Trash2, RotateCcw, Rocket, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,6 +24,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+
+function parseSecretEnv(text: string): Record<string, string> {
+  const entries: [string, string][] = [];
+  text.split(/\r?\n/).forEach((rawLine, index) => {
+    let line = rawLine.trim();
+    if (!line || line.startsWith("#")) return;
+    line = line.replace(/^export\s+/, "");
+    const separator = line.indexOf("=");
+    if (separator < 1) throw new Error(`Invalid .env entry on line ${index + 1}; expected KEY=value.`);
+    const key = line.slice(0, separator).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`Invalid variable name on line ${index + 1}.`);
+    let value = line.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    entries.push([key, value]);
+  });
+  if (!entries.length) throw new Error("The .env file contains no variables.");
+  return Object.fromEntries(entries);
+}
 
 export function ProjectDetailPage() {
   const { slug = "" } = useParams();
@@ -190,7 +208,30 @@ export function ProjectDetailPage() {
 
             <TabsContent value="deployment"><Card><CardHeader><CardTitle>Deployment configuration</CardTitle><p className="text-sm text-muted-foreground">Source, runtime, credentials, and gateway settings are managed in project setup.</p></CardHeader><CardContent><Button variant="outline" onClick={() => navigate(`/app/projects/setup/${project.id}?step=1`)}>Edit deployment setup</Button></CardContent></Card></TabsContent>
             <TabsContent value="history"><Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Deployment history</CardTitle><p className="text-sm text-muted-foreground">Canonical deployment records, readiness results, and immutable version references.</p></div><Button variant="outline" size="sm" onClick={() => history.refetch()}>Refresh</Button></CardHeader><CardContent className="space-y-3">{history.isLoading ? <Skeleton className="h-32 w-full" /> : history.isError ? <Alert variant="destructive"><AlertTitle>History unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(history.error)}</AlertDescription></Alert> : history.data?.items.length ? history.data.items.map(item => <div key={item.id} className="rounded-lg border p-4"><div className="flex flex-col justify-between gap-3 md:flex-row"><div className="space-y-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{item.imageName}:{item.imageTag}</span><span className="rounded bg-muted px-2 py-1 text-xs">{item.status}</span></div><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.trigger} · {item.environment}</p><p className="text-xs">Commit {item.sourceCommit ?? "not recorded"} · digest {item.imageDigest ?? "not recorded"}</p><p className="text-xs">Readiness: {item.healthCheckResult}{item.failureReason ? ` · ${item.failureReason}` : ""}</p><p className="text-xs text-muted-foreground">Credential {item.credentialSetId ? `${item.credentialSetId} v${item.credentialSetVersion}` : "not recorded"} · Secrets {item.secretSetId ? `${item.secretSetId} v${item.secretSetVersion}` : "not recorded"}</p></div><div className="flex gap-2">{item.actions.includes("redeploy") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/redeploy`); toast.success("Redeployment queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><Rocket className="h-4 w-4" />Redeploy</Button>}{item.actions.includes("rollback") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/rollback`); toast.success("Auditable rollback queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><RotateCcw className="h-4 w-4" />Rollback</Button>}</div></div></div>) : <p className="py-8 text-center text-sm text-muted-foreground">No canonical deployments recorded.</p>}</CardContent></Card></TabsContent>
-            <TabsContent value="credentials"><div className="grid gap-4 lg:grid-cols-2"><Card><CardHeader><CardTitle>Deployment credential references</CardTitle><p className="text-sm text-muted-foreground">Metadata only. Credential values are never displayed here.</p></CardHeader><CardContent className="space-y-2 text-sm"><p>Active credential: {overview.data?.currentDeployment.credentialSetId ? `${overview.data.currentDeployment.credentialSetId} · version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"}</p><p>Desired secret set: {overview.data?.desiredConfiguration.secretSetId ? `${overview.data.desiredConfiguration.secretSetId} · version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"}</p><p>Active secret set: {overview.data?.currentDeployment.secretSetId ? `${overview.data.currentDeployment.secretSetId} · version ${overview.data.currentDeployment.secretSetVersion}` : "Not recorded"}</p><Button variant="outline" asChild><Link to="/app/credentials">Manage infrastructure credentials</Link></Button></CardContent></Card><Card><CardHeader><CardTitle>Rotate project secrets and deploy</CardTitle><p className="text-sm text-muted-foreground">Submitting creates an immutable secret version and queues a deployment. Values are write-only.</p></CardHeader><CardContent className="space-y-3"><textarea className="min-h-32 w-full rounded-md border bg-background p-3 font-mono text-xs" value={secretDraft} onChange={event => setSecretDraft(event.target.value)} placeholder={'API_TOKEN=replace-me\nDATABASE_PASSWORD=replace-me'} /><Button disabled={rotateSecrets.isPending || !secretDraft.trim()} onClick={async () => { try { const pairs = Object.fromEntries(secretDraft.split(/\r?\n/).filter(line => line.trim() && !line.trim().startsWith("#")).map(line => { const index = line.indexOf("="); if (index < 1) throw new Error("Use KEY=value lines"); return [line.slice(0, index).trim(), line.slice(index + 1)]; })); await rotateSecrets.mutateAsync(pairs); setSecretDraft(""); toast.success("Secret version saved and deployment queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Rotate and deploy"}</Button></CardContent></Card></div></TabsContent>
+            <TabsContent value="credentials">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card>
+                  <CardHeader><CardTitle>Container registry access</CardTitle><p className="text-sm text-muted-foreground">Registry credentials let Gatekeeperd pull private images. They are separate from the environment variables your application reads at runtime.</p></CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <p>Active registry credential: {overview.data?.currentDeployment.credentialSetId ? `${overview.data.currentDeployment.credentialSetId} · version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"}</p>
+                    <Button variant="outline" asChild><Link to="/app/credentials">Manage registry credentials</Link></Button>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader><CardTitle>Application environment variables</CardTitle><p className="text-sm text-muted-foreground">Add secrets your app uses, such as DATABASE_URL or API_TOKEN. They are encrypted, versioned, and supplied to the container when it deploys. Saving creates a new version and queues a deployment.</p></CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm">Desired secret set: {overview.data?.desiredConfiguration.secretSetId ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} · Active deployment: {overview.data?.currentDeployment.secretSetId ? `Version ${overview.data.currentDeployment.secretSetVersion}` : "No secret version recorded"}</p>
+                    <Label htmlFor="project-secret-env">Variables (KEY=value, one per line)</Label>
+                    <textarea id="project-secret-env" className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-xs" value={secretDraft} onChange={event => setSecretDraft(event.target.value)} placeholder={"DATABASE_URL=postgres://…\nAPI_TOKEN=…"} />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"><Upload className="h-4 w-4" />Upload .env file<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); parseSecretEnv(text); setSecretDraft(text); toast.success(".env file loaded. Review it, then save and deploy."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label>
+                      <p className="text-xs text-muted-foreground">Values stay write-only and are never shown after saving.</p>
+                    </div>
+                    <Button disabled={rotateSecrets.isPending || !secretDraft.trim()} onClick={async () => { try { await rotateSecrets.mutateAsync(parseSecretEnv(secretDraft)); setSecretDraft(""); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
             <TabsContent value="payments">
               {invoiceQuery.isLoading && <Card className="mb-4"><CardHeader><Skeleton className="h-6 w-36" /></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div></CardContent></Card>}
               {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) !== "invoice_unavailable" && <Alert className="mb-4"><AlertTitle>Invoice unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(invoiceQuery.error)}</AlertDescription></Alert>}
