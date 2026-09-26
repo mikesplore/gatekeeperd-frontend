@@ -17,6 +17,7 @@ import {
   useSaveProjectSetupCredentials,
   useSaveProjectSetupGateway,
   useSaveProjectSetupRuntime,
+  useContainerWizardContext,
   type ProjectSetupRuntimeInput,
 } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
@@ -59,6 +60,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [gateway, setGateway] = useState({ domain: "", tlsMode: "http_only", gateEnabled: true });
   const [lastDeploymentId, setLastDeploymentId] = useState("");
   const status = useProjectSetupStatus(projectId);
+  const dockerNetworkContext = useContainerWizardContext();
   const loadedConfiguration = useRef("");
   const savedRuntime = status.data?.sourceRuntime;
   const savedGatewayDomain = status.data?.gateway?.domain;
@@ -214,7 +216,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   <div className="space-y-2"><Label>Image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
                   <div className="space-y-2"><Label>Image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Container port</Label><Input type="number" value={runtime.containerPort ?? ""} onChange={e => setRuntime({ ...runtime, containerPort: e.target.value ? Number(e.target.value) : undefined })} placeholder="80" /><p className="text-xs text-muted-foreground">Required so the gateway can resolve the active runtime. Its host port is allocated dynamically.</p></div>
-                  <div className="space-y-2"><Label>Docker network</Label><Input value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select></div>
                   <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
                   <div className="space-y-2"><Label>Readiness probe</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.readinessType ?? "http"} onChange={e => setRuntime({ ...runtime, readinessType: e.target.value })}><option value="http">HTTP</option><option value="tcp">TCP</option><option value="process">Process running</option></select></div>
                   <div className="space-y-2"><Label>Probe target</Label><Input value={runtime.readinessTarget ?? ""} onChange={e => setRuntime({ ...runtime, readinessTarget: e.target.value })} placeholder="80/" /></div>
