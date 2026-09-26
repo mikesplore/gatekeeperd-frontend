@@ -48,7 +48,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
   const [createdProjectId, setCreatedProjectId] = useState("");
   const projectId = createdProjectId || routeProjectId;
   const [step, setStep] = useState(projectId ? 1 : 0);
-  const [projectForm, setProjectForm] = useState({ slug: "", name: "", domain: "", type: "frontend" as "frontend" | "backend", customerId: "" });
+  const [projectForm, setProjectForm] = useState({ name: "", domain: "", type: "frontend" as "frontend" | "backend", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
   const [registryUser, setRegistryUser] = useState("");
@@ -167,7 +167,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
     if (!nextOpen && onOpenChange && !routeProjectId) {
       setCreatedProjectId("");
       setStep(0);
-      setProjectForm({ slug: "", name: "", domain: "", type: "frontend", customerId: "" });
+      setProjectForm({ name: "", domain: "", type: "frontend", customerId: "" });
     }
     if (onOpenChange) onOpenChange(nextOpen);
     else if (!nextOpen) navigate("/app/projects");
@@ -205,12 +205,11 @@ export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean;
         <Card>
           <CardHeader><CardTitle>1. Create the project</CardTitle><CardDescription>This creates the durable project record. Docker is not required, and you can return to the remaining setup later.</CardDescription></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label htmlFor="setup-slug">Project slug</Label><Input id="setup-slug" value={projectForm.slug} onChange={e => setProjectForm({ ...projectForm, slug: e.target.value })} placeholder="acme-portal" /></div>
             <div className="space-y-2"><Label htmlFor="setup-name">Project name</Label><Input id="setup-name" value={projectForm.name} onChange={e => setProjectForm({ ...projectForm, name: e.target.value })} placeholder="Acme Portal" /></div>
             <div className="space-y-2"><Label htmlFor="setup-domain">Primary domain</Label><Input id="setup-domain" value={projectForm.domain} onChange={e => setProjectForm({ ...projectForm, domain: e.target.value })} placeholder="portal.example.com" /></div>
             <div className="space-y-2"><Label htmlFor="setup-type">Application type</Label><select id="setup-type" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={projectForm.type} onChange={e => setProjectForm({ ...projectForm, type: e.target.value as "frontend" | "backend" })}><option value="frontend">Frontend</option><option value="backend">Backend</option></select></div>
             <div className="space-y-2 sm:col-span-2"><Label htmlFor="setup-customer">Customer (optional)</Label><select id="setup-customer" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={projectForm.customerId} onChange={e => setProjectForm({ ...projectForm, customerId: e.target.value })}><option value="">No customer selected</option>{customerList.map(customer => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></div>
-            <div className="flex justify-end sm:col-span-2"><Button disabled={createProject.isPending || !projectForm.slug || !projectForm.name || !projectForm.domain} onClick={() => void create()}>{createProject.isPending ? "Creating…" : "Create project"}</Button></div>
+            <div className="flex justify-end sm:col-span-2"><Button disabled={createProject.isPending || !projectForm.name || !projectForm.domain} onClick={() => void create()}>{createProject.isPending ? "Creating…" : "Create project"}</Button></div>
           </CardContent>
         </Card>
       ) : (

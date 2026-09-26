@@ -130,7 +130,7 @@ function invalidateSetup(queryClient: ReturnType<typeof useQueryClient>, project
 export function useCreateProjectSetup() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { slug: string; name: string; domain: string; type: "frontend" | "backend"; customerId?: string }) =>
+    mutationFn: async (payload: { name: string; domain: string; type: "frontend" | "backend"; customerId?: string }) =>
       (await api.post<{ projectId: string; slug: string; status: string }>("/admin/project-setup/projects", payload)).data,
     onSuccess: () => invalidateSetup(qc),
   });
