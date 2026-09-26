@@ -67,6 +67,11 @@ export interface ProjectSetupStatus {
   activeDeploymentId?: string | null; activeDeploymentStatus?: string | null;
   latestDeploymentId?: string | null; latestDeploymentStatus?: string | null;
 }
+export interface AdoptableContainer {
+  id: string; name: string; image: string; state: string; networks: string[];
+  ports: Array<{ containerPort: number; hostPort: number }>;
+  environmentVariableCount: number;
+}
 export interface ProjectOverview {
   projectId: string; slug: string; name: string; type: ProjectType;
   accessLifecycle: { accessStatus: string; blockReason?: string | null; deploymentMode: string; serviceMode: string; lifecycleStatus: string };

@@ -25,6 +25,7 @@ import type {
   UpdateProjectPayload,
   ProjectOverview,
   ProjectSetupStatus,
+  AdoptableContainer,
   ProjectDeploymentHistoryItem,
   ProviderCredentialMetadata,
 } from "@/types/project";
@@ -118,6 +119,15 @@ export function useProjectSetupStatus(projectId: string) {
   });
 }
 
+export function useAdoptableContainers(enabled: boolean) {
+  return useQuery({
+    queryKey: ["project-setup", "adoptable-containers"],
+    queryFn: async () => (await api.get<AdoptableContainer[]>("/admin/project-setup/containers")).data,
+    enabled,
+    refetchInterval: 10_000,
+  });
+}
+
 function invalidateSetup(queryClient: ReturnType<typeof useQueryClient>, projectId?: string) {
   queryClient.invalidateQueries({ queryKey: ["project-setup", projectId] });
   queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -173,6 +183,20 @@ export function useDeployProjectSetup(projectId: string) {
   return useMutation({
     mutationFn: async () => (await api.post<{ deploymentId: string; status: string }>(`/admin/project-setup/projects/${projectId}/deploy`)).data,
     onSuccess: () => { invalidateSetup(qc, projectId); qc.invalidateQueries({ queryKey: ["deployments"] }); },
+  });
+}
+
+export function useAdoptProjectContainer(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { containerId: string; containerPort: number }) =>
+      (await api.post<{ deploymentId: string; containerName: string; status: string; environmentVariableCount: number; message: string }>(`/admin/project-setup/projects/${projectId}/adopt-container`, payload)).data,
+    onSuccess: async () => {
+      invalidateSetup(qc, projectId);
+      await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
+      await qc.invalidateQueries({ queryKey: ["deployments"] });
+      await qc.invalidateQueries({ queryKey: ["containers"] });
+    },
   });
 }
 

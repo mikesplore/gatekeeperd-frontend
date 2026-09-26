@@ -14,6 +14,8 @@ import {
   useCreateProjectSetup,
   useDeployProjectSetup,
   useProjectSetupStatus,
+  useAdoptableContainers,
+  useAdoptProjectContainer,
   useSaveProjectSetupCredentials,
   useSaveProjectSetupGateway,
   useSaveProjectSetupRuntime,
@@ -59,7 +61,11 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [clearSecrets, setClearSecrets] = useState(false);
   const [gateway, setGateway] = useState({ domain: "", tlsMode: "http_only", gateEnabled: true });
   const [lastDeploymentId, setLastDeploymentId] = useState("");
+  const [adoptContainerId, setAdoptContainerId] = useState("");
+  const [adoptContainerPort, setAdoptContainerPort] = useState("");
   const status = useProjectSetupStatus(projectId);
+  const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1);
+  const adoptContainer = useAdoptProjectContainer(projectId);
   const dockerNetworkContext = useContainerWizardContext();
   const loadedConfiguration = useRef("");
   const savedRuntime = status.data?.sourceRuntime;
@@ -160,6 +166,17 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
+  const attachRunningContainer = async () => {
+    if (!adoptContainerId || !adoptContainerPort) return;
+    try {
+      const result = await adoptContainer.mutateAsync({ containerId: adoptContainerId, containerPort: Number(adoptContainerPort) });
+      toast.success("Running container attached", { description: result.message });
+      setStep(4);
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+  };
+
+  const selectedAdoptableContainer = adoptableContainers.data?.find(container => container.id === adoptContainerId);
+
   const projectName = status.data?.name ?? projectForm.name;
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -207,7 +224,19 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
         <QueryState isLoading={status.isLoading} isError={status.isError} error={status.error} data={status.data}>
           {(setup) => (
             <>
-              {step === 1 && <Card>
+              {step === 1 && <>
+              <Card>
+                <CardHeader><CardTitle>Attach a running container</CardTitle><CardDescription>Make an existing Docker container this project’s active deployment without restarting it. This updates desired source/runtime settings to match the container; any environment values are saved as encrypted project secrets.</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                  {adoptableContainers.isLoading ? <p className="text-sm text-muted-foreground">Loading running containers…</p> : adoptableContainers.isError ? <p className="text-sm text-destructive">Could not load Docker containers. Check that Gatekeeperd can access Docker.</p> : (adoptableContainers.data ?? []).filter(container => container.ports.length > 0).length === 0 ? <p className="text-sm text-muted-foreground">No running containers with a published TCP port are available to attach.</p> : <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2"><Label>Running container</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={adoptContainerId} onChange={event => { const nextId = event.target.value; setAdoptContainerId(nextId); setAdoptContainerPort(String(adoptableContainers.data?.find(container => container.id === nextId)?.ports[0]?.containerPort ?? "")); }}><option value="">Select a container</option>{(adoptableContainers.data ?? []).filter(container => container.ports.length > 0).map(container => <option key={container.id} value={container.id}>{container.name} · {container.image}</option>)}</select></div>
+                    <div className="space-y-2"><Label>Published application port</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={adoptContainerPort} onChange={event => setAdoptContainerPort(event.target.value)} disabled={!selectedAdoptableContainer}><option value="">Select a port</option>{selectedAdoptableContainer?.ports.map(port => <option key={port.containerPort} value={port.containerPort}>{port.containerPort} → host {port.hostPort}</option>)}</select></div>
+                    {selectedAdoptableContainer && <p className="text-xs text-muted-foreground sm:col-span-2">Network: {selectedAdoptableContainer.networks.join(", ") || "bridge"}. {selectedAdoptableContainer.environmentVariableCount} environment variables will be encrypted into a new project secret version. The previous runtime, if any, will keep running.</p>}
+                  </div>}
+                  <div className="flex justify-end"><Button variant="outline" disabled={!adoptContainerId || !adoptContainerPort || adoptContainer.isPending} onClick={() => void attachRunningContainer()}>{adoptContainer.isPending ? "Attaching…" : "Attach container"}</Button></div>
+                </CardContent>
+              </Card>
+              <Card>
                 <CardHeader><CardTitle>Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2"><Label>GitHub repository (optional)</Label><Input value={runtime.repository ?? ""} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /><p className="text-xs text-muted-foreground">Connect a repository to build from source, or leave this blank to deploy an existing Docker image.</p></div>
@@ -223,7 +252,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder={"NODE_ENV=production\nPORT=80"} /><p className="text-xs text-muted-foreground">Use this for ordinary app settings. Put passwords, API keys, and other sensitive values in Credentials.</p></div>
                   <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName || !runtime.containerPort || runtime.containerPort < 1 || runtime.containerPort > 65535} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
-              </Card>}
+              </Card></>}
 
               {step === 2 && <Card>
                 <CardHeader><CardTitle>Credentials</CardTitle><CardDescription>Registry and application values are write-only here. Saving new values creates versions; this does not deploy them.</CardDescription></CardHeader>
