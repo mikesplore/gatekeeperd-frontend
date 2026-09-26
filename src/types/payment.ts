@@ -47,6 +47,10 @@ export interface RevenueReport {
   totalLastMonth: number;
   currency: string;
   byMonth: { month: string; amount: number }[];
+  totalPayments: number;
+  successfulPayments: number;
+  pendingPayments: number;
+  failedPayments: number;
 }
 
 export interface PaymentLinkResponse {
@@ -68,7 +72,8 @@ export interface PaymentsListResponse {
 
 export interface PaymentEvent {
   id: string;
-  dedupeKey: string;
+  dedupeKey?: string | null;
+  provider: "paystack" | "mpesa" | string;
   eventType: string;
   paystackReference: string;
   processingStatus: string;
