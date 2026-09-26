@@ -137,7 +137,7 @@ export function useCreateProjectSetup() {
 }
 
 export type ProjectSetupRuntimeInput = {
-  repository: string; gitRef: string; registry: string; imageName: string; imageTag: string; containerPort?: number;
+  repository: string | null; gitRef: string; registry: string; imageName: string; imageTag: string; containerPort?: number;
   hostPort?: number; network: string; restartPolicy: string; env?: Record<string, string>; environment: string;
   readinessType?: string; readinessTarget?: string;
 };

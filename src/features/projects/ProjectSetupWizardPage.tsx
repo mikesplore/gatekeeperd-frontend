@@ -83,7 +83,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     loadedConfiguration.current = `${projectId}:${savedRuntime.id}`;
     const saved = savedRuntime;
     setRuntime({
-      repository: saved.repository, gitRef: saved.gitRef, registry: saved.registry,
+      repository: saved.repository ?? "", gitRef: saved.gitRef, registry: saved.registry,
       imageName: saved.imageName, imageTag: saved.imageTag, containerPort: saved.containerPort ?? undefined,
       hostPort: saved.hostPort ?? undefined, network: saved.network, restartPolicy: saved.restartPolicy,
       environment: saved.environment, env: saved.env,
@@ -122,7 +122,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const saveSource = async () => {
     try {
       const env = parseEnv(envText);
-      await saveRuntime.mutateAsync({ ...runtime, env });
+      await saveRuntime.mutateAsync({ ...runtime, repository: runtime.repository?.trim() || null, env });
       toast.success("Source and runtime settings saved");
       goToStep(2);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
@@ -210,7 +210,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
               {step === 1 && <Card>
                 <CardHeader><CardTitle>Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label>GitHub repository (owner/name)</Label><Input value={runtime.repository} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /></div>
+                  <div className="space-y-2"><Label>GitHub repository (optional)</Label><Input value={runtime.repository ?? ""} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /><p className="text-xs text-muted-foreground">Connect a repository to build from source, or leave this blank to deploy an existing Docker image.</p></div>
                   <div className="space-y-2"><Label>Git ref</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Registry</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
@@ -221,7 +221,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   <div className="space-y-2"><Label>Readiness probe</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.readinessType ?? "http"} onChange={e => setRuntime({ ...runtime, readinessType: e.target.value })}><option value="http">HTTP</option><option value="tcp">TCP</option><option value="process">Process running</option></select></div>
                   <div className="space-y-2"><Label>Probe target</Label><Input value={runtime.readinessTarget ?? ""} onChange={e => setRuntime({ ...runtime, readinessTarget: e.target.value })} placeholder="80/" /></div>
                   <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder={"NODE_ENV=production\nPORT=80"} /><p className="text-xs text-muted-foreground">Use this for ordinary app settings. Put passwords, API keys, and other sensitive values in Credentials.</p></div>
-                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.repository || !runtime.imageName || !runtime.containerPort || runtime.containerPort < 1 || runtime.containerPort > 65535} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
+                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName || !runtime.containerPort || runtime.containerPort < 1 || runtime.containerPort > 65535} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card>}
 
