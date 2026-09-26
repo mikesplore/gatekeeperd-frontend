@@ -83,8 +83,8 @@ export function InfrastructureCredentialsPage() {
     }
   };
 
-  return <div className="mx-auto max-w-6xl space-y-5">
-    <Tabs value={tab} onValueChange={value => setTab(value as CredentialTab)}>
+  return <div className="w-full space-y-6">
+    <Tabs value={tab} onValueChange={value => setTab(value as CredentialTab)} className="space-y-4">
       <div className="-mx-1 overflow-x-auto px-1">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="registry" className="flex-1 sm:flex-none"><Boxes className="mr-2 h-4 w-4" />Registry</TabsTrigger>
