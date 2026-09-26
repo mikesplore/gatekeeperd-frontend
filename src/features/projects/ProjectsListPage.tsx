@@ -57,27 +57,18 @@ export function ProjectsListPage() {
               </div>
             }
           >
-            {(projects) =>
-              projects.length === 0 ? (
-                <div className="flex flex-col items-center gap-4 py-12 text-center">
-                  <p className="text-muted-foreground">No projects found.</p>
-                  <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-4 w-4" />
-                    New Project
-                  </Button>
-                </div>
-              ) : (
-                <ProjectsTable
-                  projects={projects}
-                  selectedSlugs={selectedSlugs}
-                  onSelectionChange={setSelectedSlugs}
-                  onEdit={(p) => { setEditProject(p); setFormOpen(true); }}
-                  onBlock={(p) => setBlockTarget({ project: p, mode: "block" })}
-                  onUnblock={(p) => setBlockTarget({ project: p, mode: "unblock" })}
-                  onDelete={setDeleteTarget}
-                />
-              )
-            }
+            {(projects) => (
+              <ProjectsTable
+                projects={projects}
+                selectedSlugs={selectedSlugs}
+                onSelectionChange={setSelectedSlugs}
+                onEdit={(p) => { setEditProject(p); setFormOpen(true); }}
+                onBlock={(p) => setBlockTarget({ project: p, mode: "block" })}
+                onUnblock={(p) => setBlockTarget({ project: p, mode: "unblock" })}
+                onDelete={setDeleteTarget}
+                onCreate={() => setCreateOpen(true)}
+              />
+            )}
           </QueryState>
         </CardContent>
       </Card>
