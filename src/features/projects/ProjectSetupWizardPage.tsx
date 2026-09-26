@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronLeft, ChevronRight, Rocket, Save } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Rocket, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -180,9 +180,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
           <SidePanelTitle>Create project</SidePanelTitle>
           <SidePanelDescription>Add the project name and customer. Configure deployment whenever you are ready.</SidePanelDescription>
         </SidePanelHeader>}
-        <div className="min-h-0 space-y-5 overflow-y-auto px-4 py-4 sm:space-y-6 sm:px-6 sm:py-5">
-          {status.data && <div className="flex justify-end"><Button variant="outline" asChild><Link to={`/app/projects/${status.data.slug}`}>Project overview</Link></Button></div>}
-
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:space-y-6 sm:px-6 sm:py-5">
       {projectId && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {steps.map((label, index) => {
           const stepIndex = index + 1;
@@ -220,7 +218,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
                   <div className="space-y-2"><Label>Readiness probe</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.readinessType ?? "http"} onChange={e => setRuntime({ ...runtime, readinessType: e.target.value })}><option value="http">HTTP</option><option value="tcp">TCP</option><option value="process">Process running</option></select></div>
                   <div className="space-y-2"><Label>Probe target</Label><Input value={runtime.readinessTarget ?? ""} onChange={e => setRuntime({ ...runtime, readinessTarget: e.target.value })} placeholder="80/" /></div>
-                  <div className="space-y-2 sm:col-span-2"><Label>Non-secret environment values</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder={"NODE_ENV=production\nPORT=80"} /><p className="text-xs text-muted-foreground">Keep passwords, tokens, and keys for the credentials step.</p></div>
+                  <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder={"NODE_ENV=production\nPORT=80"} /><p className="text-xs text-muted-foreground">Use this for ordinary app settings. Put passwords, API keys, and other sensitive values in Credentials.</p></div>
                   <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.repository || !runtime.imageName || !runtime.containerPort || runtime.containerPort < 1 || runtime.containerPort > 65535} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card>}
@@ -230,7 +228,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                 <CardContent className="space-y-5">
                   <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2"><Label>Registry</Label><Input value={configuredRegistry} readOnly /></div><div className="space-y-2"><Label>Registry username</Label><Input value={registryUser} onChange={e => setRegistryUser(e.target.value)} placeholder={setup.credentialsConfigured ? "Configured; enter to rotate" : "Optional for public images"} /></div><div className="space-y-2"><Label>Registry password</Label><Input type="password" autoComplete="new-password" value={registryPassword} onChange={e => setRegistryPassword(e.target.value)} placeholder={setup.credentialsConfigured ? "Write-only; enter to rotate" : "Optional for public images"} /></div></div>
                   {setup.credentialsConfigured && <p className="text-xs text-muted-foreground">Current registry credential version: {setup.credentialVersion}. The password is never returned.</p>}
-                  <div className="space-y-2"><Label>Application secret environment</Label><Textarea rows={7} value={secretText} onChange={e => setSecretText(e.target.value)} placeholder={"DATABASE_URL=…\nAPI_TOKEN=…"} /><p className="text-xs text-muted-foreground">{setup.sourceRuntime?.secretSetVersion ? `Saved secret set version ${setup.sourceRuntime.secretSetVersion}; re-enter values to replace it.` : "Values are encrypted and will only be supplied to the worker during deployment."}</p></div>
+                  <div className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-2"><Label htmlFor="setup-secret-env">Application secrets (.env)</Label><label className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs font-medium hover:bg-muted"><Upload className="h-4 w-4" />Load .env file<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); parseEnv(text); setSecretText(text); toast.success(".env file loaded. Save to encrypt it for this project."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label></div><Textarea id="setup-secret-env" rows={7} value={secretText} onChange={e => setSecretText(e.target.value)} placeholder={"DATABASE_URL=…\nAPI_TOKEN=…"} /><p className="text-xs text-muted-foreground">{setup.sourceRuntime?.secretSetVersion ? `This project has saved secret version ${setup.sourceRuntime.secretSetVersion}. ` : ""}Saved encrypted for this project and environment. Its next deployment uses the saved version; values cannot be read back later.</p></div>
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={clearSecrets} onChange={e => setClearSecrets(e.target.checked)} />Replace the current secret set with an empty set</label>
                   <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(1)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={() => goToStep(3)}>Skip for now</Button><Button disabled={saveCredentials.isPending || (Boolean(registryUser) !== Boolean(registryPassword))} onClick={() => void saveCredentialStep()}>{saveCredentials.isPending ? "Saving…" : "Save credentials"}</Button></div></div>
                 </CardContent>
@@ -254,7 +252,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
                   {lastDeploymentId && <p className="text-sm text-muted-foreground">Queued deployment <code>{lastDeploymentId}</code>. This page polls the active deployment pointer as the worker progresses.</p>}
                   {active && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">An active deployment is recorded. Review its runtime and version references on the project overview.</div>}
-                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(3)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to={`/app/projects/${setup.slug}`}>Open project</Link></Button><Button disabled={deploy.isPending || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : "Deploy"}</Button></div></div>
+                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(3)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : "Deploy"}</Button></div></div>
                 </CardContent>
               </Card>}
 
