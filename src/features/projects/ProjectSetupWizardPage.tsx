@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Check, ChevronLeft, ChevronRight, Rocket, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
   type ProjectSetupRuntimeInput,
 } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
+import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
 const steps = ["Project", "Source & runtime", "Credentials", "Domain & gateway", "Deploy"];
 
@@ -41,12 +42,12 @@ const initialRuntime: ProjectSetupRuntimeInput = {
   environment: "production", readinessType: "http", readinessTarget: "80/", env: {},
 };
 
-export function ProjectSetupWizardPage() {
-  const { projectId = "" } = useParams();
+export function ProjectSetupWizardPage({ open, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const { projectId: routeProjectId = "" } = useParams();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const stepParam = Number(searchParams.get("step") ?? (projectId ? "1" : "0"));
-  const [step, setStep] = useState(Number.isInteger(stepParam) ? Math.max(0, Math.min(4, stepParam)) : 0);
+  const [createdProjectId, setCreatedProjectId] = useState("");
+  const projectId = createdProjectId || routeProjectId;
+  const [step, setStep] = useState(projectId ? 1 : 0);
   const [projectForm, setProjectForm] = useState({ slug: "", name: "", domain: "", type: "frontend" as "frontend" | "backend", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
@@ -97,15 +98,14 @@ export function ProjectSetupWizardPage() {
   }, [savedGatewayDomain, savedGatewayTlsMode, savedGatewayEnabled, savedProjectDomain]);
 
   useEffect(() => {
-    setStep(Number.isInteger(stepParam) ? Math.max(0, Math.min(4, stepParam)) : (projectId ? 1 : 0));
-  }, [stepParam, projectId]);
+    if (projectId) setStep(current => current === 0 ? 1 : current);
+  }, [projectId]);
 
   const deploymentBadge = useMemo(() => active ? "default" : currentDeployment === "failed" ? "destructive" : "secondary", [active, currentDeployment]);
 
   const goToStep = (next: number) => {
     const bounded = Math.max(projectId ? 1 : 0, Math.min(4, next));
     setStep(bounded);
-    setSearchParams({ step: String(bounded) }, { replace: true });
   };
 
   const create = async () => {
@@ -115,7 +115,8 @@ export function ProjectSetupWizardPage() {
         customerId: projectForm.customerId || undefined,
       });
       toast.success("Project created without a runtime");
-      navigate(`/app/projects/setup/${created.projectId}?step=1`);
+      setCreatedProjectId(created.projectId);
+      setStep(1);
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
@@ -162,16 +163,26 @@ export function ProjectSetupWizardPage() {
 
   const projectName = status.data?.name ?? projectForm.name;
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && onOpenChange && !routeProjectId) {
+      setCreatedProjectId("");
+      setStep(0);
+      setProjectForm({ slug: "", name: "", domain: "", type: "frontend", customerId: "" });
+    }
+    if (onOpenChange) onOpenChange(nextOpen);
+    else if (!nextOpen) navigate("/app/projects");
+  };
+  const closePanel = () => handleOpenChange(false);
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Project setup</p>
-          <h1 className="text-2xl font-semibold">{projectName || "Create a project before its runtime"}</h1>
-          {status.data && <p className="mt-1 text-sm text-muted-foreground">{status.data.slug} · {status.data.domain}</p>}
-        </div>
-        {status.data && <Button variant="outline" asChild><Link to={`/app/projects/${status.data.slug}`}>Project overview</Link></Button>}
-      </div>
+    <SidePanel open={open ?? true} onOpenChange={handleOpenChange}>
+      <SidePanelContent className="sm:max-w-3xl">
+        <SidePanelHeader className="border-b px-6 py-5 pr-14">
+          <SidePanelTitle>{projectName || "Project setup"}</SidePanelTitle>
+          <SidePanelDescription>{status.data ? `${status.data.slug} · ${status.data.domain}` : "Create a project, then configure its runtime, credentials, and gateway."}</SidePanelDescription>
+        </SidePanelHeader>
+        <div className="space-y-6 overflow-y-auto px-6 py-5">
+          <div className="flex justify-end">{status.data && <Button variant="outline" asChild><Link to={`/app/projects/${status.data.slug}`}>Project overview</Link></Button>}</div>
 
       <div className="grid gap-2 sm:grid-cols-5">
         {steps.map((label, index) => {
@@ -220,7 +231,7 @@ export function ProjectSetupWizardPage() {
                   <div className="space-y-2"><Label>Readiness probe</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.readinessType ?? "http"} onChange={e => setRuntime({ ...runtime, readinessType: e.target.value })}><option value="http">HTTP</option><option value="tcp">TCP</option><option value="process">Process running</option></select></div>
                   <div className="space-y-2"><Label>Probe target</Label><Input value={runtime.readinessTarget ?? ""} onChange={e => setRuntime({ ...runtime, readinessTarget: e.target.value })} placeholder="80/" /></div>
                   <div className="space-y-2 sm:col-span-2"><Label>Non-secret environment values</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder={"NODE_ENV=production\nPORT=80"} /><p className="text-xs text-muted-foreground">Keep passwords, tokens, and keys for the credentials step.</p></div>
-                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" asChild><Link to="/app/projects">Cancel</Link></Button><Button disabled={saveRuntime.isPending || !runtime.repository || !runtime.imageName || !runtime.containerPort || runtime.containerPort < 1 || runtime.containerPort > 65535} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
+                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.repository || !runtime.imageName || !runtime.containerPort || runtime.containerPort < 1 || runtime.containerPort > 65535} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card>}
 
@@ -267,6 +278,8 @@ export function ProjectSetupWizardPage() {
       )}
 
       {!projectId && <p className="text-xs text-muted-foreground">Projects created here remain valid indefinitely before a source, runtime, or deployment is configured.</p>}
-    </div>
+        </div>
+      </SidePanelContent>
+    </SidePanel>
   );
 }
