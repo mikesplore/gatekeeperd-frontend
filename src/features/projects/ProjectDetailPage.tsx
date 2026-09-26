@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { Link2, Pencil, Trash2, RotateCcw, Rocket, Upload } from "lucide-react";
+import { Link2, Pencil, Trash2, RotateCcw, Rocket, Upload, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,6 +22,7 @@ import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
 import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -41,6 +42,10 @@ function parseSecretEnv(text: string): Record<string, string> {
   });
   if (!entries.length) throw new Error("The .env file contains no variables.");
   return Object.fromEntries(entries);
+}
+
+function InfoHint({ children }: { children: string }) {
+  return <Tooltip><TooltipTrigger asChild><button type="button" aria-label="More information" className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="h-4 w-4" /></button></TooltipTrigger><TooltipContent className="max-w-xs leading-relaxed">{children}</TooltipContent></Tooltip>;
 }
 
 export function ProjectDetailPage() {
@@ -209,28 +214,30 @@ export function ProjectDetailPage() {
             <TabsContent value="deployment"><Card><CardHeader><CardTitle>Deployment configuration</CardTitle><p className="text-sm text-muted-foreground">Source, runtime, credentials, and gateway settings are managed in project setup.</p></CardHeader><CardContent><Button variant="outline" onClick={() => navigate(`/app/projects/setup/${project.id}?step=1`)}>Edit deployment setup</Button></CardContent></Card></TabsContent>
             <TabsContent value="history"><Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Deployment history</CardTitle><p className="text-sm text-muted-foreground">Canonical deployment records, readiness results, and immutable version references.</p></div><Button variant="outline" size="sm" onClick={() => history.refetch()}>Refresh</Button></CardHeader><CardContent className="space-y-3">{history.isLoading ? <Skeleton className="h-32 w-full" /> : history.isError ? <Alert variant="destructive"><AlertTitle>History unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(history.error)}</AlertDescription></Alert> : history.data?.items.length ? history.data.items.map(item => <div key={item.id} className="rounded-lg border p-4"><div className="flex flex-col justify-between gap-3 md:flex-row"><div className="space-y-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{item.imageName}:{item.imageTag}</span><span className="rounded bg-muted px-2 py-1 text-xs">{item.status}</span></div><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.trigger} · {item.environment}</p><p className="text-xs">Commit {item.sourceCommit ?? "not recorded"} · digest {item.imageDigest ?? "not recorded"}</p><p className="text-xs">Readiness: {item.healthCheckResult}{item.failureReason ? ` · ${item.failureReason}` : ""}</p><p className="text-xs text-muted-foreground">Credential {item.credentialSetId ? `${item.credentialSetId} v${item.credentialSetVersion}` : "not recorded"} · Secrets {item.secretSetId ? `${item.secretSetId} v${item.secretSetVersion}` : "not recorded"}</p></div><div className="flex gap-2">{item.actions.includes("redeploy") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/redeploy`); toast.success("Redeployment queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><Rocket className="h-4 w-4" />Redeploy</Button>}{item.actions.includes("rollback") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/rollback`); toast.success("Auditable rollback queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><RotateCcw className="h-4 w-4" />Rollback</Button>}</div></div></div>) : <p className="py-8 text-center text-sm text-muted-foreground">No canonical deployments recorded.</p>}</CardContent></Card></TabsContent>
             <TabsContent value="credentials">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Card>
-                  <CardHeader><CardTitle>Container registry access</CardTitle><p className="text-sm text-muted-foreground">Registry credentials let Gatekeeperd pull private images. They are separate from the environment variables your application reads at runtime.</p></CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <p>Active registry credential: {overview.data?.currentDeployment.credentialSetId ? `${overview.data.currentDeployment.credentialSetId} · version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"}</p>
-                    <Button variant="outline" asChild><Link to="/app/credentials">Manage registry credentials</Link></Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader><CardTitle>Application environment variables</CardTitle><p className="text-sm text-muted-foreground">Add secrets your app uses, such as DATABASE_URL or API_TOKEN. They are encrypted, versioned, and supplied to the container when it deploys. Saving creates a new version and queues a deployment.</p></CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm">Desired secret set: {overview.data?.desiredConfiguration.secretSetId ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} · Active deployment: {overview.data?.currentDeployment.secretSetId ? `Version ${overview.data.currentDeployment.secretSetVersion}` : "No secret version recorded"}</p>
-                    <Label htmlFor="project-secret-env">Variables (KEY=value, one per line)</Label>
-                    <textarea id="project-secret-env" className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-xs" value={secretDraft} onChange={event => setSecretDraft(event.target.value)} placeholder={"DATABASE_URL=postgres://…\nAPI_TOKEN=…"} />
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"><Upload className="h-4 w-4" />Upload .env file<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); parseSecretEnv(text); setSecretDraft(text); toast.success(".env file loaded. Review it, then save and deploy."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label>
-                      <p className="text-xs text-muted-foreground">Values stay write-only and are never shown after saving.</p>
-                    </div>
-                    <Button disabled={rotateSecrets.isPending || !secretDraft.trim()} onClick={async () => { try { await rotateSecrets.mutateAsync(parseSecretEnv(secretDraft)); setSecretDraft(""); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
-                  </CardContent>
-                </Card>
-              </div>
+              <TooltipProvider delayDuration={200}>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card>
+                    <CardHeader><div className="flex items-center gap-2"><CardTitle>Container registry access</CardTitle><InfoHint>Used by Gatekeeperd to pull private images. These credentials are not passed into your application container.</InfoHint></div></CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <p>Active registry credential: {overview.data?.currentDeployment.credentialSetId ? `${overview.data.currentDeployment.credentialSetId} · version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"}</p>
+                      <Button variant="outline" asChild><Link to="/app/credentials">Manage registry credentials</Link></Button>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader><div className="flex items-center gap-2"><CardTitle>Application environment variables</CardTitle><InfoHint>These are secrets your app reads at runtime, such as DATABASE_URL or API_TOKEN. Values are encrypted and write-only: after saving, admins cannot view them again. Edit the draft or upload a replacement .env, then save to create a new immutable version and queue a deployment. Keep a secure copy of values you may need later.</InfoHint></div></CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm">Desired secret set: {overview.data?.desiredConfiguration.secretSetId ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} · Active deployment: {overview.data?.currentDeployment.secretSetId ? `Version ${overview.data.currentDeployment.secretSetVersion}` : "No secret version recorded"}</p>
+                      <Label htmlFor="project-secret-env">Variables (KEY=value, one per line)</Label>
+                      <textarea id="project-secret-env" className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-xs" value={secretDraft} onChange={event => setSecretDraft(event.target.value)} placeholder={"DATABASE_URL=postgres://…\nAPI_TOKEN=…"} />
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"><Upload className="h-4 w-4" />Upload .env file<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); parseSecretEnv(text); setSecretDraft(text); toast.success(".env file loaded. Review it, then save and deploy."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label>
+                        <InfoHint>Saving creates a new secret version and queues a deployment. The deployment worker supplies the values to the container when it starts.</InfoHint>
+                      </div>
+                      <Button disabled={rotateSecrets.isPending || !secretDraft.trim()} onClick={async () => { try { await rotateSecrets.mutateAsync(parseSecretEnv(secretDraft)); setSecretDraft(""); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TooltipProvider>
             </TabsContent>
             <TabsContent value="payments">
               {invoiceQuery.isLoading && <Card className="mb-4"><CardHeader><Skeleton className="h-6 w-36" /></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div></CardContent></Card>}
