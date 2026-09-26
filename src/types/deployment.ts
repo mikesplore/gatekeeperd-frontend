@@ -1,63 +1,11 @@
-export type DeploymentStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "rolled_back";
+/** Canonical deployment history API types. */
+export type CanonicalDeploymentStatus = "queued" | "building" | "starting" | "health-checking" | "active" | "superseded" | "failed" | "cancelled" | "rolled-back";
 
-export interface DeploymentJob {
-  id: string;
-  repository: string;
-  gitRef: string;
-  registry: string;
-  imageName: string;
-  imageTag: string;
-  status: DeploymentStatus;
-  currentStep?: string | null;
-  logs?: string | null;
-  commitSha?: string | null;
-  imageDigest?: string | null;
-  errorMessage?: string | null;
-  createdAt: string;
-  startedAt?: string | null;
-  completedAt?: string | null;
-  updatedAt: string;
-  canRollback?: boolean;
-  triggerSource?: "manual" | "github_push" | string;
-  env?: Record<string, string>;
-  secretEnv?: Record<string, string>;
-  volumes?: { hostPath: string; containerPath: string; readOnly?: boolean }[];
-  network?: string;
-  restartPolicy?: string;
-  hostPort?: number | null;
-  containerPort?: number | null;
-}
-
-export interface UpdateDeploymentConfigurationPayload {
-  repository?: string; gitRef?: string; registry?: string; imageName?: string; imageTag?: string;
-  containerName?: string; hostPort?: number; containerPort?: number; network?: string; restartPolicy?: string;
-  env?: Record<string, string>; secretEnv?: Record<string, string>; volumes?: { hostPath: string; containerPath: string; readOnly?: boolean }[];
-  createNetworkIfMissing?: boolean;
-}
-
-export interface DeploymentAuditEntry {
-  id: string;
-  projectId?: string | null;
-  action: string;
-  actor: string;
-  reason?: string | null;
-  createdAt: string;
-}
-
-export interface CreateDeploymentPayload {
-  repository: string;
-  gitRef: string;
-  registry: string;
-  imageName: string;
-  imageTag: string;
-  containerName?: string;
-  hostPort?: number;
-  containerPort?: number;
-  network?: string;
-  restartPolicy?: string;
-  projectSlug?: string;
-  env?: Record<string, string>;
-  secretEnv?: Record<string, string>;
-  volumes?: { hostPath: string; containerPath: string; readOnly?: boolean }[];
-  createNetworkIfMissing?: boolean;
+export interface CanonicalDeploymentHistoryItem {
+  id: string; projectId: string; projectSlug: string; projectName: string; environment: string;
+  sourceCommit?: string | null; imageName: string; imageTag: string; imageDigest?: string | null;
+  trigger: string; actor?: string | null; status: CanonicalDeploymentStatus; createdAt: string;
+  activeAt?: string | null; healthCheckResult: string; failureReason?: string | null;
+  credentialSetId?: string | null; credentialSetVersion?: number | null;
+  secretSetId?: string | null; secretSetVersion?: number | null; actions: string[];
 }

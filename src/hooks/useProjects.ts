@@ -19,11 +19,9 @@ import type {
   PortsCheckResponse,
 } from "@/types/container";
 import type {
-  CreateProjectPayload,
   Project,
   ProjectDetailResponse,
   ProjectHealthResponse,
-  ProjectWizardContext,
   UpdateProjectPayload,
   ProjectOverview,
   ProjectSetupStatus,
@@ -108,25 +106,6 @@ export function useProjects() {
     queryKey: ["projects"],
     queryFn: async () => (await api.get<{ projects: Project[]; total: number; limit: number; offset: number }>("/admin/projects")).data.projects,
     refetchInterval: 30_000,
-  });
-}
-
-export function useProjectWizardContext(enabled = true) {
-  return useQuery({
-    queryKey: ["projects", "wizard", "context"],
-    enabled,
-    refetchOnMount: "always",
-    queryFn: async () =>
-      (await api.get<ProjectWizardContext>("/admin/projects/wizard/context")).data,
-  });
-}
-
-export function useCreateProject() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: CreateProjectPayload) =>
-      api.post<Project>("/admin/projects", payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
   });
 }
 

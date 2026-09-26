@@ -43,12 +43,10 @@ export interface NginxBackup {
 export interface NginxWizardContext {
   slug: string;
   domain: string;
-  containerName: string | null;
   nginxEnabled: boolean;
-  configuredContainerName: string | null;
   configuredPort: number | null;
-  dockerContainerHealth: "running" | "exited" | "unknown" | null;
-  dockerPublishedHostPorts: number[];
+  runtimeHealth: string | null;
+  resolvedUpstreamHost: string | null;
   installedCertificates: string[];
   resolvedCertificateDomain: string | null;
 }

@@ -132,10 +132,10 @@ export function NginxPage() {
 
   const { data: certStatus, refetch: refetchCertStatus } = useCertificateStatus(selectedDomain);
 
-  const detectedContainerName = wizardContext?.containerName ?? wizardContext?.configuredContainerName;
+  const detectedContainerName = wizardContext?.resolvedUpstreamHost && wizardContext?.configuredPort ? `${wizardContext.resolvedUpstreamHost}:${wizardContext.configuredPort}` : null;
   const containerDetectionStatus = wizardContext
-    ? wizardContext.dockerContainerHealth === "running" || wizardContext.dockerContainerHealth === "exited"
-      ? wizardContext.dockerContainerHealth
+    ? wizardContext.runtimeHealth === "running" || wizardContext.runtimeHealth === "exited"
+      ? wizardContext.runtimeHealth
       : detectedContainerName
         ? "detected"
         : "not detected"
@@ -519,10 +519,10 @@ export function NginxPage() {
                   {wizardContext ? (
                     <div className="grid gap-4 sm:grid-cols-2">
                       <InfoRow label="Domain" value={wizardContext.domain} />
-                      <InfoRow label="Container" value={detectedContainerName ?? "Not detected"} mono />
+                      <InfoRow label="Resolved upstream" value={detectedContainerName ?? "No active runtime"} mono />
                       <InfoRow label="Detected Port" value={wizardContext.configuredPort ? String(wizardContext.configuredPort) : ""} />
                       <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Docker Container</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Runtime Health</p>
                         <Badge
                           variant="outline"
                           className={
@@ -538,9 +538,6 @@ export function NginxPage() {
                           {containerDetectionStatus || "unknown"}
                         </Badge>
                       </div>
-                      {wizardContext.dockerPublishedHostPorts.length > 0 && (
-                        <InfoRow label="Published Host Ports" value={wizardContext.dockerPublishedHostPorts.join(", ")} />
-                      )}
                       {wizardContext.resolvedCertificateDomain && (
                         <InfoRow label="Resolved Certificate" value={wizardContext.resolvedCertificateDomain} />
                       )}

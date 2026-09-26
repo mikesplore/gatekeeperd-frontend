@@ -91,7 +91,7 @@ export function SiteAdvancedConfigPage() {
     {detail => <div className="w-full space-y-5">
       <div className="sticky top-0 z-20 -mx-4 flex flex-wrap items-center justify-between gap-3 border-y bg-background/95 px-4 py-3 shadow-sm backdrop-blur md:-mx-6 md:px-6">
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-8 gap-y-3">
-          <div className="min-w-0"><p className="truncate text-sm font-semibold">{detail.site.upstreamMode === "docker_discovery" ? detail.site.upstreamContainerName || "Docker discovery" : `${detail.site.upstreamHost || "127.0.0.1"}:${detail.site.upstreamExplicitPort ?? "—"}`}</p></div>
+          <div className="min-w-0"><p className="truncate text-sm font-semibold">{detail.site.upstreamMode === "docker_discovery" ? `${detail.site.upstreamHost || "127.0.0.1"}:${detail.site.upstreamExplicitPort ?? "—"} · active deployment` : `${detail.site.upstreamHost || "127.0.0.1"}:${detail.site.upstreamExplicitPort ?? "—"}`}</p></div>
           <div className="flex flex-wrap items-center gap-3">
             <StatusTicker label="TLS" value={detail.site.tlsMode?.replace(/_/g, " ") ?? "unknown"} tone={detail.site.tlsMode ? "good" : "warn"} />
             <StatusTicker label="Gate" value={detail.site.gateEnabled == null ? "unknown" : detail.site.gateEnabled ? "on" : "off"} tone={detail.site.gateEnabled == null ? "warn" : detail.site.gateEnabled ? "good" : "warn"} />

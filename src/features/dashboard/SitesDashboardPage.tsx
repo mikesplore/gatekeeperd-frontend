@@ -20,7 +20,7 @@ function SiteTable({ sites }: { sites: DashboardSite[] }) {
     <tbody>{ordered.map(site => <tr key={site.slug} className="group border-b last:border-0 hover:bg-muted/40">
       <td className="px-4 py-4"><Link className="block font-medium text-foreground hover:text-primary" to={`/app/nginx/sites/${site.slug}`}>{site.domain}</Link><span className="mt-1 block text-xs text-muted-foreground">{site.slug}</span></td>
       <td className="px-4 py-4"><StatusBadge status={site.status}/></td>
-      <td className="px-4 py-4"><span className="flex items-center gap-2 text-sm"><Server className="h-4 w-4 text-muted-foreground" />{site.dockerState ?? (site.available ? "Configured" : "Unavailable")}</span></td>
+      <td className="px-4 py-4"><span className="flex items-center gap-2 text-sm"><Server className="h-4 w-4 text-muted-foreground" />{site.upstreamMode === "docker_discovery" && site.resolvedUpstreamHost && site.resolvedUpstreamPort ? `${site.resolvedUpstreamHost}:${site.resolvedUpstreamPort}` : site.runtimeHealth ?? (site.available ? "Configured" : "Unavailable")}</span></td>
       <td className="px-4 py-4 text-muted-foreground">{site.customerName ?? "Unassigned"}</td>
       <td className="max-w-xs px-4 py-4 text-xs text-muted-foreground"><span className="block truncate" title={site.lastNginxError ?? site.lastDockerError ?? ""}>{site.lastNginxError ?? site.lastDockerError ?? (site.enabled ? "Enabled" : "Not enabled")}</span></td>
     </tr>)}</tbody>

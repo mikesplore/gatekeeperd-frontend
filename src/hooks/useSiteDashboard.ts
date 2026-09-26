@@ -8,7 +8,7 @@ export function useDashboardSites(status?: SiteStatus | "all", limit = 25, offse
   return useQuery({ queryKey: ["dashboard", "sites", status, limit, offset], queryFn: async () => (await api.get<PaginatedDashboardSites>("/admin/dashboard/sites", { params: { status: status && status !== "all" ? status : undefined, limit, offset } })).data });
 }
 export function useDashboardSite(slug: string) { return useQuery({ queryKey: ["dashboard", "site", slug], queryFn: async () => (await api.get<SiteDetail>(`/admin/dashboard/sites/${encodeURIComponent(slug)}`)).data, enabled: !!slug }); }
-export interface DashboardSiteUpdate { domain?: string; upstreamHost?: string; upstreamMode?: string; upstreamContainerName?: string; upstreamExplicitPort?: number; tlsMode?: string; certMode?: string; certExplicitPath?: string; gateEnabled?: boolean; bypassPaths?: string[]; }
+export interface DashboardSiteUpdate { domain?: string; upstreamHost?: string; upstreamMode?: string; upstreamExplicitPort?: number; tlsMode?: string; certMode?: string; certExplicitPath?: string; gateEnabled?: boolean; bypassPaths?: string[]; }
 export function useUpdateDashboardSite(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: (payload: DashboardSiteUpdate) => api.patch(`/admin/dashboard/sites/${encodeURIComponent(slug)}`, payload), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dashboard", "site", slug] }); queryClient.invalidateQueries({ queryKey: ["dashboard", "sites"] }); queryClient.invalidateQueries({ queryKey: ["dashboard", "summary"] }); } });
