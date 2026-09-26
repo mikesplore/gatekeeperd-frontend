@@ -1,19 +1,25 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, Boxes, CreditCard, Loader2, RefreshCw, RotateCw, Trash2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryState } from "@/components/QueryState";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, RotateCw, Trash2 } from "lucide-react";
 import { useDashboardSummary, useIntegrationOutbox, useReplayIntegrationEvent } from "@/hooks/useProjects";
 import { api, getApiErrorMessage } from "@/lib/api";
 import type { PaymentEvent } from "@/types/payment";
 
 function Breakdown({ values }: { values: Record<string, number> }) {
   const entries = Object.entries(values);
-  return entries.length ? <div className="space-y-2">{entries.map(([key, value]) => <div key={key} className="flex justify-between text-sm"><span className="capitalize text-muted-foreground">{key.replace(/_/g, " ")}</span><span className="font-medium">{value.toLocaleString()}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No data reported.</p>;
+  return entries.length ? <div className="divide-y">{entries.map(([key, value]) => <div key={key} className="flex justify-between gap-4 py-2 text-sm first:pt-0 last:pb-0"><span className="capitalize text-muted-foreground">{key.replace(/_/g, " ")}</span><span className="font-medium tabular-nums">{value.toLocaleString()}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No data reported.</p>;
+}
+
+function MetricCard({ label, value, detail }: { label: string; value: string | number; detail: string }) {
+  return <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></CardContent></Card>;
 }
 
 export function OperationsPage() {
@@ -29,25 +35,59 @@ export function OperationsPage() {
 
   return <div className="space-y-6">
     <p className="text-muted-foreground">Infrastructure, payment, and integration health.</p>
-    <QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} data={summary.data} loadingFallback={<Skeleton className="h-64 w-full" />}>
-      {(data) => <>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Payment events</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{Object.values(data.payments).reduce((a, b) => a + b, 0)}</p><p className="text-xs text-muted-foreground">Across all providers</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Nginx sites</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{data.nginx.enabledSites}/{data.nginx.availableSites}</p><p className="text-xs text-muted-foreground">Enabled / available</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Outbox pending</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{data.integrations.outboxPending + data.integrations.outboxProcessing}</p><p className="text-xs text-muted-foreground">{data.integrations.outboxDeadLetter} dead-lettered</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Revenue this month</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{data.revenue.thisMonth}</p><p className="text-xs text-muted-foreground">Backend-reported</p></CardContent></Card>
+    <Tabs defaultValue="overview" className="space-y-4">
+      <div className="-mx-1 overflow-x-auto px-1">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
+          <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>
+          <TabsTrigger value="integrations" className="flex-1 sm:flex-none">Integrations</TabsTrigger>
+          <TabsTrigger value="infrastructure" className="flex-1 sm:flex-none">Infrastructure</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="overview">
+        <QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} data={summary.data} loadingFallback={<Skeleton className="h-64 w-full" />}>
+          {data => <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard label="Payment events" value={Object.values(data.payments).reduce((a, b) => a + b, 0)} detail="Across all providers" />
+              <MetricCard label="Revenue this month" value={data.revenue.thisMonth} detail="Backend-reported" />
+              <MetricCard label="Integration queue" value={data.integrations.outboxPending + data.integrations.outboxProcessing} detail={`${data.integrations.outboxDeadLetter} dead-lettered`} />
+              <MetricCard label="Nginx sites" value={`${data.nginx.enabledSites}/${data.nginx.availableSites}`} detail="Enabled / available" />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card><CardHeader><CardTitle className="text-base">Project status</CardTitle><CardDescription>Current project lifecycle counts.</CardDescription></CardHeader><CardContent><Breakdown values={data.projects} /></CardContent></Card>
+              <Card><CardHeader><CardTitle className="text-base">Payment status</CardTitle><CardDescription>Payment state across all providers.</CardDescription></CardHeader><CardContent><Breakdown values={data.payments} /></CardContent></Card>
+            </div>
+            {Object.keys(data.metrics).length > 0 && <Card><CardHeader><CardTitle className="text-base">Backend worker metrics</CardTitle><CardDescription>Recent background job runs reported by the service.</CardDescription></CardHeader><CardContent><Breakdown values={data.metrics} /></CardContent></Card>}
+          </div>}
+        </QueryState>
+      </TabsContent>
+
+      <TabsContent value="payments">
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />Failed Paystack webhook events</CardTitle><CardDescription className="mt-1">Inspect and replay payment events that failed processing.</CardDescription></div><Button size="sm" variant="outline" asChild><Link to="/app/payments/events">View all events</Link></Button></CardHeader>
+          <CardContent>
+            {paymentEvents.isLoading ? <p className="text-sm text-muted-foreground">Loading failed events…</p> : paymentEvents.isError ? <p className="text-sm text-destructive">Unable to load payment events.</p> : (paymentEvents.data?.data?.length ?? 0) > 0 ? <div className="divide-y">{paymentEvents.data?.data?.map(event => <div key={event.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0 space-y-1"><p className="font-medium text-sm">{event.eventType} <span className="text-muted-foreground">·</span> {event.paystackReference}</p><p className="text-xs text-muted-foreground">{event.processingError || "Processing failed"}</p><p className="text-xs text-muted-foreground">Received {new Date(event.receivedAt).toLocaleString()}</p></div><Button size="sm" variant="outline" className="shrink-0 self-start sm:self-auto" disabled={replayPayment.isPending} onClick={async () => { try { await replayPayment.mutateAsync(event.id); toast.success("Webhook event replayed"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><RotateCw className="h-4 w-4" />Replay</Button></div>)}</div> : <div className="flex min-h-44 flex-col items-center justify-center text-center"><p className="font-medium">No failed webhook events</p><p className="mt-1 text-sm text-muted-foreground">Failed Paystack events will appear here.</p></div>}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="integrations">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.2fr)]">
+          <Card><CardHeader><CardTitle>Delivery status</CardTitle><CardDescription>Current integration outbox counts.</CardDescription></CardHeader><CardContent>{outbox.isLoading ? <p className="text-sm text-muted-foreground">Loading delivery status…</p> : outbox.isError ? <p className="text-sm text-destructive">Unable to load integration events.</p> : <Breakdown values={{ pending: summary.data?.integrations.outboxPending ?? 0, processing: summary.data?.integrations.outboxProcessing ?? 0, delivered: summary.data?.integrations.outboxDelivered ?? 0, dead_letter: summary.data?.integrations.outboxDeadLetter ?? 0 }} />}</CardContent></Card>
+          <Card><CardHeader><CardTitle>Queued integration events</CardTitle><CardDescription>Events waiting for delivery or retry.</CardDescription></CardHeader><CardContent>{outbox.isLoading ? <div className="space-y-3"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : outbox.isError ? <p className="text-sm text-destructive">Unable to load queued integration events.</p> : outbox.data?.length ? <div className="divide-y">{outbox.data.map(event => { const replaying = replay.isPending && replay.variables === event.id; return <div key={event.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0 space-y-1"><p className="text-sm font-medium">{event.eventType}</p><p className="break-all font-mono text-xs text-muted-foreground">{event.idempotencyKey}</p><p className="text-xs text-muted-foreground">Attempts: {event.attempts}</p></div><Button size="sm" variant="outline" className="shrink-0 self-start sm:self-auto" disabled={replay.isPending} onClick={async () => { try { await replay.mutateAsync(event.id); toast.success("Event replay completed"); } catch { toast.error("Unable to replay event"); } }}>{replaying && <Loader2 className="h-4 w-4 animate-spin" />}{replaying ? "Replaying…" : "Replay"}</Button></div>; })}</div> : <div className="flex min-h-44 flex-col items-center justify-center text-center"><p className="font-medium">No queued integration events</p><p className="mt-1 text-sm text-muted-foreground">Pending or retryable events will appear here.</p></div>}</CardContent></Card>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card><CardHeader><CardTitle className="text-sm">Project status</CardTitle></CardHeader><CardContent><Breakdown values={data.projects} /></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-sm">Payment status</CardTitle></CardHeader><CardContent><Breakdown values={data.payments} /></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-sm">Integration delivery</CardTitle></CardHeader><CardContent><Breakdown values={{ pending: data.integrations.outboxPending, processing: data.integrations.outboxProcessing, delivered: data.integrations.outboxDelivered, dead_letter: data.integrations.outboxDeadLetter }} /></CardContent></Card>
+      </TabsContent>
+
+      <TabsContent value="infrastructure">
+        <div className="grid items-start gap-4 xl:grid-cols-2">
+          <QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} data={summary.data} loadingFallback={<Skeleton className="h-48 w-full" />}>
+            {data => <div className="space-y-4"><Card><CardHeader><CardTitle className="flex items-center gap-2"><Boxes className="h-5 w-5" />Nginx sites</CardTitle><CardDescription>Enabled sites compared with available configurations.</CardDescription></CardHeader><CardContent className="flex items-end justify-between gap-4"><div><p className="text-3xl font-semibold tabular-nums">{data.nginx.enabledSites}<span className="text-muted-foreground">/{data.nginx.availableSites}</span></p><p className="mt-1 text-xs text-muted-foreground">Enabled / available</p></div><Button variant="outline" size="sm" asChild><Link to="/app/nginx">Manage sites</Link></Button></CardContent></Card>{data.certificateAlerts?.length ? <Card><CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-orange-600" />Certificate alerts</CardTitle></CardHeader><CardContent><div className="space-y-2 text-sm">{data.certificateAlerts.map(alert => <p key={alert} className="text-orange-700 dark:text-orange-400">{alert}</p>)}</div></CardContent></Card> : null}</div>}
+          </QueryState>
+
+          <Card><CardHeader><CardTitle className="flex items-center gap-2"><Trash2 className="h-5 w-5" />Docker image cleanup</CardTitle><CardDescription>Review unreferenced project images and reclaim disk space.</CardDescription></CardHeader><CardContent className="space-y-4"><div className="space-y-1.5"><label htmlFor="image-prefix" className="text-sm font-medium">Optional image name prefix</label><Input id="image-prefix" value={imagePrefix} onChange={event => setImagePrefix(event.target.value)} placeholder="e.g. registry.example.com/team/" /></div><Button variant="outline" disabled={prune.isPending} onClick={async () => { try { const result = await prune.mutateAsync(true); setPrunePreview(result); toast.success(`Found ${result.removed.length} removable images`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><RefreshCw className="h-4 w-4" />Preview cleanup</Button>{prunePreview && <div className="space-y-3 rounded-lg border p-4"><p className="text-sm font-medium">{prunePreview.removed.length} candidates <span className="text-muted-foreground">· {(prunePreview.reclaimedBytes / 1024 / 1024).toFixed(1)} MB reclaimable</span></p>{prunePreview.removed.length > 0 && <ul className="max-h-40 space-y-1 overflow-auto text-xs text-muted-foreground">{prunePreview.removed.map(item => <li key={item.reference} className="truncate" title={item.reference}>{item.reference}</li>)}</ul>}<Button variant="destructive" disabled={prune.isPending || prunePreview.removed.length === 0} onClick={async () => { if (!window.confirm(`Remove ${prunePreview.removed.length} unreferenced images?`)) return; try { const result = await prune.mutateAsync(false); setPrunePreview(null); toast.success(`Removed ${result.removed.length} images`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{prune.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Remove previewed images</Button></div>}</CardContent></Card>
         </div>
-        {Object.keys(data.metrics).length > 0 && <Card><CardHeader><CardTitle className="text-sm">Backend metrics</CardTitle></CardHeader><CardContent><Breakdown values={data.metrics} /></CardContent></Card>}
-        {data.certificateAlerts?.length ? <Card><CardHeader><CardTitle className="text-sm">Certificate alerts</CardTitle></CardHeader><CardContent><div className="space-y-2 text-sm">{data.certificateAlerts.map(alert => <p key={alert} className="text-orange-700">{alert}</p>)}</div></CardContent></Card> : null}
-      </>}
-    </QueryState>
-    <Card><CardHeader><CardTitle className="flex items-center justify-between">Failed Paystack webhook events <Button size="sm" variant="outline" asChild><Link to="/app/payments/events">View payment events</Link></Button></CardTitle></CardHeader><CardContent>{paymentEvents.isLoading ? <p className="text-sm text-muted-foreground">Loading failed events…</p> : paymentEvents.isError ? <p className="text-sm text-destructive">Unable to load payment events.</p> : (paymentEvents.data?.data?.length ?? 0) > 0 ? <div className="space-y-3">{paymentEvents.data?.data?.map(event => <div key={event.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="font-medium text-sm">{event.eventType} · {event.paystackReference}</p><p className="text-xs text-muted-foreground">{event.processingError || "Processing failed"} · {new Date(event.receivedAt).toLocaleString()}</p></div><Button size="sm" variant="outline" disabled={replayPayment.isPending} onClick={async () => { try { await replayPayment.mutateAsync(event.id); toast.success("Webhook event replayed"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><RotateCw className="mr-2 h-4 w-4" />Replay</Button></div>)}</div> : <p className="text-sm text-muted-foreground">No failed webhook events.</p>}</CardContent></Card>
-    <Card><CardHeader><CardTitle>Docker image cleanup</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Review unreferenced project images, then remove the candidates to reclaim disk space.</p><div className="flex flex-col gap-2 sm:flex-row"><input value={imagePrefix} onChange={event => setImagePrefix(event.target.value)} placeholder="Optional image name prefix" className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"/><Button variant="outline" disabled={prune.isPending} onClick={async () => { try { const result = await prune.mutateAsync(true); setPrunePreview(result); toast.success(`Found ${result.removed.length} removable images`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Trash2 className="mr-2 h-4 w-4"/>Preview cleanup</Button></div>{prunePreview && <div className="space-y-3 rounded-md border p-3"><p className="text-sm font-medium">{prunePreview.removed.length} candidates · {(prunePreview.reclaimedBytes / 1024 / 1024).toFixed(1)} MB</p>{prunePreview.removed.length > 0 && <ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">{prunePreview.removed.map(item => <li key={item.reference} className="truncate">{item.reference}</li>)}</ul>}<Button variant="destructive" disabled={prune.isPending || prunePreview.removed.length === 0} onClick={async () => { if (!window.confirm(`Remove ${prunePreview.removed.length} unreferenced images?`)) return; try { const result = await prune.mutateAsync(false); setPrunePreview(null); toast.success(`Removed ${result.removed.length} images`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{prune.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Remove previewed images</Button></div>}</CardContent></Card>
-    <Card><CardHeader><CardTitle>Queued integration events</CardTitle></CardHeader><CardContent>{outbox.data?.length ? <div className="space-y-3">{outbox.data.map((event) => { const replaying = replay.isPending && replay.variables === event.id; return <div key={event.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{event.eventType}</p><p className="truncate font-mono text-xs text-muted-foreground">{event.idempotencyKey}</p><p className="text-xs text-muted-foreground">Attempts: {event.attempts}</p></div><Button size="sm" variant="outline" disabled={replay.isPending} onClick={async () => { try { await replay.mutateAsync(event.id); toast.success("Event replay completed"); } catch { toast.error("Unable to replay event"); } }}>{replaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {replaying ? "Replaying…" : "Replay"}</Button></div>; })}</div> : <p className="text-sm text-muted-foreground">No undelivered integration events.</p>}</CardContent></Card>
+      </TabsContent>
+    </Tabs>
   </div>;
 }
