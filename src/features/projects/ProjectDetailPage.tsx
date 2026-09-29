@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { Link2, Pencil, Trash2, RotateCcw, Rocket, Upload, Info, Plus } from "lucide-react";
+import { ChevronDown, Copy, Link2, Pencil, RefreshCw, Trash2, RotateCcw, Rocket, Upload, Info, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,18 +9,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject, useProjectDeploymentHistory, useProjectSecretRotation } from "@/hooks/useProjects";
+import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject, useProjectDeploymentHistory, useProjectSecretRotation, useProjectServices } from "@/hooks/useProjects";
 import { useProjectPayments } from "@/hooks/usePayments";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
-import { GeneratePaymentLinkDialog } from "@/features/payments/GeneratePaymentLinkDialog";
-import { CaptureCashPaymentDialog } from "@/features/payments/CaptureCashPaymentDialog";
+import { CapturePaymentDrawer } from "@/features/payments/CapturePaymentDrawer";
 import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
+import { ServiceAdjustmentDialog } from "@/features/payments/ServiceAdjustmentDialog";
+import { CreateServiceInvoiceDialog } from "@/features/payments/CreateServiceInvoiceDialog";
 import { BlockUnblockDialog } from "@/features/projects/BlockUnblockDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
 import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
-import { ProjectStatusBadge } from "@/features/projects/ProjectStatusBadge";
+import { ProjectServicesPanel } from "@/features/projects/ProjectServicesPanel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -73,17 +74,19 @@ export function ProjectDetailPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { data, isLoading, isError, error } = useProjectDetail(slug);
+  const { data, isLoading, isError, error, refetch: refetchProjectDetail } = useProjectDetail(slug);
   const overview = useProjectOverview(slug);
   const history = useProjectDeploymentHistory(slug);
   const rotateSecrets = useProjectSecretRotation(data?.project.id ?? "", slug);
   const [secretRows, setSecretRows] = useState<{ name: string; value: string }[]>([{ name: "", value: "" }]);
   const invoiceQuery = useProjectInvoice(slug);
+  const servicesQuery = useProjectServices(data?.project.id ?? "");
   const [editOpen, setEditOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupStep, setSetupStep] = useState(1);
-  const [payOpen, setPayOpen] = useState(false);
-  const [cashPayOpen, setCashPayOpen] = useState(false);
+  const [serviceAdjustmentOpen, setServiceAdjustmentOpen] = useState(false);
+  const [serviceInvoiceOpen, setServiceInvoiceOpen] = useState(false);
+  const [capturePaymentOpen, setCapturePaymentOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -93,6 +96,15 @@ export function ProjectDetailPage() {
   const [invoiceDescription, setInvoiceDescription] = useState("");
   const [paymentPage, setPaymentPage] = useState(0);
   const projectPayments = useProjectPayments(slug, 25, paymentPage * 25);
+  const refreshPaymentData = async () => {
+    await Promise.all([
+      refetchProjectDetail(),
+      projectPayments.refetch(),
+      invoiceQuery.refetch(),
+      servicesQuery.refetch(),
+      overview.refetch(),
+    ]);
+  };
   const [deploymentMode, setDeploymentMode] = useState("client_hosted");
   const [serviceMode, setServiceMode] = useState("production");
   const transferProject = useTransferProject(slug);
@@ -105,7 +117,8 @@ export function ProjectDetailPage() {
     setSetupOpen(true);
   };
 
-  const defaultTab = searchParams.get("tab") === "payments" ? "payments" : "overview";
+  const requestedTab = searchParams.get("tab");
+  const defaultTab = requestedTab === "payments" || requestedTab === "settings" || requestedTab === "deployment" ? requestedTab : "overview";
 
   const reversalAlert = useMemo(() => {
     if (!data) return null;
@@ -143,51 +156,21 @@ export function ProjectDetailPage() {
     >
       {({ project, audit_log }) => (
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-3">
-                  <CardTitle className="text-xl sm:text-2xl">{project.name}</CardTitle>
-                  <ProjectStatusBadge status={project.status} />
-                </div>
-                <p className="text-sm text-muted-foreground break-all">{project.domain}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => openProjectSetup(1)}>Edit project setup</Button>
-                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none">
-                  <Pencil className="h-4 w-4" />
-                  <span className="sm:hidden">Edit</span>
-                  <span className="hidden sm:inline">Edit</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setAdjustmentOpen(true)}>Add charge / discount</Button>
-                {project.lifecycleStatus !== "archived" && (
-                  <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)} className="flex-1 sm:flex-none">Transfer</Button>
-                )}
+          <div className="flex flex-wrap justify-end gap-2">
+                <Button size="sm" onClick={() => openProjectSetup(1)}><Rocket className="h-4 w-4" />New deployment</Button>
                 {project.status === "active" ? (
-                  <Button variant="outline" size="sm" onClick={() => setBlockMode("block")} className="flex-1 border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700 sm:flex-none">
-                    Block
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setBlockMode("block")} className="border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700">Block project</Button>
                 ) : (
-                  <Button size="sm" onClick={() => setBlockMode("unblock")} className="flex-1 sm:flex-none">
-                    Unblock
-                  </Button>
+                  <Button size="sm" onClick={() => setBlockMode("unblock")}>Unblock project</Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="flex-1 sm:flex-none">
-                  <Trash2 className="h-4 w-4" />
-                  <span className="sm:hidden">Archive</span>
-                  <span className="hidden sm:inline">Archive</span>
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
+          </div>
 
           <Tabs defaultValue={defaultTab}>
             <div className="overflow-x-auto -mx-1 px-1">
               <TabsList className="w-full sm:w-auto">
                 <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
                 <TabsTrigger value="deployment" className="flex-1 sm:flex-none">Deployment</TabsTrigger>
-                <TabsTrigger value="history" className="flex-1 sm:flex-none">History</TabsTrigger>
-                <TabsTrigger value="credentials" className="flex-1 sm:flex-none">Credentials</TabsTrigger>
+                <TabsTrigger value="settings" className="flex-1 sm:flex-none">Settings</TabsTrigger>
                 <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>
                 <TabsTrigger value="audit" className="flex-1 sm:flex-none">Audit Log</TabsTrigger>
               </TabsList>
@@ -195,55 +178,53 @@ export function ProjectDetailPage() {
 
             <TabsContent value="overview">
               {overview.data && <div className="mb-4 grid gap-4 xl:grid-cols-2">
-                <Card><CardHeader><CardTitle>Access &amp; lifecycle</CardTitle><p className="text-sm text-muted-foreground">Business access and project lifecycle stay independent of runtime health.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><InfoRow label="Access" value={formatStatus(overview.data.accessLifecycle.accessStatus)} /><InfoRow label="Lifecycle" value={formatStatus(overview.data.accessLifecycle.lifecycleStatus)} /><InfoRow label="Service mode" value={formatStatus(overview.data.accessLifecycle.serviceMode)} />{overview.data.accessLifecycle.blockReason && <InfoRow label="Block reason" value={overview.data.accessLifecycle.blockReason} />}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Desired configuration</CardTitle><p className="text-sm text-muted-foreground">Editable source and runtime target for the next deployment.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Repository" value={overview.data.desiredConfiguration.repository ?? "Not configured"} /><InfoRow label="Ref" value={overview.data.desiredConfiguration.gitRef ?? "Not configured"} /><InfoRow label="Image" value={overview.data.desiredConfiguration.imageName ? `${overview.data.desiredConfiguration.registry}/${overview.data.desiredConfiguration.imageName}:${overview.data.desiredConfiguration.imageTag}` : "Not configured"} /><InfoRow label="Environment" value={overview.data.desiredConfiguration.environment ?? "Not configured"} /><InfoRow label="Environment keys" value={overview.data.desiredConfiguration.envKeys.join(", ") || "None"} /><InfoRow label="Secret set" value={overview.data.desiredConfiguration.secretSetVersion ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} /></CardContent></Card>
-                <Card><CardHeader><CardTitle>Current deployment &amp; runtime</CardTitle><p className="text-sm text-muted-foreground">The canonical active deployment pointer supplies runtime identity.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Deployment" value={overview.data.currentDeployment.id ?? "No active deployment"} /><InfoRow label="State" value={formatStatus(overview.data.currentDeployment.status)} /><InfoRow label="Image digest" value={overview.data.currentDeployment.imageDigest ?? "Not available"} /><InfoRow label="Commit" value={overview.data.currentDeployment.commitSha ?? "Not available"} /><InfoRow label="Runtime" value={overview.data.currentDeployment.status === "active" ? "Active deployment runtime" : "No active runtime"} /><InfoRow label="Runtime health" value={formatStatus(overview.data.currentDeployment.runtimeHealth)} /><InfoRow label="Runtime upstream" value={overview.data.currentDeployment.runtimeUpstreamHost && overview.data.currentDeployment.runtimeUpstreamPort ? `${overview.data.currentDeployment.runtimeUpstreamHost}:${overview.data.currentDeployment.runtimeUpstreamPort}` : "Not resolved"} /><InfoRow label="Credential version" value={overview.data.currentDeployment.credentialSetVersion ? `Version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"} /></CardContent></Card>
-                <Card><CardHeader><CardTitle>Domain &amp; gateway</CardTitle><p className="text-sm text-muted-foreground">Domain identity belongs to the project; upstream follows the active deployment.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><InfoRow label="Domain" value={overview.data.domainsGateway.domain || "Not configured"} /><InfoRow label="Site" value={overview.data.domainsGateway.configured ? formatStatus(overview.data.domainsGateway.reconciliationStatus ?? "configured") : "Not configured"} /><InfoRow label="TLS" value={formatStatus(overview.data.domainsGateway.tlsMode ?? "not configured")} /><InfoRow label="Payment gate" value={overview.data.domainsGateway.gateEnabled ? "Enabled" : "Disabled"} /><InfoRow label="Resolved upstream" value={overview.data.domainsGateway.resolvedUpstreamHost && overview.data.domainsGateway.resolvedUpstreamPort ? `${overview.data.domainsGateway.resolvedUpstreamHost}:${overview.data.domainsGateway.resolvedUpstreamPort}` : "No active target"} /></CardContent></Card>
-                <Card className="xl:col-span-2"><CardHeader><CardTitle>Optional setup</CardTitle><p className="text-sm text-muted-foreground">Configure these whenever you are ready. A project can exist without a deployment.</p></CardHeader><CardContent className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => openProjectSetup(1)}>Source &amp; runtime</Button><Button variant="outline" onClick={() => openProjectSetup(2)}>Credentials</Button><Button variant="outline" onClick={() => openProjectSetup(3)}>Domain &amp; gateway</Button><Button variant="outline" onClick={() => openProjectSetup(4)}>Deploy</Button></CardContent></Card>
                 <Card className="xl:col-span-2"><CardHeader><CardTitle>Customer &amp; billing</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><InfoRow label="Customer" value={overview.data.customerBilling.customerId && overview.data.customerBilling.customerName ? <Link to={`/app/customers/${overview.data.customerBilling.customerId}`} className="text-primary hover:underline">{overview.data.customerBilling.customerName}</Link> : "Not set"} /><InfoRow label="Billing contact" value={overview.data.customerBilling.billingName ?? overview.data.customerBilling.customerName ?? "Not set"} /><InfoRow label="Billed" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.billed.toLocaleString()}`} /><InfoRow label="Paid" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.paid.toLocaleString()}`} /><InfoRow label="Balance" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.balance.toLocaleString()}`} /><InfoRow label="Due date" value={overview.data.customerBilling.dueDate ?? "Not set"} /></CardContent></Card>
               </div>}
               {overview.isError && <Alert><AlertTitle>Project overview unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(overview.error)}. Existing project details are still shown below.</AlertDescription></Alert>}
-              <div className="grid items-stretch gap-4 lg:grid-cols-2">
-              <Card className="h-full">
-                <CardHeader><CardTitle>Customer &amp; Billing</CardTitle></CardHeader>
-                <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
-                  <InfoRow label="Original charge" value={project.baseAmount != null ? `${project.currency} ${project.baseAmount.toLocaleString()}` : "Not set"} />
-                  <InfoRow label="Additional charges" value={`${project.currency} ${project.additionalCharges.toLocaleString()}`} />
-                  <InfoRow label="Discounts" value={`${project.currency} ${project.discounts.toLocaleString()}`} />
-                  <InfoRow label="Successful payments" value={`${project.currency} ${project.successfulPayments.toLocaleString()}`} />
-                  <InfoRow label="Customer" value={project.customerId && project.customerName ? <Link to={`/app/customers/${project.customerId}`} className="text-primary hover:underline">{project.customerName}</Link> : "Not set"} />
-                  <InfoRow label="Customer email" value={project.customerEmail ?? "Not set"} />
-                  <InfoRow label="Customer phone" value={project.customerPhone ?? "Not set"} />
-                  <InfoRow
-                    label="Remaining balance"
-                    value={
-                      project.amountDue != null
-                        ? `${project.currency} ${(project.remainingBalance ?? 0).toLocaleString()}`
-                        : `${project.currency} 0`
-                    }
-                  />
-                  <InfoRow
-                    label="Due date"
-                    value={project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "Not set"}
-                  />
-                  <InfoRow label="Grace period" value={`${project.gracePeriodDays} days`} />
-                </CardContent>
-              </Card>
-              <Card className="h-full">
-                <CardHeader><CardTitle>Subscription &amp; Policy</CardTitle></CardHeader>
-                <CardContent className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2">
-                  <InfoRow label="Type" value={project.type} />
-                  {project.status !== "active" && <InfoRow label="Block reason" value={project.blockReason ?? "Not set"} />}
-                </CardContent>
-              </Card>
-              </div>
+              <ProjectServicesPanel project={project} view="overview" />
             </TabsContent>
 
-            <TabsContent value="deployment"><Card><CardHeader><CardTitle>Deployment configuration</CardTitle><p className="text-sm text-muted-foreground">Source, runtime, credentials, and gateway settings are managed in project setup.</p></CardHeader><CardContent><Button variant="outline" onClick={() => openProjectSetup(1)}>Edit project setup</Button></CardContent></Card></TabsContent>
-            <TabsContent value="history"><Card><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Deployment history</CardTitle><p className="text-sm text-muted-foreground">Canonical deployment records, readiness results, and immutable version references.</p></div><Button variant="outline" size="sm" onClick={() => history.refetch()}>Refresh</Button></CardHeader><CardContent className="space-y-3">{history.isLoading ? <Skeleton className="h-32 w-full" /> : history.isError ? <Alert variant="destructive"><AlertTitle>History unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(history.error)}</AlertDescription></Alert> : history.data?.items.length ? history.data.items.map(item => <div key={item.id} className="rounded-lg border p-4"><div className="flex flex-col justify-between gap-3 md:flex-row"><div className="space-y-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{item.imageName}:{item.imageTag}</span><span className="rounded bg-muted px-2 py-1 text-xs">{item.status}</span></div><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.trigger} · {item.environment}</p><p className="text-xs">Commit {item.sourceCommit ?? "not recorded"} · digest {item.imageDigest ?? "not recorded"}</p><p className="text-xs">Readiness: {item.healthCheckResult}{item.failureReason ? ` · ${item.failureReason}` : ""}</p><p className="text-xs text-muted-foreground">Credential {item.credentialSetId ? `${item.credentialSetId} v${item.credentialSetVersion}` : "not recorded"} · Secrets {item.secretSetId ? `${item.secretSetId} v${item.secretSetVersion}` : "not recorded"}</p></div><div className="flex gap-2">{item.actions.includes("redeploy") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/redeploy`); toast.success("Redeployment queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><Rocket className="h-4 w-4" />Redeploy</Button>}{item.actions.includes("rollback") && <Button size="sm" variant="outline"  onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/rollback`); toast.success("Auditable rollback queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><RotateCcw className="h-4 w-4" />Rollback</Button>}</div></div></div>) : <p className="py-8 text-center text-sm text-muted-foreground">No canonical deployments recorded.</p>}</CardContent></Card></TabsContent>
-            <TabsContent value="credentials">
+            <TabsContent value="deployment" className="space-y-4">
+              {overview.data?.currentDeployment.status === "active" && history.data?.items[0]?.status.toLowerCase() === "failed" && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Running on the active build; latest deployment attempt failed</AlertTitle><AlertDescription>The active build {overview.data.currentDeployment.imageName}:{overview.data.currentDeployment.imageTag} is still serving traffic. The latest attempt failed on {new Date(history.data.items[0].createdAt).toLocaleString()}. Open that attempt’s Details row to see the failure reason.</AlertDescription></Alert>}
+              <Card>
+                <CardHeader><CardTitle>Current deployment</CardTitle><p className="text-sm text-muted-foreground">The active build currently serving this project.</p></CardHeader>
+                <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  <InfoRow label="Status" value={<span className={`inline-flex rounded px-2 py-1 text-xs font-medium ${deploymentStatusClass(overview.data?.currentDeployment.status ?? "unknown")}`}>{formatStatus(overview.data?.currentDeployment.status ?? "unknown")}</span>} />
+                  <InfoRow label="Image" value={overview.data?.currentDeployment.imageName ? `${overview.data.currentDeployment.imageName}:${overview.data.currentDeployment.imageTag}` : "No active deployment"} />
+                  <InfoRow label="Runtime health" value={formatStatus(overview.data?.currentDeployment.runtimeHealth ?? "unknown")} />
+                  <InfoRow label="Active since" value={overview.data?.currentDeployment.activeAt ? new Date(overview.data.currentDeployment.activeAt).toLocaleString() : "Not active"} />
+                  <InfoRow label="Digest" value={overview.data?.currentDeployment.imageDigest ? <div className="flex min-w-0 items-center gap-1"><code className="min-w-0 truncate text-xs" title={overview.data.currentDeployment.imageDigest}>{formatDigest(overview.data.currentDeployment.imageDigest)}</code><Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Copy full image digest" title="Copy full digest" onClick={async () => { try { await navigator.clipboard.writeText(overview.data!.currentDeployment.imageDigest!); toast.success("Digest copied"); } catch { toast.error("Could not copy digest"); } }}><Copy className="h-3.5 w-3.5" /></Button></div> : "Not available"} />
+                  <InfoRow label="Commit" value={overview.data?.currentDeployment.commitSha ?? "Not available"} />
+                  <InfoRow label="Upstream" value={overview.data?.currentDeployment.runtimeUpstreamHost && overview.data.currentDeployment.runtimeUpstreamPort ? `${overview.data.currentDeployment.runtimeUpstreamHost}:${overview.data.currentDeployment.runtimeUpstreamPort}` : "Not resolved"} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex-col items-start justify-between gap-2 space-y-0 py-3 text-left sm:flex-row sm:items-center"><div><CardTitle>Deployment history</CardTitle><p className="text-xs text-muted-foreground">Recent deployment attempts and their status.</p></div><Button variant="outline" size="sm" className="gap-2" onClick={() => history.refetch()}><RefreshCw className="h-3.5 w-3.5" />Refresh history</Button></CardHeader>
+                <CardContent className="space-y-2 pt-0">
+                  {history.isLoading ? <Skeleton className="h-14 w-full" /> : history.isError ? <Alert variant="destructive"><AlertTitle>History unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(history.error)}</AlertDescription></Alert> : history.data?.items.length ? history.data.items.map(item => <div key={item.id} className="rounded-lg border px-3 py-2.5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5"><span className="max-w-full break-all text-sm font-medium">{item.imageName}:{item.imageTag}</span><span className={`shrink-0 rounded px-2 py-1 text-xs font-medium ${deploymentStatusClass(item.status)}`}>{formatStatus(item.status)}</span><span className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</span></div>
+                        <details className="group text-xs text-muted-foreground"><summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded text-foreground/80 hover:text-foreground"><ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />Details</summary><div className="mt-2 grid gap-x-6 gap-y-1.5 rounded-md bg-muted/30 p-2 sm:grid-cols-2"><p>{item.trigger} · {item.environment}</p><p>Commit: {item.sourceCommit ?? "not recorded"}</p><p>Digest: {item.imageDigest ? formatDigest(item.imageDigest) : "not recorded"}</p><p>Readiness: {formatStatus(item.healthCheckResult)}{item.failureReason ? ` · ${item.failureReason}` : ""}</p><p>Credential: {item.credentialSetId ? `${item.credentialSetId} v${item.credentialSetVersion}` : "not recorded"}</p><p>Secrets: {item.secretSetId ? `${item.secretSetId} v${item.secretSetVersion}` : "not recorded"}</p></div></details>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap gap-2">{item.actions.includes("redeploy") && <Button size="sm" variant={item.status.toLowerCase() === "failed" ? "default" : "outline"} onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/redeploy`); toast.success(item.status.toLowerCase() === "failed" ? "Retry queued" : "Redeployment queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><Rocket className="h-4 w-4" />{item.status.toLowerCase() === "failed" ? "Retry" : "Redeploy"}</Button>}{item.actions.includes("rollback") && <Button size="sm" variant="outline" onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/rollback`); toast.success("Auditable rollback queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><RotateCcw className="h-4 w-4" />Rollback</Button>}</div>
+                    </div>
+                  </div>) : <p className="py-8 text-center text-sm text-muted-foreground">No canonical deployments recorded.</p>}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="settings">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-4 rounded-lg border bg-card p-4">
+                <div><p className="mt-1 text-sm text-muted-foreground">Configure project details, deployments, provider connections, and shared or service environment variables.</p></div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" />Edit project</Button>
+                  <Button variant="outline" size="sm" onClick={() => setAdjustmentOpen(true)}>Add charge / discount</Button>
+                  {project.lifecycleStatus !== "archived" && <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>Transfer</Button>}
+                  <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4" />Archive</Button>
+                </div>
+              </div>
               <TooltipProvider delayDuration={200}>
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 lg:grid-cols-1">
                   <Card>
                     <CardHeader><div className="flex items-center gap-2"><CardTitle>Container registry access</CardTitle><InfoHint>Used by Gatekeeperd to pull private images. These credentials are not passed into your application container.</InfoHint></div></CardHeader>
                     <CardContent className="space-y-2 text-sm">
@@ -251,7 +232,7 @@ export function ProjectDetailPage() {
                       <Button variant="outline" asChild><Link to="/app/credentials">Manage registry credentials</Link></Button>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="hidden">
                     <CardHeader><div className="flex items-center gap-2"><CardTitle>Application environment variables</CardTitle><InfoHint>These are secrets your app reads at runtime, such as DATABASE_URL or API_TOKEN. Values are encrypted and write-only: after saving, admins cannot view them again. Edit the draft or upload a replacement .env, then save to create a new immutable version and queue a deployment. Paste KEY=value lines into the first name field or upload a .env file. Keep a secure copy of values you may need later.</InfoHint></div></CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm">Desired secret set: {overview.data?.desiredConfiguration.secretSetId ? `Version ${overview.data.desiredConfiguration.secretSetVersion}` : "Not configured"} · Active deployment: {overview.data?.currentDeployment.secretSetId ? `Version ${overview.data.currentDeployment.secretSetVersion}` : "No secret version recorded"}</p>
@@ -277,22 +258,25 @@ export function ProjectDetailPage() {
                   </Card>
                 </div>
               </TooltipProvider>
+              <ProjectServicesPanel project={project} view="settings" />
             </TabsContent>
             <TabsContent value="payments">
               {invoiceQuery.isLoading && <Card className="mb-4"><CardHeader><Skeleton className="h-6 w-36" /></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div></CardContent></Card>}
               {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) !== "invoice_unavailable" && <Alert className="mb-4"><AlertTitle>Invoice unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(invoiceQuery.error)}</AlertDescription></Alert>}
-              {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) === "invoice_unavailable" && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle>Invoice</CardTitle><p className="mt-1 text-sm text-muted-foreground">No invoice has been created for this project.</p></div><Button size="sm" onClick={() => { setInvoiceDescription(`Services for ${project.name}`); setCreateInvoiceOpen(true); }}>Create invoice</Button></CardHeader></Card>}
-              {invoiceQuery.data && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><CardTitle>Invoice {invoiceQuery.data.invoice.number}</CardTitle><div className="flex gap-2">{invoiceQuery.data.invoice.download_url && <Button size="sm" variant="outline" disabled={invoiceDownloading} onClick={async () => { setInvoiceDownloading(true); try { const response = await api.get(`/admin/projects/${encodeURIComponent(slug)}/invoice/download`, { responseType: "blob" }); const url = URL.createObjectURL(response.data); const link = document.createElement("a"); link.href = url; link.download = `invoice-${slug}.pdf`; link.click(); URL.revokeObjectURL(url); } finally { setInvoiceDownloading(false); } }}>{invoiceDownloading ? "Downloading…" : "Download invoice"}</Button>}<Button size="sm" variant="outline" disabled={resyncInvoice.isPending} onClick={() => resyncInvoice.mutate(undefined, { onSuccess: () => toast.success("Scribed synchronization queued"), onError: (error) => toast.error(getApiErrorMessage(error)) })}>{resyncInvoice.isPending ? "Syncing…" : "Sync with Scribed"}</Button></div></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><InfoRow label="Status" value={invoiceQuery.data.invoice.status.replace(/_/g, " ")} /><InfoRow label="Total" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.amount}`} /><InfoRow label="Paid" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.paid}`} /><InfoRow label="Balance" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.balance}`} /></div></CardContent></Card>}
+              {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) === "invoice_unavailable" && (servicesQuery.data?.length ?? 0) > 1
+                ? <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle>Service invoices</CardTitle><p className="mt-1 text-sm text-muted-foreground">This project bills services independently. Enter an amount for each service invoice.</p></div><Button size="sm" onClick={() => setServiceInvoiceOpen(true)}>Create service invoice</Button></CardHeader></Card>
+                : invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) === "invoice_unavailable" && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle>Invoice</CardTitle><p className="mt-1 text-sm text-muted-foreground">No invoice has been created for this project.</p></div><Button size="sm" onClick={() => { setInvoiceDescription(`Services for ${project.name}`); setCreateInvoiceOpen(true); }}>Create invoice</Button></CardHeader></Card>}
+              {invoiceQuery.data && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><CardTitle>Invoice {invoiceQuery.data.invoice.number}</CardTitle><div className="flex gap-2">{invoiceQuery.data.invoice.download_url && <Button size="sm" variant="outline" disabled={invoiceDownloading} onClick={async () => { setInvoiceDownloading(true); try { const response = await api.get(`/admin/projects/${encodeURIComponent(slug)}/invoice/download`, { responseType: "blob" }); const url = URL.createObjectURL(response.data); const link = document.createElement("a"); link.href = url; link.download = `invoice-${slug}.pdf`; link.click(); URL.revokeObjectURL(url); } finally { setInvoiceDownloading(false); } }}>{invoiceDownloading ? "Downloading…" : "Download invoice"}</Button>}<Button size="sm" variant="outline" disabled={resyncInvoice.isPending} onClick={() => resyncInvoice.mutate(undefined, { onSuccess: async () => { toast.success("Scribed synchronization queued"); await refreshPaymentData(); }, onError: (error) => toast.error(getApiErrorMessage(error)) })}>{resyncInvoice.isPending ? "Syncing…" : "Sync with Scribed"}</Button></div></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><InfoRow label="Status" value={invoiceQuery.data.invoice.status.replace(/_/g, " ")} /><InfoRow label="Total" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.amount}`} /><InfoRow label="Paid" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.paid}`} /><InfoRow label="Balance" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.balance}`} /></div></CardContent></Card>}
               <Dialog open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen}>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Create invoice</DialogTitle><DialogDescription>Creates the invoice in Scribed, then syncs this project’s payment history so missing receipts can be generated.</DialogDescription></DialogHeader>
                   <div className="space-y-2"><Label htmlFor="invoice-description">Description</Label><Input id="invoice-description" value={invoiceDescription} onChange={event => setInvoiceDescription(event.target.value)} maxLength={500} /></div>
                   <p className="text-sm text-muted-foreground">Invoice total: {project.currency} {((project.baseAmount ?? project.amountDue ?? 0) + project.additionalCharges - project.discounts).toLocaleString()}</p>
-                  <DialogFooter><Button variant="outline" onClick={() => setCreateInvoiceOpen(false)}>Cancel</Button><Button disabled={!invoiceDescription.trim() || createInvoice.isPending} onClick={() => createInvoice.mutate(invoiceDescription.trim(), { onSuccess: async () => { setCreateInvoiceOpen(false); toast.success("Invoice created; Scribed sync queued"); await invoiceQuery.refetch(); }, onError: error => toast.error(getApiErrorMessage(error)) })}>{createInvoice.isPending ? "Creating…" : "Create invoice"}</Button></DialogFooter>
+                  <DialogFooter><Button variant="outline" onClick={() => setCreateInvoiceOpen(false)}>Cancel</Button><Button disabled={!invoiceDescription.trim() || createInvoice.isPending} onClick={() => createInvoice.mutate(invoiceDescription.trim(), { onSuccess: async () => { setCreateInvoiceOpen(false); toast.success("Invoice created; Scribed sync queued"); await refreshPaymentData(); }, onError: error => toast.error(getApiErrorMessage(error)) })}>{createInvoice.isPending ? "Creating…" : "Create invoice"}</Button></DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Card>
-                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <section className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <CardTitle>Payment history</CardTitle>
                     {project.amountDue != null && (
@@ -302,16 +286,11 @@ export function ProjectDetailPage() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 sm:justify-end">
-                    <Button size="sm" onClick={() => setPayOpen(true)}>
-                      <Link2 className="h-4 w-4" />
-                      Generate payment link
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setCashPayOpen(true)}>
-                      Record cash payment
-                    </Button>
+                    <Button size="sm" onClick={() => setCapturePaymentOpen(true)}><Link2 className="h-4 w-4" />Capture payment</Button>
+                    {servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceInvoiceOpen(true)}>Create service invoice</Button>}
+                    {servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceAdjustmentOpen(true)}><Plus className="h-4 w-4" />Add service charge</Button>}
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                </div>
                   {reversalAlert && (
                     <Alert variant="destructive">
                       <AlertTitle>Payment reversed</AlertTitle>
@@ -321,10 +300,9 @@ export function ProjectDetailPage() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  <PaymentsHistoryTable payments={(projectPayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((projectPayments.data?.payments ?? []).filter(payment => payment.gatewayStatus === "success").map(payment => [payment.providerReference, `/admin/projects/${encodeURIComponent(project.slug)}/payments/${payment.id}/receipt`]))} receiptNames={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, payment.receipt_number]))} />
+                  <PaymentsHistoryTable payments={(projectPayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((projectPayments.data?.payments ?? []).filter(payment => payment.gatewayStatus === "success").map(payment => [payment.providerReference, `/admin/projects/${encodeURIComponent(project.slug)}/payments/${payment.id}/receipt`]))} receiptNames={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, payment.receipt_number]))} onPaymentChanged={refreshPaymentData} />
                   <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{projectPayments.data ? `${projectPayments.data.offset + 1}-${projectPayments.data.offset + projectPayments.data.payments.length} of ${projectPayments.data.total}` : "Loading payments…"}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={paymentPage === 0 || projectPayments.isFetching} onClick={() => setPaymentPage(value => value - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={!projectPayments.data || projectPayments.data.offset + projectPayments.data.payments.length >= projectPayments.data.total || projectPayments.isFetching} onClick={() => setPaymentPage(value => value + 1)}>Next</Button></div></div>
-                </CardContent>
-              </Card>
+              </section>
             </TabsContent>
 
             <TabsContent value="audit">
@@ -348,8 +326,9 @@ export function ProjectDetailPage() {
               onCancel={() => setAdjustmentOpen(false)}
             />
           </Dialog>
-          <GeneratePaymentLinkDialog project={project} open={payOpen} onOpenChange={setPayOpen} />
-          <CaptureCashPaymentDialog project={project} open={cashPayOpen} onOpenChange={setCashPayOpen} />
+          <CapturePaymentDrawer project={project} open={capturePaymentOpen} onOpenChange={setCapturePaymentOpen} onPaymentChanged={refreshPaymentData} />
+          <ServiceAdjustmentDialog projectId={project.id} currency={project.currency} open={serviceAdjustmentOpen} onOpenChange={setServiceAdjustmentOpen} onSaved={refreshPaymentData} />
+          <CreateServiceInvoiceDialog projectId={project.id} projectName={project.name} currency={project.currency} open={serviceInvoiceOpen} onOpenChange={setServiceInvoiceOpen} onCreated={refreshPaymentData} />
           <BlockUnblockDialog project={project} mode={blockMode} onClose={() => setBlockMode(null)} />
           <DeleteProjectDialog
             project={project}
@@ -383,7 +362,7 @@ function AdjustmentDialogBody({ pending, onSubmit, onCancel }: { pending: boolea
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="space-y-0.5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-foreground/70">{label}</p>
       <p className="text-sm font-medium text-foreground break-all">{value}</p>
     </div>
   );
@@ -393,4 +372,27 @@ function formatStatus(value: string) {
   return value
     .replace(/_/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatDigest(value: string) {
+  const digest = value.split("@").at(-1) ?? value;
+  const separator = digest.indexOf(":");
+  if (separator < 0) return digest.length > 16 ? `${digest.slice(0, 10)}…${digest.slice(-4)}` : digest;
+  const algorithm = digest.slice(0, separator);
+  const hash = digest.slice(separator + 1);
+  return hash.length > 12 ? `${algorithm}:${hash.slice(0, 6)}…${hash.slice(-4)}` : digest;
+}
+
+function deploymentStatusClass(value: string) {
+  const status = value.toLowerCase().replace(/_/g, "-");
+  if (["active", "success", "succeeded", "successful", "ready", "healthy"].includes(status)) {
+    return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400";
+  }
+  if (["failed", "failure", "error", "unhealthy", "rejected"].includes(status)) {
+    return "bg-red-500/10 text-red-700 dark:text-red-400";
+  }
+  if (["queued", "pending", "building", "starting", "health-checking", "deploying", "running"].includes(status)) {
+    return "bg-amber-500/10 text-amber-700 dark:text-amber-400";
+  }
+  return "bg-muted text-muted-foreground";
 }

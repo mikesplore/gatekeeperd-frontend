@@ -9,6 +9,7 @@ import { ContainerDetailPage } from "@/features/containers/ContainerDetailPage";
 import { DashboardOverviewPage } from "@/features/dashboard/DashboardOverviewPage";
 import { NotFoundPage } from "@/features/NotFoundPage";
 import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
+import { ServiceDetailPage } from "@/features/projects/ServiceDetailPage";
 import { ProjectsListPage } from "@/features/projects/ProjectsListPage";
 import { PaymentsPage } from "@/features/payments/PaymentsPage";
 import { PaymentEventsPage } from "@/features/payments/PaymentEventsPage";
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
           { path: "projects", element: <ProjectsListPage /> },
           { path: "projects/setup", element: <ProjectSetupWizardPage /> },
           { path: "projects/setup/:projectId", element: <ProjectSetupWizardPage /> },
+          { path: "projects/:slug/services/:serviceId", element: <ServiceDetailPage /> },
           { path: "projects/:slug", element: <ProjectDetailPage /> },
           { path: "payments", element: <PaymentsPage /> },
           { path: "payments/events", element: <PaymentEventsPage /> },

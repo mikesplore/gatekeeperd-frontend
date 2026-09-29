@@ -28,6 +28,9 @@ import type {
   AdoptableContainer,
   ProjectDeploymentHistoryItem,
   ProviderCredentialMetadata,
+  ServiceAdminView,
+  SharedEnvironmentMetadata,
+  ServiceEnvironmentMetadata,
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
 import type { ProjectInvoiceStatus } from "@/types/payment";
@@ -110,10 +113,10 @@ export function useProjects() {
   });
 }
 
-export function useProjectSetupStatus(projectId: string) {
+export function useProjectSetupStatus(projectId: string, serviceId?: string) {
   return useQuery({
-    queryKey: ["project-setup", projectId],
-    queryFn: async () => (await api.get<ProjectSetupStatus>(`/admin/project-setup/projects/${projectId}`)).data,
+    queryKey: ["project-setup", projectId, serviceId],
+    queryFn: async () => (await api.get<ProjectSetupStatus>(`/admin/project-setup/projects/${projectId}`, { params: { serviceId } })).data,
     enabled: Boolean(projectId),
     refetchInterval: 5_000,
   });
@@ -147,7 +150,7 @@ export function useCreateProjectSetup() {
 }
 
 export type ProjectSetupRuntimeInput = {
-  repository: string | null; gitRef: string; registry: string; imageName: string; imageTag: string; containerPort?: number;
+  repository: string | null; gitRef: string; registry: string; registryCredentialId?: string | null; imageName: string; imageTag: string; serviceId?: string; containerPort?: number;
   hostPort?: number; network: string; restartPolicy: string; env?: Record<string, string>; environment: string;
   readinessType?: string; readinessTarget?: string;
 };
@@ -163,7 +166,7 @@ export function useSaveProjectSetupRuntime(projectId: string) {
 export function useSaveProjectSetupCredentials(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { registry?: string; username?: string; password?: string; secretEnv?: Record<string, string> }) =>
+    mutationFn: async (payload: { registry?: string; registryCredentialId?: string | null; username?: string; password?: string; serviceId?: string }) =>
       (await api.put(`/admin/project-setup/projects/${projectId}/credentials`, payload)).data,
     onSuccess: () => invalidateSetup(qc, projectId),
   });
@@ -172,16 +175,16 @@ export function useSaveProjectSetupCredentials(projectId: string) {
 export function useSaveProjectSetupGateway(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { domain: string; tlsMode: string; gateEnabled: boolean }) =>
+    mutationFn: async (payload: { domain: string; tlsMode: string; gateEnabled: boolean; serviceId?: string }) =>
       (await api.put(`/admin/project-setup/projects/${projectId}/domain-gateway`, payload)).data,
     onSuccess: () => invalidateSetup(qc, projectId),
   });
 }
 
-export function useDeployProjectSetup(projectId: string) {
+export function useDeployProjectSetup(projectId: string, serviceId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => (await api.post<{ deploymentId: string; status: string }>(`/admin/project-setup/projects/${projectId}/deploy`)).data,
+    mutationFn: async () => (await api.post<{ deploymentId: string; status: string }>(`/admin/project-setup/projects/${projectId}/deploy`, null, { params: { serviceId } })).data,
     onSuccess: () => { invalidateSetup(qc, projectId); qc.invalidateQueries({ queryKey: ["deployments"] }); },
   });
 }
@@ -206,6 +209,67 @@ export function useProjectOverview(slug: string) {
     queryFn: async () => (await api.get<ProjectOverview>(`/admin/projects/${encodeURIComponent(slug)}/overview`)).data,
     enabled: Boolean(slug),
     refetchInterval: 15_000,
+  });
+}
+
+export function useProjectServices(projectId: string) {
+  return useQuery({
+    queryKey: ["project-services", projectId],
+    queryFn: async () => (await api.get<ServiceAdminView[]>(`/admin/projects/${projectId}/services`)).data,
+    enabled: Boolean(projectId),
+    refetchInterval: 15_000,
+  });
+}
+
+export function useSharedEnvironmentMetadata(projectId: string, environment = "production") {
+  return useQuery({
+    queryKey: ["project-environment", projectId, "shared", environment],
+    queryFn: async () => (await api.get<SharedEnvironmentMetadata>(`/admin/projects/${projectId}/environment/shared`, { params: { environment } })).data,
+    enabled: Boolean(projectId),
+  });
+}
+
+export function useServiceEnvironmentMetadata(projectId: string, serviceId: string, environment = "production") {
+  return useQuery({
+    queryKey: ["project-environment", projectId, serviceId, environment],
+    queryFn: async () => (await api.get<ServiceEnvironmentMetadata>(`/admin/projects/${projectId}/services/${serviceId}/environment`, { params: { environment } })).data,
+    enabled: Boolean(projectId && serviceId),
+  });
+}
+
+export function useSaveSharedEnvironment(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { environment: string; values: Record<string, string> }) =>
+      (await api.put<{ setId: string; version: number; deploymentIds: string[] }>(`/admin/projects/${projectId}/environment/shared`, payload)).data,
+    onSuccess: async (_data, payload) => {
+      await qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
+      await qc.invalidateQueries({ queryKey: ["project-overview"] });
+      await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
+      await qc.invalidateQueries({ queryKey: ["project-services", projectId] });
+      await qc.invalidateQueries({ queryKey: ["project-service-history"] });
+      await qc.invalidateQueries({ queryKey: ["service-active-deployment", projectId] });
+      await qc.invalidateQueries({ queryKey: ["deployments"] });
+      void payload;
+    },
+  });
+}
+
+export function useSaveServiceEnvironment(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ serviceId, environment, values, sharedEnvironmentSetId, sharedEnvironmentSetVersion }: { serviceId: string; environment: string; values: Record<string, string>; sharedEnvironmentSetId: string | null; sharedEnvironmentSetVersion: number | null }) =>
+      (await api.put<{ setId: string; version: number; deploymentIds: string[] }>(`/admin/projects/${projectId}/services/${serviceId}/environment`, { environment, values, sharedEnvironmentSetId, sharedEnvironmentSetVersion })).data,
+    onSuccess: async (_data, payload) => {
+      await qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
+      await qc.invalidateQueries({ queryKey: ["project-overview"] });
+      await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
+      await qc.invalidateQueries({ queryKey: ["project-services", projectId] });
+      await qc.invalidateQueries({ queryKey: ["project-service-history"] });
+      await qc.invalidateQueries({ queryKey: ["service-active-deployment", projectId] });
+      await qc.invalidateQueries({ queryKey: ["deployments"] });
+      void payload;
+    },
   });
 }
 
@@ -252,8 +316,8 @@ export function useUpdateProject(slug: string) {
 export function useBlockProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ slug, reason }: { slug: string; reason: string }) =>
-      api.post(`/admin/projects/${slug}/block`, { reason }),
+    mutationFn: ({ slug, reason, blockReasonCode, blockReasonNote }: { slug: string; reason: string; blockReasonCode?: string; blockReasonNote?: string }) =>
+      api.post(`/admin/projects/${slug}/block`, { reason, blockReasonCode, blockReasonNote }),
     onSuccess: (_data, { slug }) => {
       qc.invalidateQueries({ queryKey: ["projects"] });
       qc.invalidateQueries({ queryKey: ["project", slug] });

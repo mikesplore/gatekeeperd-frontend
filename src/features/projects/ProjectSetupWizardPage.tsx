@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronLeft, Rocket, Save, Upload } from "lucide-react";
+import { Check, ChevronLeft, Rocket, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
   useSaveProjectSetupGateway,
   useSaveProjectSetupRuntime,
   useContainerWizardContext,
+  useProviderCredentialMetadata,
   type ProjectSetupRuntimeInput,
 } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
@@ -46,7 +47,7 @@ const initialRuntime: ProjectSetupRuntimeInput = {
   environment: "production", readinessType: "http", readinessTarget: "80/", env: {},
 };
 
-export function ProjectSetupWizardPage({ open, onOpenChange, projectId: providedProjectId, initialStep = 1 }: { open?: boolean; onOpenChange?: (open: boolean) => void; projectId?: string; initialStep?: number }) {
+export function ProjectSetupWizardPage({ open, onOpenChange, projectId: providedProjectId, serviceId, initialStep = 1 }: { open?: boolean; onOpenChange?: (open: boolean) => void; projectId?: string; serviceId?: string; initialStep?: number }) {
   const { projectId: routeProjectId = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -56,16 +57,14 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [projectForm, setProjectForm] = useState({ name: "", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
-  const [registryUser, setRegistryUser] = useState("");
-  const [registryPassword, setRegistryPassword] = useState("");
-  const [secretText, setSecretText] = useState("");
-  const [clearSecrets, setClearSecrets] = useState(false);
+  const [registryCredentialId, setRegistryCredentialId] = useState("");
   const [gateway, setGateway] = useState({ domain: "", tlsMode: "http_only", gateEnabled: true });
   const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
-  const status = useProjectSetupStatus(projectId);
-  const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1);
+  const status = useProjectSetupStatus(projectId, serviceId);
+  const providerCredentials = useProviderCredentialMetadata();
+  const adoptableContainers = useAdoptableContainers(Boolean(projectId) && !serviceId && step === 1);
   const adoptContainer = useAdoptProjectContainer(projectId);
   const dockerNetworkContext = useContainerWizardContext();
   const loadedConfiguration = useRef("");
@@ -73,15 +72,15 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const savedGatewayDomain = status.data?.gateway?.domain;
   const savedGatewayTlsMode = status.data?.gateway?.tlsMode;
   const savedGatewayEnabled = status.data?.gateway?.gateEnabled;
-  const savedProjectDomain = status.data?.domain;
   const customers = useDashboardCustomers(100);
   const createProject = useCreateProjectSetup();
   const saveRuntime = useSaveProjectSetupRuntime(projectId);
   const saveCredentials = useSaveProjectSetupCredentials(projectId);
   const saveGateway = useSaveProjectSetupGateway(projectId);
-  const deploy = useDeployProjectSetup(projectId);
+  const deploy = useDeployProjectSetup(projectId, serviceId);
   const customerList = customers.data?.customers ?? [];
   const configuredRegistry = status.data?.sourceRuntime?.registry ?? runtime.registry;
+  const registryCredentials = (providerCredentials.data ?? []).filter(item => item.provider === "docker" && item.type === "registry" && item.current && item.scope === configuredRegistry);
   const currentDeployment = status.data?.latestDeploymentStatus ?? status.data?.activeDeploymentStatus ?? "none";
   const active = status.data?.activeDeploymentStatus === "active";
   const deploymentInProgress = inProgressDeploymentStatuses.has(currentDeployment) || Boolean(queuedDeploymentId);
@@ -99,20 +98,20 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     const saved = savedRuntime;
     setRuntime({
       repository: saved.repository ?? "", gitRef: saved.gitRef, registry: saved.registry,
+      registryCredentialId: saved.registryCredentialId ?? null,
       imageName: saved.imageName, imageTag: saved.imageTag, containerPort: saved.containerPort ?? undefined,
       hostPort: saved.hostPort ?? undefined, network: saved.network, restartPolicy: saved.restartPolicy,
       environment: saved.environment, env: saved.env,
     });
     setEnvText(Object.entries(saved.env).map(([key, value]) => `${key}=${value}`).join("\n"));
+    setRegistryCredentialId(saved.registryCredentialId ?? "");
   }, [projectId, savedRuntime]);
 
   useEffect(() => {
     if (savedGatewayDomain && savedGatewayTlsMode && savedGatewayEnabled != null) {
       setGateway({ domain: savedGatewayDomain, tlsMode: savedGatewayTlsMode, gateEnabled: savedGatewayEnabled });
-    } else if (savedProjectDomain) {
-      setGateway(current => ({ ...current, domain: current.domain || savedProjectDomain }));
     }
-  }, [savedGatewayDomain, savedGatewayTlsMode, savedGatewayEnabled, savedProjectDomain]);
+  }, [savedGatewayDomain, savedGatewayTlsMode, savedGatewayEnabled]);
 
   useEffect(() => {
     if (projectId) setStep(Math.max(1, Math.min(4, requestedStep)));
@@ -130,10 +129,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setProjectForm({ name: "", customerId: "" });
     setRuntime(initialRuntime);
     setEnvText("");
-    setRegistryUser("");
-    setRegistryPassword("");
-    setSecretText("");
-    setClearSecrets(false);
+    setRegistryCredentialId("");
     setGateway({ domain: "", tlsMode: "http_only", gateEnabled: true });
     setQueuedDeploymentId("");
     setAdoptContainerId("");
@@ -153,7 +149,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const saveSource = async () => {
     try {
       const env = parseEnv(envText);
-      await saveRuntime.mutateAsync({ ...runtime, repository: runtime.repository?.trim() || null, env });
+      await saveRuntime.mutateAsync({ ...runtime, registryCredentialId: registryCredentialId || null, repository: runtime.repository?.trim() || null, env, serviceId });
       toast.success("Source and runtime settings saved");
       goToStep(2);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
@@ -161,23 +157,19 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
 
   const saveCredentialStep = async () => {
     try {
-      const secretEnv = secretText.trim() ? parseEnv(secretText) : undefined;
       await saveCredentials.mutateAsync({
         registry: configuredRegistry,
-        ...(registryUser.trim() && registryPassword ? { username: registryUser.trim(), password: registryPassword } : {}),
-        ...(secretEnv ? { secretEnv } : clearSecrets ? { secretEnv: {} } : {}),
+        registryCredentialId: registryCredentialId || null,
+        serviceId,
       });
-      setRegistryUser("");
-      setRegistryPassword("");
-      setSecretText("");
-      toast.success("Credential and secret changes saved as versions");
+      toast.success("Service registry credential saved");
       goToStep(3);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
   };
 
   const saveGatewayStep = async () => {
     try {
-      await saveGateway.mutateAsync(gateway);
+      await saveGateway.mutateAsync({ ...gateway, serviceId });
       toast.success("Domain and gateway settings saved");
       goToStep(4);
     } catch (error) { toast.error(getApiErrorMessage(error)); }
@@ -217,7 +209,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
       <SidePanelContent className="sm:max-w-3xl">
         {projectId ? <SidePanelHeader className="shrink-0 border-b px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
           <SidePanelTitle>{projectName || "Project setup"}</SidePanelTitle>
-          <SidePanelDescription>{status.data ? `${status.data.slug}${status.data.domain ? ` · ${status.data.domain}` : ""}` : "Configure deployment settings for this project."}</SidePanelDescription>
+          <SidePanelDescription>{status.data ? status.data.slug : "Configure deployment settings for this project."}</SidePanelDescription>
         </SidePanelHeader> : <SidePanelHeader className="shrink-0 border-b px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
           <SidePanelTitle>Create project</SidePanelTitle>
           <SidePanelDescription>Add the project name and customer. Configure deployment whenever you are ready.</SidePanelDescription>
@@ -248,7 +240,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
           {(setup) => (
             <>
               {step === 1 && <>
-              <Card>
+              {!serviceId && <Card>
                 <CardHeader><CardTitle>Attach a running container</CardTitle><CardDescription>Make an existing Docker container this project’s active deployment without restarting it. This updates desired source/runtime settings to match the container; any environment values are saved as encrypted project secrets.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
                   {adoptableContainers.isLoading ? <p className="text-sm text-muted-foreground">Loading running containers…</p> : adoptableContainers.isError ? <p className="text-sm text-destructive">Could not load Docker containers. Check that Gatekeeperd can access Docker.</p> : (adoptableContainers.data ?? []).filter(container => container.ports.length > 0).length === 0 ? <p className="text-sm text-muted-foreground">No running containers with a published TCP port are available to attach.</p> : <div className="grid gap-3 sm:grid-cols-2">
@@ -258,7 +250,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   </div>}
                   <div className="flex justify-end"><Button variant="outline" disabled={!adoptContainerId || !adoptContainerPort || adoptContainer.isPending} onClick={() => void attachRunningContainer()}>{adoptContainer.isPending ? "Attaching…" : "Attach container"}</Button></div>
                 </CardContent>
-              </Card>
+              </Card>}
               <Card>
                 <CardHeader><CardTitle>Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -278,20 +270,22 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
               </Card></>}
 
               {step === 2 && <Card>
-                <CardHeader><CardTitle>Credentials</CardTitle><CardDescription>Registry and application values are write-only here. Saving new values creates versions; this does not deploy them.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Container registry access</CardTitle><CardDescription>Choose a connected provider account for private image pulls. Registry credentials authenticate Gatekeeperd with Docker Hub; they are never passed to your app container.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2"><Label>Registry</Label><Input value={configuredRegistry} readOnly /></div><div className="space-y-2"><Label>Registry username</Label><Input value={registryUser} onChange={e => setRegistryUser(e.target.value)} placeholder={setup.credentialsConfigured ? "Configured; enter to rotate" : "Optional for public images"} /></div><div className="space-y-2"><Label>Registry password</Label><Input type="password" autoComplete="new-password" value={registryPassword} onChange={e => setRegistryPassword(e.target.value)} placeholder={setup.credentialsConfigured ? "Write-only; enter to rotate" : "Optional for public images"} /></div></div>
-                  {setup.credentialsConfigured && <p className="text-xs text-muted-foreground">Current registry credential version: {setup.credentialVersion}. The password is never returned.</p>}
-                  <div className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-2"><Label htmlFor="setup-secret-env">Application secrets (.env)</Label><label className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs font-medium hover:bg-muted"><Upload className="h-4 w-4" />Load .env file<input type="file" accept=".env,text/plain" className="sr-only" onChange={async event => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; try { const text = await file.text(); parseEnv(text); setSecretText(text); toast.success(".env file loaded. Save to encrypt it for this project."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to read .env file"); } finally { input.value = ""; } }} /></label></div><Textarea id="setup-secret-env" rows={7} value={secretText} onChange={e => setSecretText(e.target.value)} placeholder={"DATABASE_URL=…\nAPI_TOKEN=…"} /><p className="text-xs text-muted-foreground">{setup.sourceRuntime?.secretSetVersion ? `This project has saved secret version ${setup.sourceRuntime.secretSetVersion}. ` : ""}Saved encrypted for this project and environment. Its next deployment uses the saved version; values cannot be read back later.</p></div>
-                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={clearSecrets} onChange={e => setClearSecrets(e.target.checked)} />Replace the current secret set with an empty set</label>
-                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(1)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={() => goToStep(3)}>Skip for now</Button><Button disabled={saveCredentials.isPending || (Boolean(registryUser) !== Boolean(registryPassword))} onClick={() => void saveCredentialStep()}>{saveCredentials.isPending ? "Saving…" : "Save credentials"}</Button></div></div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2"><Label>Registry host</Label><Input value={configuredRegistry} readOnly /></div>
+                    <div className="space-y-2"><Label htmlFor="service-registry-credential">Provider connection</Label><select id="service-registry-credential" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={registryCredentialId} onChange={event => setRegistryCredentialId(event.target.value)}><option value="">No credentials (public images)</option>{registryCredentials.map(credential => <option key={credential.id} value={credential.id}>{credential.displayName} · v{credential.version}</option>)}</select></div>
+                  </div>
+                  {registryCredentialId && <p className="text-xs text-muted-foreground">This service uses the selected connection for registry pulls. The chosen credential version is pinned to each deployment.</p>}
+                  {!registryCredentials.length && <div className="rounded-md border border-dashed p-4"><p className="text-sm text-muted-foreground">No Docker Hub connection is available for {configuredRegistry}.</p><Button variant="outline" size="sm" className="mt-3" asChild><Link to="/app/credentials">Connect Docker Hub</Link></Button></div>}
+                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(1)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to="/app/credentials">Manage connections</Link></Button><Button disabled={saveRuntime.isPending || saveCredentials.isPending} onClick={() => void saveCredentialStep()}>{saveCredentials.isPending ? "Saving…" : "Save service credential"}</Button><Button variant="outline" onClick={() => goToStep(3)}>Continue</Button></div></div>
                 </CardContent>
               </Card>}
 
               {step === 3 && <Card>
                 <CardHeader><CardTitle>Domain and gateway</CardTitle><CardDescription>Save the domain/site intent before the runtime exists. The deployment cutover applies the gateway route after readiness succeeds.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2"><Label>Primary domain</Label><Input value={gateway.domain || setup.domain} onChange={e => setGateway({ ...gateway, domain: e.target.value })} /></div>
+                  <div className="space-y-2 sm:col-span-2"><Label>Service domain</Label><Input value={gateway.domain} onChange={e => setGateway({ ...gateway, domain: e.target.value })} /></div>
                   <div className="space-y-2"><Label>TLS mode</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={gateway.tlsMode} onChange={e => setGateway({ ...gateway, tlsMode: e.target.value })}><option value="http_only">HTTP only</option><option value="https">HTTPS</option><option value="https_http2">HTTPS with HTTP/2</option></select></div>
                   <label className="flex items-center gap-2 self-end pb-3 text-sm"><input type="checkbox" checked={gateway.gateEnabled} onChange={e => setGateway({ ...gateway, gateEnabled: e.target.checked })} />Apply payment access gating at this site</label>
                   {setup.gateway && <div className="sm:col-span-2"><Badge variant="secondary">Site saved · {setup.gateway.status}</Badge></div>}
@@ -302,7 +296,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
               {step === 4 && <Card>
                 <CardHeader><CardTitle>Deploy</CardTitle><CardDescription>Deployment is explicit. Saving credentials and runtime settings alone does not change the active service.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Gateway domain</p><p className="mt-1 font-medium">{setup.gateway?.domain ?? setup.domain}</p></div></div>
+                  <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Service domain</p><p className="mt-1 font-medium">{setup.gateway?.domain ?? "Not configured"}</p></div></div>
                   <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
                   {queuedDeploymentId && deploymentInProgress && <p className="text-sm text-muted-foreground">Deployment <code>{queuedDeploymentId}</code> is in progress. This page updates as the worker advances it.</p>}
                   {active && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">An active deployment is recorded. Review its runtime and version references on the project overview.</div>}

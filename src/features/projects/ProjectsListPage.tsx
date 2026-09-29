@@ -14,6 +14,10 @@ import { ProjectSetupWizardPage } from "./ProjectSetupWizardPage";
 import { ProjectsTable } from "./ProjectsTable";
 import type { Project } from "@/types/project";
 import { api, getApiErrorMessage } from "@/lib/api";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 export function ProjectsListPage() {
   const { data, isLoading, isError, error } = useProjects();
@@ -23,9 +27,13 @@ export function ProjectsListPage() {
   const [blockTarget, setBlockTarget] = useState<{ project: Project; mode: "block" | "unblock" } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
+  const [bulkBlockOpen, setBulkBlockOpen] = useState(false);
+  const [bulkBlockReasonCode, setBulkBlockReasonCode] = useState("");
+  const [bulkBlockNote, setBulkBlockNote] = useState("");
   const qc = useQueryClient();
-  const bulkAction = useMutation({ mutationFn: ({ action, reason }: { action: "block" | "unblock"; reason: string }) => api.post<{ slug: string; status: string; message?: string }[]>(`/admin/projects/bulk/${action}`, { slugs: selectedSlugs, reason }), onSuccess: async (response) => { const failed = response.data.filter(item => item.status === "failed"); await qc.invalidateQueries({ queryKey: ["projects"] }); setSelectedSlugs([]); toast.success(`${response.data.length - failed.length} project${response.data.length - failed.length === 1 ? "" : "s"} updated${failed.length ? `; ${failed.length} failed` : ""}`); } });
-  const runBulk = async (action: "block" | "unblock") => { const reason = window.prompt(`Reason for ${action === "block" ? "blocking" : "unblocking"} these ${selectedSlugs.length} projects:`)?.trim(); if (!reason) return; try { await bulkAction.mutateAsync({ action, reason }); } catch (error) { toast.error(getApiErrorMessage(error)); } };
+  const bulkAction = useMutation({ mutationFn: ({ action, reason, blockReasonCode, blockReasonNote }: { action: "block" | "unblock"; reason: string; blockReasonCode?: string; blockReasonNote?: string }) => api.post<{ slug: string; status: string; message?: string }[]>(`/admin/projects/bulk/${action}`, { slugs: selectedSlugs, reason, blockReasonCode, blockReasonNote }), onSuccess: async (response) => { const failed = response.data.filter(item => item.status === "failed"); await qc.invalidateQueries({ queryKey: ["projects"] }); setSelectedSlugs([]); setBulkBlockOpen(false); setBulkBlockReasonCode(""); setBulkBlockNote(""); toast.success(`${response.data.length - failed.length} project${response.data.length - failed.length === 1 ? "" : "s"} updated${failed.length ? `; ${failed.length} failed` : ""}`); } });
+  const runBulk = async (action: "block" | "unblock") => { if (action === "block") { setBulkBlockReasonCode(""); setBulkBlockNote(""); setBulkBlockOpen(true); return; } const reason = window.prompt(`Reason for unblocking these ${selectedSlugs.length} projects:`)?.trim(); if (!reason) return; try { await bulkAction.mutateAsync({ action, reason }); } catch (error) { toast.error(getApiErrorMessage(error)); } };
+  const confirmBulkBlock = async () => { if (!bulkBlockReasonCode) return; try { await bulkAction.mutateAsync({ action: "block", reason: bulkBlockNote.trim() || blockReasonCodeLabel(bulkBlockReasonCode), blockReasonCode: bulkBlockReasonCode, blockReasonNote: bulkBlockNote.trim() || undefined }); } catch (error) { toast.error(getApiErrorMessage(error)); } };
 
   return (
     <div className="space-y-6">
@@ -87,6 +95,29 @@ export function ProjectsListPage() {
         onClose={() => setBlockTarget(null)}
       />
 
+      <AlertDialog open={bulkBlockOpen} onOpenChange={open => { if (!open) setBulkBlockOpen(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block {selectedSlugs.length} projects?</AlertDialogTitle>
+            <AlertDialogDescription>Choose a reason to record before these projects are blocked.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="bulk-block-reason">Block reason <span className="text-destructive">*</span></Label>
+            <Select value={bulkBlockReasonCode} onValueChange={setBulkBlockReasonCode}>
+              <SelectTrigger id="bulk-block-reason"><SelectValue placeholder="Choose a reason" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="payment">Payment issue</SelectItem><SelectItem value="manual_hold">Manual hold</SelectItem><SelectItem value="abuse_tos">Abuse or terms violation</SelectItem><SelectItem value="suspended_by_request">Suspended by request</SelectItem><SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2"><Label htmlFor="bulk-block-note">Additional note (optional)</Label><Textarea id="bulk-block-note" value={bulkBlockNote} onChange={event => setBulkBlockNote(event.target.value)} rows={3} placeholder="Add context for this block" /></div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkAction.isPending}>Cancel</AlertDialogCancel>
+            <Button variant="destructive" disabled={!bulkBlockReasonCode || bulkAction.isPending} onClick={() => void confirmBulkBlock()}>{bulkAction.isPending ? "Blocking…" : "Block projects"}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <DeleteProjectDialog
         project={deleteTarget}
         open={!!deleteTarget}
@@ -95,3 +126,5 @@ export function ProjectsListPage() {
     </div>
   );
 }
+
+function blockReasonCodeLabel(code: string) { return ({ payment: "Payment issue", manual_hold: "Manual hold", abuse_tos: "Abuse or terms violation", suspended_by_request: "Suspended by request", other: "Other" } as Record<string, string>)[code] ?? "Manual hold"; }

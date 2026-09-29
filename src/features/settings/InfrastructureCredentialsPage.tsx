@@ -87,7 +87,7 @@ export function InfrastructureCredentialsPage() {
     <Tabs value={tab} onValueChange={value => setTab(value as CredentialTab)} className="space-y-4">
       <div className="-mx-1 overflow-x-auto px-1">
         <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="registry" className="flex-1 sm:flex-none"><Boxes className="mr-2 h-4 w-4" />Registry</TabsTrigger>
+          <TabsTrigger value="registry" className="flex-1 sm:flex-none"><Boxes className="mr-2 h-4 w-4" />Docker Hub</TabsTrigger>
           <TabsTrigger value="github-credentials" className="flex-1 sm:flex-none"><KeyRound className="mr-2 h-4 w-4" />GitHub credentials</TabsTrigger>
           <TabsTrigger value="github-connection" className="flex-1 sm:flex-none"><Github className="mr-2 h-4 w-4" />GitHub connection</TabsTrigger>
           <TabsTrigger value="history" className="flex-1 sm:flex-none"><History className="mr-2 h-4 w-4" />Version history</TabsTrigger>
@@ -96,10 +96,10 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="registry">
         <Card>
-          <CardHeader className="border-b pb-4"><CardDescription>Set or rotate credentials for a private image registry. Saving creates a new encrypted version.</CardDescription></CardHeader>
+          <CardHeader className="border-b pb-4"><CardDescription>Connect a Docker Hub account for private image pulls. Provider connections are separate from service .env variables.</CardDescription></CardHeader>
           <CardContent className="flex flex-col gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-xl text-sm text-muted-foreground">Add or rotate the login Gatekeeperd uses when pulling private images. Previous versions remain available in the history tab.</p>
-            <Button className="shrink-0" onClick={() => setPanel("registry")}><RotateCw className="h-4 w-4" />Configure registry</Button>
+            <p className="max-w-xl text-sm text-muted-foreground">Connect a Docker Hub username and access token. You can assign the connection to a service in that service’s deployment setup. Previous versions remain available in history.</p>
+            <Button className="shrink-0" onClick={() => { setRegistry("docker.io"); setPanel("registry"); }}><RotateCw className="h-4 w-4" />Connect Docker Hub</Button>
           </CardContent>
         </Card>
       </TabsContent>
@@ -135,16 +135,16 @@ export function InfrastructureCredentialsPage() {
     <SidePanel open={panel !== null} onOpenChange={open => { if (!open) setPanel(null); }}>
       <SidePanelContent>
         <SidePanelHeader className="border-b p-6 text-left">
-          <SidePanelTitle>{panel === "registry" ? "Registry credentials" : panel === "github-webhook" ? "GitHub webhook secret" : "GitHub App private key"}</SidePanelTitle>
-          <SidePanelDescription>{panel === "registry" ? "Enter the registry scope and credentials Gatekeeperd should use for private image pulls." : "Save a new encrypted credential version. The value is cleared after saving and cannot be retrieved later."}</SidePanelDescription>
+          <SidePanelTitle>{panel === "registry" ? "Docker Hub connection" : panel === "github-webhook" ? "GitHub webhook secret" : "GitHub App private key"}</SidePanelTitle>
+          <SidePanelDescription>{panel === "registry" ? "Save a Docker Hub account for private image pulls. The token is encrypted and is not exposed to application containers." : "Save a new encrypted credential version. The value is cleared after saving and cannot be retrieved later."}</SidePanelDescription>
         </SidePanelHeader>
         {panel === "registry" ? <form className="flex min-h-0 flex-col" onSubmit={event => void rotateRegistry(event)}>
           <div className="flex-1 space-y-4 overflow-y-auto p-6">
-            <div className="space-y-1.5"><Label htmlFor="registry-scope">Registry host or scope</Label><Input id="registry-scope" autoFocus placeholder="docker.io or registry.example.com" value={registry} onChange={event => setRegistry(event.target.value)} required /></div>
-            <div className="space-y-1.5"><Label htmlFor="registry-username">Username</Label><Input id="registry-username" autoComplete="off" value={username} onChange={event => setUsername(event.target.value)} required /></div>
-            <div className="space-y-1.5"><Label htmlFor="registry-password">Password or access token</Label><Input id="registry-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} required /></div>
+            <div className="space-y-1.5"><Label htmlFor="registry-scope">Registry</Label><Input id="registry-scope" autoFocus value={registry} readOnly required /></div>
+            <div className="space-y-1.5"><Label htmlFor="registry-username">Docker Hub username</Label><Input id="registry-username" autoComplete="off" value={username} onChange={event => setUsername(event.target.value)} required /></div>
+            <div className="space-y-1.5"><Label htmlFor="registry-password">Docker Hub access token</Label><Input id="registry-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} required /><p className="text-xs text-muted-foreground">Use a Docker Hub personal access token with read access to the required repositories.</p></div>
           </div>
-          <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={saving || !registry.trim() || !username.trim() || !password}>{saving ? "Saving…" : "Save registry credential"}</Button></SidePanelFooter>
+          <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={saving || !registry.trim() || !username.trim() || !password}>{saving ? "Saving…" : "Connect account"}</Button></SidePanelFooter>
         </form> : panel === "github-webhook" ? <form className="flex min-h-0 flex-col" onSubmit={event => void rotateGithub(event, "webhook_secret", githubWebhookSecret)}>
           <div className="flex-1 space-y-4 overflow-y-auto p-6"><div className="space-y-1.5"><Label htmlFor="github-webhook-secret">New webhook secret</Label><Input id="github-webhook-secret" type="password" autoComplete="new-password" autoFocus placeholder="Enter a new webhook secret" value={githubWebhookSecret} onChange={event => setGithubWebhookSecret(event.target.value)} required /></div><p className="text-xs text-muted-foreground">GitHub uses this value to sign webhook requests.</p></div>
           <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={savingGithub || !githubWebhookSecret}>{savingGithub ? "Saving…" : "Save webhook secret"}</Button></SidePanelFooter>

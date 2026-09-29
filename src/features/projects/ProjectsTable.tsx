@@ -33,14 +33,13 @@ export function ProjectsTable({ projects, selectedSlugs, onSelectionChange, onEd
       data={projects}
       getRowKey={project => project.id}
       pageSize={10}
-      searchPlaceholder="Search by name, domain, or client…"
+      searchPlaceholder="Search by name or client…"
       emptyMessage="No projects found."
       emptyAction={{ label: "New Project", onClick: onCreate }}
       filters={[{ label: "Access", options: [{ label: "Active", value: "active" }, { label: "Blocked", value: "blocked" }, { label: "Manual block", value: "manual_block" }], getValue: project => project.status }]}
       columns={[
         { key: "select", header: "", render: project => <input aria-label={`Select ${project.name}`} type="checkbox" checked={selectedSlugs.includes(project.slug)} onChange={() => toggle(project.slug)} className="h-4 w-4 accent-primary" /> },
         { key: "name", header: "Name", searchable: true, render: project => <Link to={`/app/projects/${project.slug}`} className="font-medium hover:underline">{project.name}</Link> },
-        { key: "domain", header: "Domain", searchable: true, render: project => <span className="text-muted-foreground">{project.domain || "Not configured"}</span> },
         { key: "type", header: "Type", render: project => <Badge variant="secondary">{project.type}</Badge> },
         { key: "access", header: "Access", render: project => <ProjectStatusBadge status={project.status} /> },
         { key: "lifecycle", header: "Lifecycle", render: project => <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge> },

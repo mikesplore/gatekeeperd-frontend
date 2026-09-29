@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useDashboardCustomer, useDashboardSite } from "@/hooks/useSiteDashboard";
+import { useProjectDetail, useProjectServices } from "@/hooks/useProjects";
 
 const sections = [
   { to: "/app/projects", label: "Projects" },
@@ -19,6 +20,13 @@ const sections = [
 
 export function AppBreadcrumb() {
   const location = useLocation();
+  const serviceMatch = location.pathname.match(/^\/app\/projects\/([^/]+)\/services\/([^/]+)/);
+  const projectMatch = location.pathname.match(/^\/app\/projects\/([^/]+)/);
+  const projectSlug = projectMatch?.[1] ? decodeURIComponent(projectMatch[1]) : "";
+  const project = useProjectDetail(projectSlug);
+  const projectServices = useProjectServices(project.data?.project.id ?? "");
+  const serviceId = serviceMatch?.[2] ? decodeURIComponent(serviceMatch[2]) : "";
+  const service = projectServices.data?.find(item => item.id === serviceId);
   const customerMatch = location.pathname.match(/^\/app\/customers\/([^/]+)/);
   const customerId = customerMatch?.[1] ?? "";
   const customer = useDashboardCustomer(customerId);
@@ -34,6 +42,10 @@ export function AppBreadcrumb() {
 
   if (customerMatch) {
     return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/customers" className="transition-colors hover:text-primary">Customers</Link><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{customer.isLoading ? "Loading…" : customer.data?.name ?? "Customer"}</span></h1>;
+  }
+
+  if (projectMatch) {
+    return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/projects" className="transition-colors hover:text-primary">Projects</Link><span className="text-muted-foreground/60">/</span><Link to={`/app/projects/${encodeURIComponent(projectSlug)}`} className="max-w-48 truncate transition-colors hover:text-primary">{project.isLoading ? "Loading…" : project.data?.project.name ?? projectSlug}</Link>{serviceMatch && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{projectServices.isLoading ? "Loading…" : service?.name ?? "Service"}</span></>}</h1>;
   }
 
   if (location.pathname === "/app") return <h1 className="text-sm font-semibold sm:text-base">Dashboard</h1>;

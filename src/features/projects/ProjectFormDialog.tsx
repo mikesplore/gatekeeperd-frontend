@@ -15,7 +15,6 @@ import type { Project, UpdateProjectPayload } from "@/types/project";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
-  domain: z.string().min(1, "Domain is required"),
   type: z.enum(["frontend", "backend"]),
   billingName: z.string().optional(),
   billingEmail: z.string().email().optional().or(z.literal("")),
@@ -36,13 +35,13 @@ export function ProjectFormDialog({ open, onOpenChange, project }: { open: boole
   const customerId = watch("customerId");
   const selectedCustomer = customers.data?.customers.find(customer => customer.id === customerId);
   useEffect(() => {
-    if (open && project) reset({ name: project.name, domain: project.domain, type: project.type, amountDue: project.amountDue, dueDate: project.dueDate?.slice(0, 10) ?? "", gracePeriodDays: project.gracePeriodDays, billingName: project.billingName ?? "", billingEmail: project.billingEmail ?? "", billingAddress: project.billingAddress ?? "", customerId: project.customerId ?? "" });
+    if (open && project) reset({ name: project.name, type: project.type, amountDue: project.amountDue, dueDate: project.dueDate?.slice(0, 10) ?? "", gracePeriodDays: project.gracePeriodDays, billingName: project.billingName ?? "", billingEmail: project.billingEmail ?? "", billingAddress: project.billingAddress ?? "", customerId: project.customerId ?? "" });
   }, [open, project, reset]);
   const onSubmit = (values: Values) => {
     const payload: UpdateProjectPayload = { ...values, dueDate: values.dueDate || undefined, customerId: values.customerId || undefined };
     update.mutate(payload, { onSuccess: () => { toast.success("Project updated"); onOpenChange(false); }, onError: (error) => {
       const message = getApiErrorMessage(error); const lower = message.toLowerCase();
-      const field: keyof Values | null = lower.includes("domain") ? "domain" : lower.includes("email") ? "billingEmail" : null;
+      const field: keyof Values | null = lower.includes("email") ? "billingEmail" : null;
       if (field) { setError(field, { type: "server", message }); setFocus(field); }
       toast.error(message);
     } });
@@ -53,7 +52,6 @@ export function ProjectFormDialog({ open, onOpenChange, project }: { open: boole
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2"><Label>Project</Label><Input value={project?.name ?? ""} disabled /></div>
         <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" {...register("name")} />{errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}</div>
-        <div className="space-y-2"><Label htmlFor="domain">Domain</Label><Input id="domain" {...register("domain")} />{errors.domain && <p className="text-sm text-destructive">{errors.domain.message}</p>}</div>
         <div className="space-y-2"><Label>Type</Label><Select value={type} onValueChange={(value) => setValue("type", value as Values["type"])}><SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frontend">Frontend</SelectItem><SelectItem value="backend">Backend</SelectItem></SelectContent></Select></div>
       </div>
       <div className="space-y-3"><Label>Customer</Label><Select value={customerId || ""} onValueChange={value => setValue("customerId", value)}><SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select a customer" /></SelectTrigger><SelectContent>{customers.data?.customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent></Select></div>
