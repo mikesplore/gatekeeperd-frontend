@@ -126,6 +126,9 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
   });
   const activeContainerName = activeInspection.data?.containerName ?? "";
   const activeContainer = useContainer(activeContainerName);
+  const publishedPortText = Object.entries(activeInspection.data?.publishedPorts ?? {})
+    .map(([containerPort, hostPort]) => `${hostPort}:${containerPort}/tcp`)
+    .join(", ");
   const save = useSaveServiceEnvironment(project.id);
   const [removedKeys, setRemovedKeys] = useState<string[]>([]);
   const [environmentDirty, setEnvironmentDirty] = useState(false);
@@ -287,7 +290,7 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
       <CardContent className="grid gap-4 sm:grid-cols-3">
         <div className="min-w-0"><p className="text-xs font-medium uppercase text-muted-foreground">Container</p>{activeContainerName ? <Link className="break-all font-medium text-primary hover:underline" to={`/app/containers/${encodeURIComponent(activeContainerName)}`}>{activeContainerName}</Link> : <p className="text-sm text-muted-foreground">{activeInspection.isLoading ? "Loading…" : "No active container"}</p>}</div>
         <div><p className="text-xs font-medium uppercase text-muted-foreground">Health</p><p className="text-sm">{activeContainer.isLoading ? "Loading…" : activeInspection.data?.status === "ready" || active?.healthCheckResult === "passed" ? "Passed readiness" : activeContainer.data?.health ?? (activeContainer.data?.state === "running" ? "No health check" : activeContainer.data?.state ?? "Not available")}</p></div>
-        <div><p className="text-xs font-medium uppercase text-muted-foreground">Port</p><p className="text-sm font-mono">{activeContainer.isLoading ? "Loading…" : activeContainer.data?.ports || "Not published"}</p></div>
+        <div><p className="text-xs font-medium uppercase text-muted-foreground">Port</p><p className="text-sm font-mono">{activeInspection.isLoading ? "Loading…" : publishedPortText || "Not published"}</p></div>
       </CardContent>
     </Card>
     <Card className="overflow-hidden">
