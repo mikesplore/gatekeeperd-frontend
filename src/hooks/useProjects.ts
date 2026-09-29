@@ -113,12 +113,12 @@ export function useProjects() {
   });
 }
 
-export function useProjectSetupStatus(projectId: string, serviceId?: string) {
+export function useProjectSetupStatus(projectId: string, serviceId?: string, refetchInterval: number | false = 5_000) {
   return useQuery({
     queryKey: ["project-setup", projectId, serviceId],
     queryFn: async () => (await api.get<ProjectSetupStatus>(`/admin/project-setup/projects/${projectId}`, { params: { serviceId } })).data,
     enabled: Boolean(projectId),
-    refetchInterval: 5_000,
+    refetchInterval,
   });
 }
 
@@ -244,6 +244,7 @@ export function useSaveSharedEnvironment(projectId: string) {
       (await api.put<{ setId: string; version: number; deploymentIds: string[] }>(`/admin/projects/${projectId}/environment/shared`, payload)).data,
     onSuccess: async (_data, payload) => {
       await qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
+      invalidateSetup(qc, projectId);
       await qc.invalidateQueries({ queryKey: ["project-overview"] });
       await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
       await qc.invalidateQueries({ queryKey: ["project-services", projectId] });
@@ -262,6 +263,7 @@ export function useSaveServiceEnvironment(projectId: string) {
       (await api.put<{ setId: string; version: number; deploymentIds: string[] }>(`/admin/projects/${projectId}/services/${serviceId}/environment`, { environment, values, sharedEnvironmentSetId, sharedEnvironmentSetVersion })).data,
     onSuccess: async (_data, payload) => {
       await qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
+      invalidateSetup(qc, projectId);
       await qc.invalidateQueries({ queryKey: ["project-overview"] });
       await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
       await qc.invalidateQueries({ queryKey: ["project-services", projectId] });

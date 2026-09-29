@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useContainer, useProjectServices, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata } from "@/hooks/useProjects";
+import { useContainer, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata } from "@/hooks/useProjects";
 import type { Project } from "@/types/project";
 import type { DashboardSite } from "@/types/sites";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
@@ -122,6 +122,7 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
   const navigate = useNavigate();
   const environment = useServiceEnvironmentMetadata(project.id, service.id);
   const history = useQueryServiceHistory(project.slug, service.id);
+  const setupStatus = useProjectSetupStatus(project.id, service.id, false);
   const activeInspection = useQuery({
     queryKey: ["service-active-deployment", project.id, service.id],
     queryFn: async () => (await api.get<import("@/types/project").ServiceActiveDeployment>(`/admin/projects/${project.id}/services/${service.id}/active-deployment`, { params: { environment: "production" } })).data,
@@ -145,7 +146,9 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
   const latestDeployment = history.data?.items[0];
   const active = history.data?.items.find(item => item.status === "active");
   const configuredSet = environment.data?.versions.find(item => item.id === environment.data.configuredSetId && item.version === environment.data.configuredSetVersion);
-  const serviceKeys = configuredSet?.keys ?? [];
+  const hasRuntimeConfiguration = Boolean(setupStatus.data?.sourceRuntime);
+  const stagedSet = !hasRuntimeConfiguration && !environment.data?.configuredSetId ? environment.data?.versions[0] : undefined;
+  const serviceKeys = configuredSet?.keys ?? stagedSet?.keys ?? [];
   const serviceHealth = sites.find(site => site.runtimeHealth)?.runtimeHealth ?? active?.healthCheckResult ?? latestDeployment?.healthCheckResult ?? latestDeployment?.status ?? "not deployed";
   const saveServiceName = async () => {
     const name = serviceName.trim();
@@ -170,7 +173,7 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
     finally { setServiceActionPending(false); setDeleteOpen(false); }
   };
   const sharedKeys = sharedSet?.keys ?? [];
-  const importEnabled = sharedImport ?? Boolean(environment.data?.configuredSharedSetId);
+  const importEnabled = hasRuntimeConfiguration && (sharedImport ?? Boolean(environment.data?.configuredSharedSetId));
   const sharedSetUnchanged = Boolean(environment.data?.configuredSharedSetId && environment.data.configuredSharedSetId === sharedSet?.id && environment.data.configuredSharedSetVersion === sharedSet?.version);
   const setToSave = async () => {
     try {
@@ -179,7 +182,9 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
         sharedEnvironmentSetId: importEnabled ? sharedSet?.id ?? null : null,
         sharedEnvironmentSetVersion: importEnabled ? sharedSet?.version ?? null : null });
       setDraft({});
-      toast.success(`Service variables saved as v${result.version}; deployment queued.`);
+      toast.success(result.deploymentIds.length
+        ? `Service variables saved as v${result.version}; deployment queued.`
+        : `Service variables saved as v${result.version}. Configure a runtime to deploy them.`);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
   };
 
@@ -287,8 +292,8 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
       <CardContent className="space-y-5 pt-4">
         {service.accessStatus !== "active" && <p className="text-sm text-red-700">{service.blockReason || "No block reason set."}</p>}
         <div className="space-y-3">
-          <div><p className="text-sm font-medium">Service environment overrides</p><p className="text-xs text-muted-foreground">Matching service keys override shared values. Existing values stay hidden; enter replacements or add keys.</p><p className="mt-1 text-xs text-muted-foreground">Configured service set: {environment.data?.configuredSetVersion ? `v${environment.data.configuredSetVersion}` : "not configured"} · Active service set: {activeInspection.data?.serviceSetVersion ? `v${activeInspection.data.serviceSetVersion}` : "not recorded"}</p></div>
-          {sharedSet ? <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm"><input className="mt-1" type="checkbox" checked={importEnabled} onChange={event => setSharedImport(event.target.checked)} /><span><span className="font-medium">Import shared set v{sharedSet.version}</span><span className="block text-xs text-muted-foreground">Pins {sharedKeys.length} shared key(s): {sharedKeys.join(", ") || "empty set"}. Current pin: {environment.data?.configuredSharedSetVersion ? `v${environment.data.configuredSharedSetVersion}` : "none"}. Later shared edits require an explicit refresh.</span></span></label> : <p className="text-xs text-muted-foreground">No shared environment set exists for production yet.</p>}
+          <div><p className="text-sm font-medium">Service environment overrides</p><p className="text-xs text-muted-foreground">Matching service keys override shared values. Existing values stay hidden; enter replacements or add keys.</p><p className="mt-1 text-xs text-muted-foreground">Service set: {environment.data?.configuredSetVersion ? `v${environment.data.configuredSetVersion}` : stagedSet ? `v${stagedSet.version} · saved, runtime not configured` : "not configured"} · Active service set: {activeInspection.data?.serviceSetVersion ? `v${activeInspection.data.serviceSetVersion}` : "not recorded"}</p></div>
+          {sharedSet && hasRuntimeConfiguration ? <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm"><input className="mt-1" type="checkbox" checked={importEnabled} onChange={event => setSharedImport(event.target.checked)} /><span><span className="font-medium">Import shared set v{sharedSet.version}</span><span className="block text-xs text-muted-foreground">Pins {sharedKeys.length} shared key(s): {sharedKeys.join(", ") || "empty set"}. Current pin: {environment.data?.configuredSharedSetVersion ? `v${environment.data.configuredSharedSetVersion}` : "none"}. Later shared edits require an explicit refresh.</span></span></label> : sharedSet ? <p className="text-xs text-muted-foreground">Configure a runtime to import shared variables.</p> : <p className="text-xs text-muted-foreground">No shared environment set exists for production yet.</p>}
           {importEnabled && sharedKeys.length > 0 && <div className="flex flex-wrap gap-2">{sharedKeys.map(key => <span key={key} className="rounded border px-2 py-1 font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{serviceKeys.includes(key) ? "service override" : "from shared"}</span></span>)}</div>}
           {[...new Set([...serviceKeys, ...Object.keys(draft)])].sort().map(key => {
             const configured = serviceKeys.includes(key);
@@ -296,7 +301,7 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
           })}
           <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} type="password" autoComplete="new-password" placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add / override</Button></div>
           {Object.keys(draft).length > 0 && <p className="text-xs text-muted-foreground">Pending replacements: {Object.keys(draft).sort().join(", ")}. Saving replaces the whole service set, so reenter any existing values you want to keep.</p>}
-          <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Imported shared set: {importEnabled ? `v${sharedSet?.version}` : "none"}</p><Button size="sm" disabled={save.isPending || (!Object.keys(draft).length && importEnabled === sharedSetUnchanged)} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : "Save & deploy service"}</Button></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Imported shared set: {importEnabled ? `v${sharedSet?.version}` : "none"}</p><Button size="sm" disabled={save.isPending || setupStatus.isLoading || setupStatus.isError || (!Object.keys(draft).length && importEnabled === sharedSetUnchanged)} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : setupStatus.isLoading ? "Checking runtime…" : setupStatus.isError ? "Runtime status unavailable" : hasRuntimeConfiguration ? "Save & deploy service" : "Save variables"}</Button></div>
         </div>
       </CardContent>
     </Card>
