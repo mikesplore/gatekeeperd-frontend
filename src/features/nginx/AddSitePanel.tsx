@@ -6,7 +6,6 @@ import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, Sid
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects } from "@/hooks/useProjects";
 import { useEnableNginx, useNginxWizardContext, useValidateNginxEnable } from "@/hooks/useNginx";
@@ -37,7 +36,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
   const context = useNginxWizardContext(slug);
   const validate = useValidateNginxEnable(slug);
   const enable = useEnableNginx();
-  const { register, handleSubmit, reset, watch } = useForm<FormValues>();
+  const { register, handleSubmit, reset, watch } = useForm<FormValues>({ defaultValues: { upstreamScheme: "http", requireSsl: true } });
   const selectedProject = projects?.find((project) => project.slug === slug);
   const formValues = watch();
 
@@ -53,11 +52,11 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
 
   const payloadFrom = (values: FormValues): EnableNginxPayload => ({
     port: values.port,
-    upstreamScheme: values.upstreamScheme,
+    upstreamScheme: values.upstreamScheme === "https" ? "https" : undefined,
     certificateDomain: values.certificateDomain || undefined,
     sslCertificatePath: values.sslCertificatePath || undefined,
     sslCertificateKeyPath: values.sslCertificateKeyPath || undefined,
-    requireSsl: values.requireSsl,
+    requireSsl: values.requireSsl === false ? false : undefined,
   });
 
   const submit = async (values: FormValues) => {
@@ -66,7 +65,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
         toast.error("Choose a project to continue");
         return;
       }
-      reset({ port: context.data?.configuredPort ?? undefined });
+      reset({ upstreamScheme: "http", requireSsl: true });
       setStep(1);
       return;
     }
@@ -133,28 +132,22 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
             {step === 1 && (
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border bg-muted/30 p-4"><Server className="mt-0.5 h-5 w-5 text-primary" /><div><h3 className="font-medium">Upstream connection</h3><p className="mt-1 text-sm text-muted-foreground">Choose where Nginx should forward requests for {selectedProject?.domain}.</p></div></div>
-                {context.isLoading ? <Skeleton className="h-20 w-full" /> : context.data && <p className="text-sm text-muted-foreground">Resolved upstream: <span className="font-medium text-foreground">{context.data.resolvedUpstreamHost && context.data.configuredPort ? `${context.data.resolvedUpstreamHost}:${context.data.configuredPort}` : "No active deployment"}</span>{context.data.runtimeHealth && ` · ${context.data.runtimeHealth}`}</p>}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label htmlFor="site-port">Application port</Label><Input id="site-port" type="number" min="1" max="65535" placeholder="e.g. 3000" {...register("port", { valueAsNumber: true, min: 1, max: 65535 })} /><p className="text-xs text-muted-foreground">Detected port is prefilled when available.</p></div>
-                  <div className="space-y-2"><Label htmlFor="site-scheme">Upstream protocol</Label><select id="site-scheme" {...register("upstreamScheme")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Auto-detect</option><option value="http">HTTP</option><option value="https">HTTPS</option></select></div>
-                </div>
+                {context.isLoading ? <Skeleton className="h-20 w-full" /> : context.data && <div className="rounded-md border p-4 text-sm"><p className="text-xs text-muted-foreground">Resolved upstream</p><p className="mt-1 font-medium">{context.data.resolvedUpstreamHost && context.data.configuredPort ? `${context.data.resolvedUpstreamHost}:${context.data.configuredPort}` : "No active deployment runtime found"}</p><p className="mt-1 text-xs text-muted-foreground">Nginx connects to the Docker-published host port. {context.data.runtimeHealth ? `Runtime: ${context.data.runtimeHealth}` : "Deploy or attach a running service before adding its site."}</p></div>}
+                <details className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Advanced upstream overrides</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="site-port">Published host port</Label><Input id="site-port" type="number" min="1" max="65535" placeholder={String(context.data?.configuredPort ?? "")} {...register("port", { valueAsNumber: true, min: 1, max: 65535 })} /><p className="text-xs text-muted-foreground">Use the host side of Docker’s port mapping.</p></div><div className="space-y-2"><Label htmlFor="site-scheme">Upstream protocol</Label><select id="site-scheme" {...register("upstreamScheme")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="http">HTTP</option><option value="https">HTTPS</option></select></div></div></details>
               </section>
             )}
 
             {step === 2 && (
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border bg-muted/30 p-4"><LockKeyhole className="mt-0.5 h-5 w-5 text-primary" /><div><h3 className="font-medium">TLS and certificate</h3><p className="mt-1 text-sm text-muted-foreground">Gatekeeper can reuse an installed certificate matching this domain.</p></div></div>
-                {context.data?.installedCertificates.length ? <div className="space-y-2"><Label htmlFor="site-certificate">Installed certificate</Label><select id="site-certificate" {...register("certificateDomain")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Auto-select for project domain</option>{context.data.installedCertificates.map((domain) => <option key={domain} value={domain}>{domain}</option>)}</select></div> : <div className="space-y-2"><Label htmlFor="site-certificate">Certificate domain (optional)</Label><Input id="site-certificate" placeholder="example.com" {...register("certificateDomain")} /></div>}
-                <Separator />
-                <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="site-cert-path">Certificate path override</Label><Input id="site-cert-path" placeholder="/etc/letsencrypt/live/domain/fullchain.pem" {...register("sslCertificatePath")} /></div><div className="space-y-2"><Label htmlFor="site-key-path">Private key path override</Label><Input id="site-key-path" placeholder="/etc/letsencrypt/live/domain/privkey.pem" {...register("sslCertificateKeyPath")} /></div></div>
-                <label className="flex items-center gap-3 rounded-lg border p-4 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary" {...register("requireSsl")} /><span><span className="block font-medium">Require HTTPS</span><span className="text-muted-foreground">Stop setup if no matching certificate is available.</span></span></label>
+                <p className="rounded-md border p-4 text-sm">HTTPS is required by default. Gatekeeper will use an installed certificate matching {context.data?.domain ?? selectedProject?.domain ?? "the service domain"}.</p><details className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Advanced certificate settings</summary><div className="mt-4 space-y-4">{context.data?.installedCertificates.length ? <div className="space-y-2"><Label htmlFor="site-certificate">Installed certificate</Label><select id="site-certificate" {...register("certificateDomain")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Auto-select for service domain</option>{context.data.installedCertificates.map((domain) => <option key={domain} value={domain}>{domain}</option>)}</select></div> : <div className="space-y-2"><Label htmlFor="site-certificate">Certificate domain</Label><Input id="site-certificate" placeholder="example.com" {...register("certificateDomain")} /></div>}<div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="site-cert-path">Certificate path override</Label><Input id="site-cert-path" placeholder="/etc/letsencrypt/live/domain/fullchain.pem" {...register("sslCertificatePath")} /></div><div className="space-y-2"><Label htmlFor="site-key-path">Private key path override</Label><Input id="site-key-path" placeholder="/etc/letsencrypt/live/domain/privkey.pem" {...register("sslCertificateKeyPath")} /></div></div></div></details>
               </section>
             )}
 
             {step === 3 && (
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4"><Check className="mt-0.5 h-5 w-5 text-emerald-600" /><div><h3 className="font-medium">Configuration validated</h3><p className="mt-1 text-sm text-muted-foreground">Review the server block before applying it.</p></div></div>
-                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project</p><p className="mt-1 font-medium">{selectedProject?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{selectedProject?.domain}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{formValues.port || context.data?.configuredPort || "Not specified"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
+                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project</p><p className="mt-1 font-medium">{selectedProject?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{selectedProject?.domain}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{context.data?.configuredPort ?? formValues.port ?? "Not specified"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
                 {validate.isPending ? <Skeleton className="h-56 w-full" /> : <pre className="max-h-[42vh] overflow-auto rounded-lg bg-muted p-4 text-xs leading-relaxed">{preview || "No preview available."}</pre>}
               </section>
             )}

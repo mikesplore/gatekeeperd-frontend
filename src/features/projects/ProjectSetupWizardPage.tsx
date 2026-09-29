@@ -58,7 +58,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
   const [registryCredentialId, setRegistryCredentialId] = useState("");
-  const [gateway, setGateway] = useState({ domain: "", tlsMode: "http_only", gateEnabled: true });
+  const [gateway, setGateway] = useState({ domain: "", tlsMode: "https", gateEnabled: true });
   const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
@@ -283,11 +283,9 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
               </Card>}
 
               {step === 3 && <Card>
-                <CardHeader><CardTitle>Domain and gateway</CardTitle><CardDescription>Save the domain/site intent before the runtime exists. The deployment cutover applies the gateway route after readiness succeeds.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Domain and gateway</CardTitle><CardDescription>Set the public domain for this service. Nginx handles upstream routing, TLS, and payment gating.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2 sm:col-span-2"><Label>Service domain</Label><Input value={gateway.domain} onChange={e => setGateway({ ...gateway, domain: e.target.value })} /></div>
-                  <div className="space-y-2"><Label>TLS mode</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={gateway.tlsMode} onChange={e => setGateway({ ...gateway, tlsMode: e.target.value })}><option value="http_only">HTTP only</option><option value="https">HTTPS</option><option value="https_http2">HTTPS with HTTP/2</option></select></div>
-                  <label className="flex items-center gap-2 self-end pb-3 text-sm"><input type="checkbox" checked={gateway.gateEnabled} onChange={e => setGateway({ ...gateway, gateEnabled: e.target.checked })} />Apply payment access gating at this site</label>
                   {setup.gateway && <div className="sm:col-span-2"><Badge variant="secondary">Site saved · {setup.gateway.status}</Badge></div>}
                   <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={() => goToStep(2)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={() => goToStep(4)}>Skip for now</Button><Button disabled={saveGateway.isPending || !gateway.domain.trim()} onClick={() => void saveGatewayStep()}>{saveGateway.isPending ? "Saving…" : "Save gateway"}</Button></div></div>
                 </CardContent>
