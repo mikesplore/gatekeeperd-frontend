@@ -259,8 +259,8 @@ export function useSaveSharedEnvironment(projectId: string) {
 export function useSaveServiceEnvironment(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ serviceId, environment, values, sharedEnvironmentSetId, sharedEnvironmentSetVersion }: { serviceId: string; environment: string; values: Record<string, string>; sharedEnvironmentSetId: string | null; sharedEnvironmentSetVersion: number | null }) =>
-      (await api.put<{ setId: string; version: number; deploymentIds: string[] }>(`/admin/projects/${projectId}/services/${serviceId}/environment`, { environment, values, sharedEnvironmentSetId, sharedEnvironmentSetVersion })).data,
+    mutationFn: async ({ serviceId, environment, values, replaceExisting }: { serviceId: string; environment: string; values: Record<string, string>; replaceExisting: boolean }) =>
+      (await api.put<{ deploymentIds: string[] }>(`/admin/projects/${projectId}/services/${serviceId}/environment`, { environment, values, replaceExisting })).data,
     onSuccess: async (_data, payload) => {
       await qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
       invalidateSetup(qc, projectId);
@@ -271,24 +271,6 @@ export function useSaveServiceEnvironment(projectId: string) {
       await qc.invalidateQueries({ queryKey: ["service-active-deployment", projectId] });
       await qc.invalidateQueries({ queryKey: ["deployments"] });
       void payload;
-    },
-  });
-}
-
-export function useDeleteServiceEnvironmentVariable(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ serviceId, environment, key }: { serviceId: string; environment: string; key: string }) =>
-      (await api.delete<{ setId: string; version: number; deploymentIds: string[] }>(`/admin/projects/${projectId}/services/${serviceId}/environment/${encodeURIComponent(key)}`, { params: { environment } })).data,
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
-      invalidateSetup(qc, projectId);
-      await qc.invalidateQueries({ queryKey: ["project-overview"] });
-      await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
-      await qc.invalidateQueries({ queryKey: ["project-services", projectId] });
-      await qc.invalidateQueries({ queryKey: ["project-service-history"] });
-      await qc.invalidateQueries({ queryKey: ["service-active-deployment", projectId] });
-      await qc.invalidateQueries({ queryKey: ["deployments"] });
     },
   });
 }
