@@ -10,7 +10,7 @@ import { QueryState } from "@/components/QueryState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useDashboardSite, useDeleteDashboardSite, useUpdateDashboardSite } from "@/hooks/useSiteDashboard";
-import { getApiErrorMessage } from "@/lib/api";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import type { SiteStatus } from "@/types/sites";
 
 const statusClasses: Record<SiteStatus, string> = {
@@ -30,6 +30,10 @@ export function SiteDetailPage() {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tab, setTab] = useState("overview");
+
+  if (query.isError && getApiErrorCode(query.error) === "site_not_found") {
+    return <div className="space-y-4"><div><h1 className="text-2xl font-semibold">Site not found</h1><p className="mt-1 text-sm text-muted-foreground">{getApiErrorMessage(query.error)} Check the site slug or return to the site list.</p></div><Button asChild variant="outline"><Link to="/app/nginx">Back to sites</Link></Button></div>;
+  }
 
   return <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={query.data}>
     {detail => <div className="w-full space-y-6">
