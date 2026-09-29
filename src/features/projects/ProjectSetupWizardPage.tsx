@@ -64,7 +64,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
   const status = useProjectSetupStatus(projectId, serviceId);
   const providerCredentials = useProviderCredentialMetadata();
-  const adoptableContainers = useAdoptableContainers(Boolean(projectId) && !serviceId && step === 1);
+  const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1);
   const adoptContainer = useAdoptProjectContainer(projectId);
   const dockerNetworkContext = useContainerWizardContext();
   const loadedConfiguration = useRef("");
@@ -186,7 +186,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const attachRunningContainer = async () => {
     if (!adoptContainerId || !adoptContainerPort) return;
     try {
-      const result = await adoptContainer.mutateAsync({ containerId: adoptContainerId, containerPort: Number(adoptContainerPort) });
+      const result = await adoptContainer.mutateAsync({ containerId: adoptContainerId, containerPort: Number(adoptContainerPort), serviceId });
       toast.success("Running container attached", { description: result.message });
       setAdoptContainerId("");
       setAdoptContainerPort("");
@@ -240,7 +240,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
           {(setup) => (
             <>
               {step === 1 && <>
-              {!serviceId && <Card>
+              <Card>
                 <CardHeader><CardTitle>Attach a running container</CardTitle><CardDescription>Make an existing Docker container this project’s active deployment without restarting it. This updates desired source/runtime settings to match the container; any environment values are saved as encrypted project secrets.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
                   {adoptableContainers.isLoading ? <p className="text-sm text-muted-foreground">Loading running containers…</p> : adoptableContainers.isError ? <p className="text-sm text-destructive">Could not load Docker containers. Check that Gatekeeperd can access Docker.</p> : (adoptableContainers.data ?? []).filter(container => container.ports.length > 0).length === 0 ? <p className="text-sm text-muted-foreground">No running containers with a published TCP port are available to attach.</p> : <div className="grid gap-3 sm:grid-cols-2">
@@ -250,7 +250,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   </div>}
                   <div className="flex justify-end"><Button variant="outline" disabled={!adoptContainerId || !adoptContainerPort || adoptContainer.isPending} onClick={() => void attachRunningContainer()}>{adoptContainer.isPending ? "Attaching…" : "Attach container"}</Button></div>
                 </CardContent>
-              </Card>}
+              </Card>
               <Card>
                 <CardHeader><CardTitle>Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">

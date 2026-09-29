@@ -192,7 +192,7 @@ export function useDeployProjectSetup(projectId: string, serviceId?: string) {
 export function useAdoptProjectContainer(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { containerId: string; containerPort: number }) =>
+    mutationFn: async (payload: { containerId: string; containerPort: number; serviceId?: string }) =>
       (await api.post<{ deploymentId: string; containerName: string; status: string; environmentVariableCount: number; message: string }>(`/admin/project-setup/projects/${projectId}/adopt-container`, payload)).data,
     onSuccess: async () => {
       invalidateSetup(qc, projectId);
