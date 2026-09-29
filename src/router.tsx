@@ -23,10 +23,10 @@ import { NetworkDetailPage } from "@/features/infrastructure/NetworkDetailPage";
 import { VolumeDetailPage } from "@/features/infrastructure/VolumeDetailPage";
 import { AuditPage } from "@/features/audit/AuditPage";
 import { NotificationsPage } from "@/features/notifications/NotificationsPage";
+import { DeadConfigsPage } from "@/features/dashboard/DeadConfigsPage";
 import { SitesDashboardPage } from "@/features/dashboard/SitesDashboardPage";
 import { SiteDetailPage } from "@/features/dashboard/SiteDetailPage";
 import { CustomerDetailPage, CustomersPage } from "@/features/dashboard/CustomersPage";
-import { DeadConfigsPage } from "@/features/dashboard/DeadConfigsPage";
 import { SiteAdvancedConfigPage } from "@/features/nginx/SiteAdvancedConfigPage";
 import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
 import { InfrastructureCredentialsPage } from "@/features/settings/InfrastructureCredentialsPage";
@@ -63,8 +63,8 @@ export const router = createBrowserRouter([
           { path: "nginx/manage", element: <Navigate to="/app/nginx" replace /> },
           { path: "nginx/certificates", element: <CertificatesPage /> },
           { path: "nginx/sites/:slug", element: <SiteDetailPage /> },
-          { path: "nginx/sites/:slug/advanced", element: <SiteAdvancedConfigPage /> },
           { path: "nginx/dead-configs", element: <DeadConfigsPage /> },
+          { path: "nginx/sites/:slug/advanced", element: <SiteAdvancedConfigPage /> },
           { path: "customers", element: <CustomersPage /> },
           { path: "customers/:id", element: <CustomerDetailPage /> },
           { path: "operations", element: <OperationsPage /> },
