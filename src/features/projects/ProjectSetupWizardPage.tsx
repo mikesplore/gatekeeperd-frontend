@@ -186,6 +186,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     if (!adoptContainerId || !adoptContainerPort) return;
     try {
       const result = await adoptContainer.mutateAsync({ containerId: adoptContainerId, containerPort: Number(adoptContainerPort), serviceId });
+      loadedConfiguration.current = "";
+      await status.refetch();
       toast.success("Running container attached", { description: result.message });
       setAdoptContainerId("");
       setAdoptContainerPort("");
