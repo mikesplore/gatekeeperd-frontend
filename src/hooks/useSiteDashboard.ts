@@ -17,8 +17,19 @@ export function useDeleteDashboardSite() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: (slug: string) => api.delete(`/admin/dashboard/sites/${encodeURIComponent(slug)}`), onSuccess: (_data, slug) => { queryClient.invalidateQueries({ queryKey: ["dashboard"] }); queryClient.invalidateQueries({ queryKey: ["projects"] }); queryClient.removeQueries({ queryKey: ["dashboard", "site", slug] }); } });
 }
-export interface NginxConfigArtifact { filename: string; domains: string[]; available: boolean; enabled: boolean; managed: boolean; tracked: boolean; orphaned: boolean; projectId?: string | null; serviceId?: string | null; siteId?: string | null; }
+export interface NginxConfigArtifact { filename: string; domains: string[]; listenPorts: number[]; classification: "self" | "gatekeeper_managed" | "manual"; available: boolean; enabled: boolean; managed: boolean; tracked: boolean; orphaned: boolean; projectId?: string | null; serviceId?: string | null; siteId?: string | null; }
+export interface NginxManualConfigDetail { filename: string; domains: string[]; listenPorts: number[]; available: boolean; enabled: boolean; content: string; }
+export interface NginxManualConfigAction { filename: string; backup: string; disabled: boolean; deleted: boolean; nginxTestPassed: boolean; reloaded: boolean; resolvedManagedConfigs: string[]; }
 export function useDeadConfigs() { return useQuery({ queryKey: ["nginx", "config-artifacts"], queryFn: async () => (await api.get<NginxConfigArtifact[]>("/admin/nginx/configs")).data }); }
+export function useManualConfigDetail(filename: string | null) { return useQuery({ queryKey: ["nginx", "manual-config", filename], queryFn: async () => (await api.get<NginxManualConfigDetail>(`/admin/nginx/manual-configs/${encodeURIComponent(filename!)}`)).data, enabled: !!filename }); }
+export function useDisableManualConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (filename: string) => api.post<NginxManualConfigAction>(`/admin/nginx/manual-configs/${encodeURIComponent(filename)}/disable`, { confirm: true }), onSuccess: (_data, filename) => { queryClient.invalidateQueries({ queryKey: ["nginx", "config-artifacts"] }); queryClient.invalidateQueries({ queryKey: ["nginx", "manual-config", filename] }); } });
+}
+export function useDeleteManualConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (filename: string) => api.delete<NginxManualConfigAction>(`/admin/nginx/manual-configs/${encodeURIComponent(filename)}`, { data: { confirm: true } }), onSuccess: (_data, filename) => { queryClient.invalidateQueries({ queryKey: ["nginx", "config-artifacts"] }); queryClient.invalidateQueries({ queryKey: ["nginx", "manual-config", filename] }); } });
+}
 export function useDeleteDeadConfig() {
   const queryClient = useQueryClient();
   return useMutation({
