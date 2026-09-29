@@ -27,7 +27,7 @@ import { getApiErrorMessage } from "@/lib/api";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
 const steps = ["Source & runtime", "Credentials", "Domain & gateway", "Deploy"];
-const inProgressDeploymentStatuses = new Set(["queued", "building", "starting", "health-checking"]);
+const inProgressDeploymentStatuses = new Set(["queued", "building", "starting", "health-checking", "ready"]);
 
 function parseEnv(text: string): Record<string, string> {
   return Object.fromEntries(text.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#")).map(line => {
@@ -292,7 +292,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                 <CardContent className="space-y-5">
                   <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Service domain</p><p className="mt-1 font-medium">{setup.gateway?.domain ?? "Not configured"}</p></div></div>
                   <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
-                  {queuedDeploymentId && deploymentInProgress && <p className="text-sm text-muted-foreground">Deployment <code>{queuedDeploymentId}</code> is in progress. This page updates as the worker advances it.</p>}
+                  {queuedDeploymentId && deploymentInProgress && <p className="text-sm text-muted-foreground">{currentDeployment === "ready" ? <>Container is ready; gateway cutover is pending. Deployment <code>{queuedDeploymentId}</code> remains in progress.</> : <>Deployment <code>{queuedDeploymentId}</code> is in progress. This page updates as the worker advances it.</>}</p>}
                   {active && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">An active deployment is recorded. Review its runtime and version references on the project overview.</div>}
                   <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(3)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || deploymentInProgress || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : deploymentInProgress ? "Deployment in progress" : "Deploy"}</Button></div></div>
                 </CardContent>

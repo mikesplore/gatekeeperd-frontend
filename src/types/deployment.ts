@@ -1,5 +1,5 @@
 /** Canonical deployment history API types. */
-export type CanonicalDeploymentStatus = "queued" | "building" | "starting" | "health-checking" | "active" | "superseded" | "failed" | "cancelled" | "rolled-back";
+export type CanonicalDeploymentStatus = "queued" | "building" | "starting" | "health-checking" | "ready" | "active" | "superseded" | "failed" | "cancelled" | "rolled-back";
 
 export interface CanonicalDeploymentHistoryItem {
   id: string; projectId: string; projectSlug: string; projectName: string; environment: string;
