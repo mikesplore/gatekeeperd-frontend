@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Rocket } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { QueryState } from "@/components/QueryState";
@@ -11,7 +14,7 @@ type DeploymentHistoryItem = {
   id: string; projectId: string; projectSlug: string; environment: string; sourceCommit?: string | null;
   imageName: string; imageTag: string; imageDigest?: string | null; trigger: string; status: string;
   createdAt: string; activeAt?: string | null; healthCheckResult: string; failureReason?: string | null;
-  credentialSetId?: string | null; credentialSetVersion?: number | null; secretSetId?: string | null; secretSetVersion?: number | null;
+  credentialSetId?: string | null; credentialSetVersion?: number | null; secretSetId?: string | null; secretSetVersion?: number | null; canRedeploy: boolean;
 };
 type DeploymentHistoryPage = { items: DeploymentHistoryItem[]; total: number; limit: number; offset: number };
 
@@ -80,6 +83,7 @@ function DeploymentDetails({ item }: { item: DeploymentHistoryItem }) {
 }
 
 export function DeploymentsPage() {
+  const queryClient = useQueryClient();
   const history = useQuery({
     queryKey: ["deployment-history"],
     queryFn: async () => (await api.get<DeploymentHistoryPage>("/admin/deployment-history", { params: { limit: 100, offset: 0 } })).data,
@@ -130,7 +134,7 @@ export function DeploymentsPage() {
     {
       key: "actions",
       header: "Actions",
-      render: item => <DeploymentDetails item={item} />,
+      render: item => <div className="flex items-center gap-3">{item.canRedeploy && <Button size="sm" variant={item.status.toLowerCase() === "failed" ? "default" : "outline"} onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/redeploy`); toast.success(item.status.toLowerCase() === "failed" ? "Retry queued" : "Redeployment queued"); await queryClient.invalidateQueries({ queryKey: ["deployment-history"] }); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Rocket className="h-4 w-4" />{item.status.toLowerCase() === "failed" ? "Retry" : "Redeploy"}</Button>}<DeploymentDetails item={item} /></div>,
     },
   ];
   const statusOptions = [...new Set((history.data?.items ?? []).map(item => item.status))]
