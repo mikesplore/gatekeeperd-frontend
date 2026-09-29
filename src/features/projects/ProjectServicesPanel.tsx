@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -133,8 +133,6 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
   const save = useSaveServiceEnvironment(project.id);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
-  const [envImportText, setEnvImportText] = useState("");
-  const envFileInput = useRef<HTMLInputElement>(null);
   const [blockReason, setBlockReason] = useState(service.blockReason ?? "");
   const [blockReasonCode, setBlockReasonCode] = useState("");
   const [blocking, setBlocking] = useState(false);
@@ -185,13 +183,23 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
   };
 
-  const importEnvText = (text: string) => {
+  const handleVariablePaste = (field: "name" | "value", event: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData("text");
+    const likelyAssignments = text.includes("=") && (field === "name" || text.includes("\n") || text.includes("\r"));
+    if (!likelyAssignments) return;
+    event.preventDefault();
     try {
       const values = parseEnvContent(text);
-      if (!Object.keys(values).length) throw new Error("No KEY=value entries found.");
-      setDraft({ ...draft, ...values });
-      setEnvImportText("");
-      toast.success(`Added ${Object.keys(values).length} variable(s) to the pending changes.`);
+      const entries = Object.entries(values);
+      if (!entries.length) throw new Error("No KEY=value entries found.");
+      if (entries.length === 1) {
+        setNewKey(entries[0][0]);
+        setNewValue(entries[0][1]);
+      } else {
+        setDraft({ ...draft, ...values });
+        setNewKey("");
+        setNewValue("");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not parse environment variables.");
     }
@@ -280,26 +288,13 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
         {service.accessStatus !== "active" && <p className="text-sm text-red-700">{service.blockReason || "No block reason set."}</p>}
         <div className="space-y-3">
           <div><p className="text-sm font-medium">Service environment overrides</p><p className="text-xs text-muted-foreground">Matching service keys override shared values. Existing values stay hidden; enter replacements or add keys.</p><p className="mt-1 text-xs text-muted-foreground">Configured service set: {environment.data?.configuredSetVersion ? `v${environment.data.configuredSetVersion}` : "not configured"} · Active service set: {activeInspection.data?.serviceSetVersion ? `v${activeInspection.data.serviceSetVersion}` : "not recorded"}</p></div>
-          <div className="space-y-2 rounded-md border p-3">
-            <Label htmlFor={`env-import-${service.id}`}>Paste multiple variables or upload a .env file</Label>
-            <Textarea id={`env-import-${service.id}`} rows={4} value={envImportText} onChange={event => setEnvImportText(event.target.value)} placeholder={'DATABASE_URL=...\nAPI_KEY="..."\n# blank lines and comments are okay'} className="font-mono text-xs" />
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={() => importEnvText(envImportText)} disabled={!envImportText.trim()}>Add pasted variables</Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => envFileInput.current?.click()}>Upload .env file</Button>
-              <input ref={envFileInput} type="file" accept=".env,text/plain" className="hidden" aria-label="Upload .env file" onChange={async event => {
-                const input = event.currentTarget;
-                const file = input.files?.[0];
-                if (!file) return;
-                try { importEnvText(await file.text()); }
-                finally { input.value = ""; }
-              }} />
-            </div>
-            <p className="text-xs text-muted-foreground">Values are read in your browser and added to the pending changes. They are never displayed after import; save and deploy when ready.</p>
-          </div>
           {sharedSet ? <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm"><input className="mt-1" type="checkbox" checked={importEnabled} onChange={event => setSharedImport(event.target.checked)} /><span><span className="font-medium">Import shared set v{sharedSet.version}</span><span className="block text-xs text-muted-foreground">Pins {sharedKeys.length} shared key(s): {sharedKeys.join(", ") || "empty set"}. Current pin: {environment.data?.configuredSharedSetVersion ? `v${environment.data.configuredSharedSetVersion}` : "none"}. Later shared edits require an explicit refresh.</span></span></label> : <p className="text-xs text-muted-foreground">No shared environment set exists for production yet.</p>}
           {importEnabled && sharedKeys.length > 0 && <div className="flex flex-wrap gap-2">{sharedKeys.map(key => <span key={key} className="rounded border px-2 py-1 font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{serviceKeys.includes(key) ? "service override" : "from shared"}</span></span>)}</div>}
-          {serviceKeys.map(key => <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{sharedKeys.includes(key) ? "overrides shared" : "service only"}</span></Label><Input type="password" autoComplete="new-password" placeholder="Value hidden; enter replacement" value={draft[key] ?? ""} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /><Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>Clear replacement</Button></div>)}
-          <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="SERVICE_TOKEN" value={newKey} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} type="password" autoComplete="new-password" placeholder="Write-only value" value={newValue} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add / override</Button></div>
+          {[...new Set([...serviceKeys, ...Object.keys(draft)])].sort().map(key => {
+            const configured = serviceKeys.includes(key);
+            return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{configured ? sharedKeys.includes(key) ? "overrides shared" : "service only" : "new variable"}</span></Label><Input type="password" autoComplete="new-password" aria-label={`Value for ${key}`} placeholder={configured ? "Value hidden; enter replacement" : "Write-only value"} value={draft[key] ?? ""} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /><Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>{configured ? "Clear replacement" : "Remove"}</Button></div>;
+          })}
+          <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} type="password" autoComplete="new-password" placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add / override</Button></div>
           {Object.keys(draft).length > 0 && <p className="text-xs text-muted-foreground">Pending replacements: {Object.keys(draft).sort().join(", ")}. Saving replaces the whole service set, so reenter any existing values you want to keep.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Imported shared set: {importEnabled ? `v${sharedSet?.version}` : "none"}</p><Button size="sm" disabled={save.isPending || (!Object.keys(draft).length && importEnabled === sharedSetUnchanged)} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : "Save & deploy service"}</Button></div>
         </div>
