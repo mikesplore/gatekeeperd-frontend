@@ -76,14 +76,14 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
         {servicesQuery.isLoading && <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>}
         {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
         {!servicesQuery.isLoading && !servicesQuery.isError && servicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No services are configured for this project.</p>}
-        {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} sharedSet={sharedMetadata.data?.latest ?? null} sharedImport={sharedImports[service.id]} setSharedImport={value => setSharedImports(current => ({ ...current, [service.id]: value }))} refreshServices={() => servicesQuery.refetch()} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
+        {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} sharedSet={sharedMetadata.data?.latest ?? null} sharedVersions={sharedMetadata.data?.versions ?? []} sharedImport={sharedImports[service.id]} setSharedImport={value => setSharedImports(current => ({ ...current, [service.id]: value }))} refreshServices={() => servicesQuery.refetch()} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
       </CardContent>
     </Card>}
     {view === "detail" && <>
       {servicesQuery.isLoading && <Skeleton className="h-32 w-full" />}
       {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
       {!servicesQuery.isLoading && !servicesQuery.isError && !(servicesQuery.data ?? []).some(service => service.id === serviceId) && <Alert><AlertTitle>Service not found</AlertTitle><AlertDescription>This service does not belong to this project.</AlertDescription></Alert>}
-      {(servicesQuery.data ?? []).filter(service => service.id === serviceId).map(service => <ServiceCard key={service.id} project={project} service={service} view="detail" sites={relevantSites.filter(site => site.serviceId === service.id)} sharedSet={sharedMetadata.data?.latest ?? null} sharedImport={sharedImports[service.id]} setSharedImport={value => setSharedImports(current => ({ ...current, [service.id]: value }))} refreshServices={() => servicesQuery.refetch()} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
+      {(servicesQuery.data ?? []).filter(service => service.id === serviceId).map(service => <ServiceCard key={service.id} project={project} service={service} view="detail" sites={relevantSites.filter(site => site.serviceId === service.id)} sharedSet={sharedMetadata.data?.latest ?? null} sharedVersions={sharedMetadata.data?.versions ?? []} sharedImport={sharedImports[service.id]} setSharedImport={value => setSharedImports(current => ({ ...current, [service.id]: value }))} refreshServices={() => servicesQuery.refetch()} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
     </>}
   </div>;
 }
@@ -111,11 +111,11 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
   </Card>;
 }
 
-function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, setSharedImport, refreshServices, draft, setDraft }: {
+function ServiceCard({ project, service, view, sites, sharedSet, sharedVersions, sharedImport, setSharedImport, refreshServices, draft, setDraft }: {
   project: Project;
   view: "overview" | "detail";
   service: { id: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null };
-  sites: DashboardSite[]; sharedSet: { id: string; version: number; keys: string[] } | null; sharedImport?: boolean; setSharedImport: (value: boolean) => void;
+  sites: DashboardSite[]; sharedSet: { id: string; version: number; keys: string[] } | null; sharedVersions: { id: string; version: number; keys: string[] }[]; sharedImport?: boolean; setSharedImport: (value: boolean) => void;
   refreshServices: () => void;
   draft: Record<string, string>; setDraft: (draft: Record<string, string>) => void;
 }) {
@@ -174,6 +174,11 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
   };
   const sharedKeys = sharedSet?.keys ?? [];
   const importEnabled = hasRuntimeConfiguration && (sharedImport ?? Boolean(environment.data?.configuredSharedSetId));
+  const pinnedSharedSet = environment.data?.configuredSharedSetId
+    ? sharedVersions.find(item => item.id === environment.data?.configuredSharedSetId && item.version === environment.data.configuredSharedSetVersion)
+    : undefined;
+  const effectiveSharedSet = importEnabled ? (pinnedSharedSet ?? sharedSet) : undefined;
+  const effectiveSharedKeys = effectiveSharedSet?.keys ?? [];
   const sharedSetUnchanged = Boolean(environment.data?.configuredSharedSetId && environment.data.configuredSharedSetId === sharedSet?.id && environment.data.configuredSharedSetVersion === sharedSet?.version);
   const setToSave = async () => {
     try {
@@ -292,14 +297,16 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
       <CardContent className="space-y-5 pt-4">
         {service.accessStatus !== "active" && <p className="text-sm text-red-700">{service.blockReason || "No block reason set."}</p>}
         <div className="space-y-3">
-          <div><p className="text-sm font-medium">Service environment overrides</p><p className="text-xs text-muted-foreground">Matching service keys override shared values. Existing values stay hidden; enter replacements or add keys.</p><p className="mt-1 text-xs text-muted-foreground">Service set: {environment.data?.configuredSetVersion ? `v${environment.data.configuredSetVersion}` : stagedSet ? `v${stagedSet.version} · saved, runtime not configured` : "not configured"} · Active service set: {activeInspection.data?.serviceSetVersion ? `v${activeInspection.data.serviceSetVersion}` : "not recorded"}</p></div>
+          <div><p className="text-sm font-medium">Service environment</p><p className="text-xs text-muted-foreground">Values you enter are visible here. Saved values stay write-only; enter replacements to change them.</p><p className="mt-1 text-xs text-muted-foreground">Service set: {environment.data?.configuredSetVersion ? `v${environment.data.configuredSetVersion}` : stagedSet ? `v${stagedSet.version} · saved, runtime not configured` : "not configured"} · Active service set: {activeInspection.data?.serviceSetVersion ? `v${activeInspection.data.serviceSetVersion}` : "not recorded"}</p></div>
           {sharedSet && hasRuntimeConfiguration ? <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm"><input className="mt-1" type="checkbox" checked={importEnabled} onChange={event => setSharedImport(event.target.checked)} /><span><span className="font-medium">Import shared set v{sharedSet.version}</span><span className="block text-xs text-muted-foreground">Pins {sharedKeys.length} shared key(s): {sharedKeys.join(", ") || "empty set"}. Current pin: {environment.data?.configuredSharedSetVersion ? `v${environment.data.configuredSharedSetVersion}` : "none"}. Later shared edits require an explicit refresh.</span></span></label> : sharedSet ? <p className="text-xs text-muted-foreground">Configure a runtime to import shared variables.</p> : <p className="text-xs text-muted-foreground">No shared environment set exists for production yet.</p>}
-          {importEnabled && sharedKeys.length > 0 && <div className="flex flex-wrap gap-2">{sharedKeys.map(key => <span key={key} className="rounded border px-2 py-1 font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{serviceKeys.includes(key) ? "service override" : "from shared"}</span></span>)}</div>}
-          {[...new Set([...serviceKeys, ...Object.keys(draft)])].sort().map(key => {
+          {[...new Set([...serviceKeys, ...effectiveSharedKeys, ...Object.keys(draft)])].sort().map(key => {
             const configured = serviceKeys.includes(key);
-            return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{configured ? sharedKeys.includes(key) ? "overrides shared" : "service only" : "new variable"}</span></Label><Input type="password" autoComplete="new-password" aria-label={`Value for ${key}`} placeholder={configured ? "Value hidden; enter replacement" : "Write-only value"} value={draft[key] ?? ""} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /><Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>{configured ? "Clear replacement" : "Remove"}</Button></div>;
+            const inherited = effectiveSharedKeys.includes(key);
+            const hasServiceValue = configured || key in draft;
+            const source = configured && inherited ? "service override" : configured ? "service" : inherited ? "shared · inherited" : "new service variable";
+            return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{source}</span></Label>{hasServiceValue ? <Input aria-label={`Value for ${key}`} placeholder={configured ? "Saved value hidden · enter replacement" : "Enter value"} value={draft[key] ?? ""} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /> : <p className="flex items-center text-xs text-muted-foreground">Inherited from shared set · value write-only</p>}<Button size="sm" variant="ghost" disabled={!hasServiceValue} onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>{configured ? "Clear replacement" : "Remove"}</Button></div>;
           })}
-          <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} type="password" autoComplete="new-password" placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add / override</Button></div>
+          <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add / override</Button></div>
           {Object.keys(draft).length > 0 && <p className="text-xs text-muted-foreground">Pending replacements: {Object.keys(draft).sort().join(", ")}. Saving replaces the whole service set, so reenter any existing values you want to keep.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Imported shared set: {importEnabled ? `v${sharedSet?.version}` : "none"}</p><Button size="sm" disabled={save.isPending || setupStatus.isLoading || setupStatus.isError || (!Object.keys(draft).length && importEnabled === sharedSetUnchanged)} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : setupStatus.isLoading ? "Checking runtime…" : setupStatus.isError ? "Runtime status unavailable" : hasRuntimeConfiguration ? "Save & deploy service" : "Save variables"}</Button></div>
         </div>
