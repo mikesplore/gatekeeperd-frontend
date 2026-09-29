@@ -249,7 +249,7 @@ export function useSaveSharedEnvironment(projectId: string) {
       await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
       await qc.invalidateQueries({ queryKey: ["project-services", projectId] });
       await qc.invalidateQueries({ queryKey: ["project-service-history"] });
-      await qc.invalidateQueries({ queryKey: ["service-active-deployment", projectId] });
+      await qc.invalidateQueries({ queryKey: ["service-runtime", projectId] });
       await qc.invalidateQueries({ queryKey: ["deployments"] });
       void payload;
     },
@@ -268,7 +268,7 @@ export function useSaveServiceEnvironment(projectId: string) {
       await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
       await qc.invalidateQueries({ queryKey: ["project-services", projectId] });
       await qc.invalidateQueries({ queryKey: ["project-service-history"] });
-      await qc.invalidateQueries({ queryKey: ["service-active-deployment", projectId] });
+      await qc.invalidateQueries({ queryKey: ["service-runtime", projectId] });
       await qc.invalidateQueries({ queryKey: ["deployments"] });
       void payload;
     },

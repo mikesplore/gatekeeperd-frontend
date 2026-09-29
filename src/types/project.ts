@@ -85,7 +85,7 @@ export interface ServiceAdminView { id: string; projectId: string; name: string;
 export interface EnvironmentVersionView { id: string; version: number; environment: string; keys: string[]; createdAt: string; createdBy?: string | null }
 export interface SharedEnvironmentMetadata { projectId: string; environment: string; latest?: EnvironmentVersionView | null; versions: EnvironmentVersionView[]; values: "write-only" }
 export interface ServiceEnvironmentMetadata { projectId: string; serviceId: string; environment: string; effectiveValues: Record<string, string> }
-export interface ServiceActiveDeployment { deploymentId: string; containerName?: string | null; serviceId: string; environment: string; imageName: string; imageTag: string; imageDigest?: string | null; commitSha?: string | null; activeAt?: string | null; sharedSetId?: string | null; sharedSetVersion?: number | null; serviceSetId?: string | null; serviceSetVersion?: number | null; variables: { key: string; source: string; fingerprint: string }[] }
+export interface ServiceActiveDeployment { deploymentId: string; status: string; containerName?: string | null; serviceId: string; environment: string; imageName: string; imageTag: string; imageDigest?: string | null; commitSha?: string | null; activeAt?: string | null; sharedSetId?: string | null; sharedSetVersion?: number | null; serviceSetId?: string | null; serviceSetVersion?: number | null; variables: { key: string; source: string; fingerprint: string }[] }
 
 export interface ProjectDeploymentHistoryItem {
   id: string; environment: string; sourceCommit?: string | null; imageName: string; imageTag: string;

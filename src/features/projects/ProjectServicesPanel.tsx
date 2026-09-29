@@ -119,8 +119,8 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
   const history = useQueryServiceHistory(project.slug, service.id);
   const setupStatus = useProjectSetupStatus(project.id, service.id, false);
   const activeInspection = useQuery({
-    queryKey: ["service-active-deployment", project.id, service.id],
-    queryFn: async () => (await api.get<import("@/types/project").ServiceActiveDeployment>(`/admin/projects/${project.id}/services/${service.id}/active-deployment`, { params: { environment: "production" } })).data,
+    queryKey: ["service-runtime", project.id, service.id],
+    queryFn: async () => (await api.get<import("@/types/project").ServiceActiveDeployment>(`/admin/projects/${project.id}/services/${service.id}/runtime`, { params: { environment: "production" } })).data,
     retry: false,
     refetchInterval: 15_000,
   });
@@ -283,10 +283,10 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
       </CardContent>
     </Card>
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="text-base">Running container</CardTitle></CardHeader>
+      <CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base">Deployment container</CardTitle>{activeInspection.data?.status === "ready" && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">Ready · gateway cutover pending</span>}</div></CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-3">
         <div className="min-w-0"><p className="text-xs font-medium uppercase text-muted-foreground">Container</p>{activeContainerName ? <Link className="break-all font-medium text-primary hover:underline" to={`/app/containers/${encodeURIComponent(activeContainerName)}`}>{activeContainerName}</Link> : <p className="text-sm text-muted-foreground">{activeInspection.isLoading ? "Loading…" : "No active container"}</p>}</div>
-        <div><p className="text-xs font-medium uppercase text-muted-foreground">Health</p><p className="text-sm">{activeContainer.isLoading ? "Loading…" : activeContainer.data?.health ?? (activeContainer.data?.state === "running" ? "No health check" : activeContainer.data?.state ?? "Not available")}</p></div>
+        <div><p className="text-xs font-medium uppercase text-muted-foreground">Health</p><p className="text-sm">{activeContainer.isLoading ? "Loading…" : activeInspection.data?.status === "ready" || active?.healthCheckResult === "passed" ? "Passed readiness" : activeContainer.data?.health ?? (activeContainer.data?.state === "running" ? "No health check" : activeContainer.data?.state ?? "Not available")}</p></div>
         <div><p className="text-xs font-medium uppercase text-muted-foreground">Port</p><p className="text-sm font-mono">{activeContainer.isLoading ? "Loading…" : activeContainer.data?.ports || "Not published"}</p></div>
       </CardContent>
     </Card>
