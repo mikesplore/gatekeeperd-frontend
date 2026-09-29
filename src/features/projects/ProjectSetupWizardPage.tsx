@@ -57,7 +57,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
   const [registryCredentialId, setRegistryCredentialId] = useState("");
-  const [gateway, setGateway] = useState({ domain: "", tlsMode: "https", gateEnabled: true });
+  const [gateway, setGateway] = useState({ domain: "" });
   const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
@@ -69,8 +69,6 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const loadedConfiguration = useRef("");
   const savedRuntime = status.data?.sourceRuntime;
   const savedGatewayDomain = status.data?.gateway?.domain;
-  const savedGatewayTlsMode = status.data?.gateway?.tlsMode;
-  const savedGatewayEnabled = status.data?.gateway?.gateEnabled;
   const customers = useDashboardCustomers(100);
   const createProject = useCreateProjectSetup();
   const saveRuntime = useSaveProjectSetupRuntime(projectId);
@@ -107,10 +105,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   }, [projectId, savedRuntime]);
 
   useEffect(() => {
-    if (savedGatewayDomain && savedGatewayTlsMode && savedGatewayEnabled != null) {
-      setGateway({ domain: savedGatewayDomain, tlsMode: savedGatewayTlsMode, gateEnabled: savedGatewayEnabled });
-    }
-  }, [savedGatewayDomain, savedGatewayTlsMode, savedGatewayEnabled]);
+    if (savedGatewayDomain) setGateway({ domain: savedGatewayDomain });
+  }, [savedGatewayDomain]);
 
   useEffect(() => {
     if (projectId) setStep(Math.max(1, Math.min(4, requestedStep)));
@@ -129,7 +125,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setRuntime(initialRuntime);
     setEnvText("");
     setRegistryCredentialId("");
-    setGateway({ domain: "", tlsMode: "http_only", gateEnabled: true });
+    setGateway({ domain: "" });
     setQueuedDeploymentId("");
     setAdoptContainerId("");
     setAdoptContainerPort("");
@@ -168,8 +164,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
 
   const saveGatewayStep = async () => {
     try {
-      await saveGateway.mutateAsync({ ...gateway, serviceId });
-      toast.success("Domain and gateway settings saved");
+      await saveGateway.mutateAsync({ domain: gateway.domain.trim(), serviceId });
+      toast.success("Service domain saved");
       goToStep(4);
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
@@ -284,7 +280,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                 <CardHeader><CardTitle>Domain and gateway</CardTitle><CardDescription>Set the public domain for this service. Nginx handles upstream routing, TLS, and payment gating.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2 sm:col-span-2"><Label>Service domain</Label><Input value={gateway.domain} onChange={e => setGateway({ ...gateway, domain: e.target.value })} /></div>
-                  {setup.gateway && <div className="sm:col-span-2"><Badge variant="secondary">Site saved · {setup.gateway.status}</Badge></div>}
+                  {setup.gateway && <div className="sm:col-span-2"><Badge variant="secondary">Domain saved · {setup.gateway.status}</Badge></div>}
                   <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={() => goToStep(2)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={() => goToStep(4)}>Skip for now</Button><Button disabled={saveGateway.isPending || !gateway.domain.trim()} onClick={() => void saveGatewayStep()}>{saveGateway.isPending ? "Saving…" : "Save gateway"}</Button></div></div>
                 </CardContent>
               </Card>}

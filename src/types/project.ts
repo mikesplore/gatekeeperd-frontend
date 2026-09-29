@@ -63,7 +63,7 @@ export interface ProjectSetupConfiguration {
 export interface ProjectSetupStatus {
   projectId: string; slug: string; name: string; domain: string; sourceRuntime?: ProjectSetupConfiguration | null;
   credentialsConfigured: boolean; credentialVersion?: number | null;
-  gateway?: { domain: string; tlsMode: string; gateEnabled: boolean; status: string } | null;
+  gateway?: { domain: string; status: string } | null;
   activeDeploymentId?: string | null; activeDeploymentStatus?: string | null;
   latestDeploymentId?: string | null; latestDeploymentStatus?: string | null;
 }
@@ -77,11 +77,11 @@ export interface ProjectOverview {
   accessLifecycle: { accessStatus: string; blockReason?: string | null; deploymentMode: string; serviceMode: string; lifecycleStatus: string };
   desiredConfiguration: { configurationId?: string | null; environment?: string | null; repository?: string | null; gitRef?: string | null; registry?: string | null; imageName?: string | null; imageTag?: string | null; containerPort?: number | null; envKeys: string[]; secretSetId?: string | null; secretSetVersion?: number | null };
   currentDeployment: { id?: string | null; status: string; environment: string; triggerSource?: string | null; createdAt?: string | null; activeAt?: string | null; imageName?: string | null; imageTag?: string | null; imageDigest?: string | null; commitSha?: string | null; runtimeHealth: string; runtimeUpstreamHost?: string | null; runtimeUpstreamPort?: number | null; credentialSetId?: string | null; credentialSetVersion?: number | null; secretSetId?: string | null; secretSetVersion?: number | null };
-  domainsGateway: { siteId?: string | null; domain: string; configured: boolean; tlsMode?: string | null; gateEnabled?: boolean | null; reconciliationStatus?: string | null; resolvedUpstreamHost?: string | null; resolvedUpstreamPort?: number | null };
+  domainsGateway: { siteId?: string | null; domain?: string | null; configured: boolean; tlsMode?: string | null; gateEnabled?: boolean | null; reconciliationStatus?: string | null; resolvedUpstreamHost?: string | null; resolvedUpstreamPort?: number | null };
   customerBilling: { customerId?: string | null; customerName?: string | null; customerEmail?: string | null; billingName?: string | null; billingEmail?: string | null; billingAddress?: string | null; currency: string; billed: number; paid: number; balance: number; dueDate?: string | null };
 }
 
-export interface ServiceAdminView { id: string; projectId: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null }
+export interface ServiceAdminView { id: string; projectId: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null; domain?: string | null }
 export interface EnvironmentVersionView { id: string; version: number; environment: string; keys: string[]; createdAt: string; createdBy?: string | null }
 export interface SharedEnvironmentMetadata { projectId: string; environment: string; latest?: EnvironmentVersionView | null; versions: EnvironmentVersionView[]; values: "write-only" }
 export interface ServiceEnvironmentMetadata { projectId: string; serviceId: string; environment: string; effectiveValues: Record<string, string> }

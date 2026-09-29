@@ -112,7 +112,6 @@ export function NginxPage() {
   const selectedProjectRecord = projects?.find((p) => p.slug === selectedSlug);
   const { data: selectedServices } = useProjectServices(selectedProjectRecord?.id ?? "");
   const defaultServiceId = selectedServices?.find((service) => service.isDefault)?.id ?? "";
-  const selectedDomain = selectedProjectRecord?.domain ?? "";
 
   const { data: nginxStatus, isLoading: statusLoading, refetch: refetchStatus } = useNginxStatus(selectedSlug);
   const { data: nginxConfig, refetch: refetchConfig } = useNginxConfig(selectedSlug);
@@ -125,6 +124,7 @@ export function NginxPage() {
   const [blockContent, setBlockContent] = useState("");
   const [previewedConfig, setPreviewedConfig] = useState<string | null>(null);
   const { data: wizardContext, refetch: refetchWizardContext } = useNginxWizardContext(selectedSlug, defaultServiceId);
+  const selectedDomain = wizardContext?.domain ?? "";
   const validateEnable = useValidateNginxEnable(selectedSlug);
   const enableNginx = useEnableNginx();
   const disableNginx = useDisableNginx();
@@ -308,7 +308,7 @@ export function NginxPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <InfoRow label="Domain" value={nginxStatus.domain} />
+                    <InfoRow label="Domain" value={nginxStatus.domain ?? "Not configured"} />
                     <InfoRow label="App Port" value={nginxStatus.port ? String(nginxStatus.port) : ""} />
                     <InfoRow label="Config Path" value={nginxStatus.configPath} mono />
                     <div>
@@ -513,7 +513,7 @@ export function NginxPage() {
                   <Separator />
                   {wizardContext ? (
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <InfoRow label="Domain" value={wizardContext.domain} />
+                      <InfoRow label="Domain" value={wizardContext.domain ?? "Not configured"} />
                       <InfoRow label="Resolved upstream" value={detectedContainerName ?? "No active runtime"} mono />
                       <InfoRow label="Detected Port" value={wizardContext.configuredPort ? String(wizardContext.configuredPort) : ""} />
                       <div>

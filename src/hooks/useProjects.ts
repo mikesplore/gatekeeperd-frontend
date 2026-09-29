@@ -175,7 +175,7 @@ export function useSaveProjectSetupCredentials(projectId: string) {
 export function useSaveProjectSetupGateway(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { domain: string; tlsMode: string; gateEnabled: boolean; serviceId?: string }) =>
+    mutationFn: async (payload: { domain: string; serviceId?: string }) =>
       (await api.put(`/admin/project-setup/projects/${projectId}/domain-gateway`, payload)).data,
     onSuccess: () => invalidateSetup(qc, projectId),
   });

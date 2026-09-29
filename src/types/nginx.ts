@@ -5,7 +5,7 @@ export interface NginxStatus {
   port: number;
   sslEnabled: boolean;
   certificateDomain: string | null;
-  domain: string;
+  domain: string | null;
   certificateExpiresAt?: string | null;
   certificateDaysRemaining?: number | null;
 }
@@ -43,7 +43,7 @@ export interface NginxBackup {
 export interface NginxWizardContext {
   slug: string;
   serviceId: string;
-  domain: string;
+  domain: string | null;
   nginxEnabled: boolean;
   configuredPort: number | null;
   runtimeHealth: string | null;
