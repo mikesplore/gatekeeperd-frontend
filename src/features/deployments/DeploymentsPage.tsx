@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -25,34 +26,57 @@ function statusClass(status: string) {
 
 function DeploymentDetails({ item }: { item: DeploymentHistoryItem }) {
   const [open, setOpen] = useState(false);
-  const container = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    const updatePosition = () => {
+      const rect = trigger.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = 288;
+      const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+      const roomBelow = window.innerHeight - rect.bottom;
+      const top = roomBelow > 200 ? rect.bottom + 4 : Math.max(8, rect.top - 180);
+      setPosition({ top, left });
+    };
     const dismiss = (event: PointerEvent) => {
-      if (!container.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!trigger.current?.contains(target) && !panel.current?.contains(target)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        trigger.current?.focus();
+      }
     };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     document.addEventListener("pointerdown", dismiss);
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
       document.removeEventListener("pointerdown", dismiss);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
 
-  return <div ref={container} className="relative inline-block">
-    <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)} className="cursor-pointer text-xs font-medium text-primary hover:underline">Details</button>
-    {open && <div role="dialog" aria-label="Deployment details" className="absolute right-0 z-20 mt-1 grid min-w-64 gap-1 rounded-md border bg-popover p-3 text-xs text-popover-foreground shadow-md">
-      <p>Commit: {item.sourceCommit ?? "not recorded"}</p>
-      <p>Digest: {item.imageDigest ?? "not recorded"}</p>
-      <p>Readiness: {item.healthCheckResult}{item.failureReason ? ` · ${item.failureReason}` : ""}</p>
-      <p>Credential: {item.credentialSetId ? `v${item.credentialSetVersion}` : "not recorded"}</p>
-      <p>Secrets: {item.secretSetId ? `v${item.secretSetVersion}` : "not recorded"}</p>
-    </div>}
-  </div>;
+  return <>
+    <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)} className="cursor-pointer text-xs font-medium text-primary hover:underline">Details</button>
+    {open && position && createPortal(
+      <div ref={panel} role="dialog" aria-label="Deployment details" tabIndex={-1} style={{ top: position.top, left: position.left }} className="fixed z-[100] grid w-72 gap-1 rounded-md border bg-popover p-3 text-xs text-popover-foreground shadow-lg">
+        <p>Commit: {item.sourceCommit ?? "not recorded"}</p>
+        <p>Digest: {item.imageDigest ?? "not recorded"}</p>
+        <p>Readiness: {item.healthCheckResult}{item.failureReason ? ` · ${item.failureReason}` : ""}</p>
+        <p>Credential: {item.credentialSetId ? `v${item.credentialSetVersion}` : "not recorded"}</p>
+        <p>Secrets: {item.secretSetId ? `v${item.secretSetVersion}` : "not recorded"}</p>
+      </div>,
+      document.body,
+    )}
+  </>;
 }
 
 export function DeploymentsPage() {
