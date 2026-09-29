@@ -81,7 +81,7 @@ export interface ProjectOverview {
   customerBilling: { customerId?: string | null; customerName?: string | null; customerEmail?: string | null; billingName?: string | null; billingEmail?: string | null; billingAddress?: string | null; currency: string; billed: number; paid: number; balance: number; dueDate?: string | null };
 }
 
-export interface ServiceAdminView { id: string; projectId: string; name: string; accessStatus: string; blockReason?: string | null }
+export interface ServiceAdminView { id: string; projectId: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null }
 export interface EnvironmentVersionView { id: string; version: number; environment: string; keys: string[]; createdAt: string; createdBy?: string | null }
 export interface SharedEnvironmentMetadata { projectId: string; environment: string; latest?: EnvironmentVersionView | null; versions: EnvironmentVersionView[]; values: "write-only" }
 export interface ServiceEnvironmentMetadata { projectId: string; serviceId: string; environment: string; configuredSetId?: string | null; configuredSetVersion?: number | null; configuredSharedSetId?: string | null; configuredSharedSetVersion?: number | null; versions: EnvironmentVersionView[]; values: "write-only" }

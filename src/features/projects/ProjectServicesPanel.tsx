@@ -114,7 +114,7 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
 function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, setSharedImport, refreshServices, draft, setDraft }: {
   project: Project;
   view: "overview" | "detail";
-  service: { id: string; name: string; accessStatus: string; blockReason?: string | null };
+  service: { id: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null };
   sites: DashboardSite[]; sharedSet: { id: string; version: number; keys: string[] } | null; sharedImport?: boolean; setSharedImport: (value: boolean) => void;
   refreshServices: () => void;
   draft: Record<string, string>; setDraft: (draft: Record<string, string>) => void;
@@ -244,12 +244,13 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-base">{service.name}</CardTitle>
+            {service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>Status: {formatStatus(service.accessStatus)}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">Health: {formatStatus(serviceHealth)}</span>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">{sites.length ? sites.map(site => <a className="inline-flex items-center gap-1.5 transition-colors hover:text-primary" key={site.slug} href={`${site.tlsMode === "http_only" ? "http" : "https"}://${site.domain}`} target="_blank" rel="noreferrer"><Globe className="h-3.5 w-3.5" />{site.domain}</a>) : <span>No domain attached</span>}</div>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}><Settings2 className="h-4 w-4" />Configure service</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={service.name === "default"} onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />{service.name === "default" ? "Default service name is fixed" : "Edit name"}</DropdownMenuItem><DropdownMenuItem disabled={service.name === "default"} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.name === "default" ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+        <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}><Settings2 className="h-4 w-4" />Configure service</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem><DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
       </CardContent>
     </Card>
     <Card>
