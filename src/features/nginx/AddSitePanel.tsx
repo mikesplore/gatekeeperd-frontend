@@ -18,8 +18,6 @@ interface AddSitePanelProps {
 }
 
 interface FormValues {
-  port?: number;
-  upstreamScheme?: "http" | "https";
   certificateDomain?: string;
   sslCertificatePath?: string;
   sslCertificateKeyPath?: string;
@@ -36,7 +34,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
   const context = useNginxWizardContext(slug);
   const validate = useValidateNginxEnable(slug);
   const enable = useEnableNginx();
-  const { register, handleSubmit, reset, watch } = useForm<FormValues>({ defaultValues: { upstreamScheme: "http", requireSsl: true } });
+  const { register, handleSubmit, reset, watch } = useForm<FormValues>({ defaultValues: { requireSsl: true } });
   const selectedProject = projects?.find((project) => project.slug === slug);
   const formValues = watch();
 
@@ -51,8 +49,6 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
   };
 
   const payloadFrom = (values: FormValues): EnableNginxPayload => ({
-    port: values.port,
-    upstreamScheme: values.upstreamScheme === "https" ? "https" : undefined,
     certificateDomain: values.certificateDomain || undefined,
     sslCertificatePath: values.sslCertificatePath || undefined,
     sslCertificateKeyPath: values.sslCertificateKeyPath || undefined,
@@ -65,7 +61,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
         toast.error("Choose a project to continue");
         return;
       }
-      reset({ upstreamScheme: "http", requireSsl: true });
+      reset({ requireSsl: true });
       setStep(1);
       return;
     }
@@ -133,7 +129,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border bg-muted/30 p-4"><Server className="mt-0.5 h-5 w-5 text-primary" /><div><h3 className="font-medium">Upstream connection</h3><p className="mt-1 text-sm text-muted-foreground">Choose where Nginx should forward requests for {selectedProject?.domain}.</p></div></div>
                 {context.isLoading ? <Skeleton className="h-20 w-full" /> : context.data && <div className="rounded-md border p-4 text-sm"><p className="text-xs text-muted-foreground">Resolved upstream</p><p className="mt-1 font-medium">{context.data.resolvedUpstreamHost && context.data.configuredPort ? `${context.data.resolvedUpstreamHost}:${context.data.configuredPort}` : "No active deployment runtime found"}</p><p className="mt-1 text-xs text-muted-foreground">Nginx connects to the Docker-published host port. {context.data.runtimeHealth ? `Runtime: ${context.data.runtimeHealth}` : "Deploy or attach a running service before adding its site."}</p></div>}
-                <details className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Advanced upstream overrides</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="site-port">Published host port</Label><Input id="site-port" type="number" min="1" max="65535" placeholder={String(context.data?.configuredPort ?? "")} {...register("port", { valueAsNumber: true, min: 1, max: 65535 })} /><p className="text-xs text-muted-foreground">Use the host side of Docker’s port mapping.</p></div><div className="space-y-2"><Label htmlFor="site-scheme">Upstream protocol</Label><select id="site-scheme" {...register("upstreamScheme")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="http">HTTP</option><option value="https">HTTPS</option></select></div></div></details>
+                <p className="rounded-md border p-4 text-sm">The active deployment supplies its published application port. Nginx uses HTTP to reach the container.</p>
               </section>
             )}
 
@@ -147,7 +143,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
             {step === 3 && (
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4"><Check className="mt-0.5 h-5 w-5 text-emerald-600" /><div><h3 className="font-medium">Configuration validated</h3><p className="mt-1 text-sm text-muted-foreground">Review the server block before applying it.</p></div></div>
-                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project</p><p className="mt-1 font-medium">{selectedProject?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{selectedProject?.domain}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{context.data?.configuredPort ?? formValues.port ?? "Not specified"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
+                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project</p><p className="mt-1 font-medium">{selectedProject?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{selectedProject?.domain}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{context.data?.configuredPort ?? "Not available"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
                 {validate.isPending ? <Skeleton className="h-56 w-full" /> : <pre className="max-h-[42vh] overflow-auto rounded-lg bg-muted p-4 text-xs leading-relaxed">{preview || "No preview available."}</pre>}
               </section>
             )}

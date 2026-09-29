@@ -52,8 +52,6 @@ export interface NginxWizardContext {
 }
 
 export interface EnableNginxPayload {
-  port?: number;
-  upstreamScheme?: "http" | "https";
   certificateDomain?: string;
   sslCertificatePath?: string;
   sslCertificateKeyPath?: string;

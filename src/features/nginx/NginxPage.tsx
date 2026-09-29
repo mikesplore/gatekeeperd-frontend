@@ -44,8 +44,6 @@ import { useForm } from "react-hook-form";
 import type { EnableNginxPayload } from "@/types/nginx";
 
 interface EnableFormData {
-  port?: number;
-  upstreamScheme?: "http" | "https";
   certificateDomain?: string;
   sslCertificatePath?: string;
   sslCertificateKeyPath?: string;
@@ -146,9 +144,7 @@ export function NginxPage() {
     handleSubmit: handleSubmitEnable,
     reset: resetEnable,
   } = useForm<EnableFormData>({
-    defaultValues: {
-      port: wizardContext?.configuredPort ?? undefined,
-    },
+    defaultValues: { requireSsl: true },
   });
 
   const {
@@ -160,17 +156,13 @@ export function NginxPage() {
   const openEnableDialog = () => {
     setWizardStep(0);
     setPreviewConfig(null);
-    resetEnable({
-      port: wizardContext?.configuredPort ?? undefined,
-    });
+    resetEnable({ requireSsl: true });
     setEnableDialogOpen(true);
   };
 
   const handleEnable = async (data: EnableFormData) => {
     if (!selectedSlug) return;
     const payload: EnableNginxPayload = {
-      port: data.port,
-      upstreamScheme: data.upstreamScheme,
       certificateDomain: data.certificateDomain || undefined,
       sslCertificatePath: data.sslCertificatePath || undefined,
       sslCertificateKeyPath: data.sslCertificateKeyPath || undefined,
@@ -191,8 +183,6 @@ export function NginxPage() {
   const handleValidatePreview = async (data: EnableFormData) => {
     if (!selectedSlug) return;
     const payload: EnableNginxPayload = {
-      port: data.port,
-      upstreamScheme: data.upstreamScheme,
       certificateDomain: data.certificateDomain || undefined,
       sslCertificatePath: data.sslCertificatePath || undefined,
       sslCertificateKeyPath: data.sslCertificateKeyPath || undefined,
@@ -553,53 +543,15 @@ export function NginxPage() {
                 <section className="space-y-4">
                   <div>
                     <h3 className="text-sm font-semibold tracking-wide">Upstream</h3>
-                    <p className="text-xs text-muted-foreground">
-                      How nginx reaches the application behind this site.
-                    </p>
+                    <p className="text-xs text-muted-foreground">Gatekeeperd resolves the published application port from the active deployment. Public TLS terminates at Nginx; the upstream uses HTTP.</p>
                   </div>
                   <Separator />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1">
-                        <Label htmlFor="port">App Port</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button" className="text-muted-foreground hover:text-foreground">
-                              <CircleHelp className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            The port your application listens on. Nginx will proxy requests to this port. Optional if the port is encoded in the container name (e.g. myapp:9921).
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <Input id="port" type="number" {...registerEnable("port", { valueAsNumber: true })} placeholder="e.g. 3000" />
+                  {wizardContext ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <InfoRow label="Resolved upstream" value={detectedContainerName ?? "No active runtime"} mono />
+                      <InfoRow label="Runtime health" value={containerDetectionStatus ?? "unknown"} />
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1">
-                        <Label htmlFor="upstreamScheme">Upstream Scheme</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button" className="text-muted-foreground hover:text-foreground">
-                              <CircleHelp className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Protocol the app listens on. Inferred as https for port 443, http otherwise.
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <select
-                        id="upstreamScheme"
-                        {...registerEnable("upstreamScheme")}
-                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">Auto-detect</option>
-                        <option value="http">http</option>
-                        <option value="https">https</option>
-                      </select>
-                    </div>
-                  </div>
+                  ) : <Skeleton className="h-16 w-full" />}
                 </section>
               )}
 
