@@ -43,8 +43,7 @@ function parseEnv(text: string): Record<string, string> {
 
 const initialRuntime: ProjectSetupRuntimeInput = {
   repository: "", gitRef: "main", registry: "docker.io", imageName: "", imageTag: "latest",
-  containerPort: undefined, hostPort: undefined, network: "bridge", restartPolicy: "unless-stopped",
-  environment: "production", readinessType: "http", readinessTarget: "80/", env: {},
+  network: "bridge", restartPolicy: "unless-stopped", environment: "production", env: {},
 };
 
 export function ProjectSetupWizardPage({ open, onOpenChange, projectId: providedProjectId, serviceId, initialStep = 1 }: { open?: boolean; onOpenChange?: (open: boolean) => void; projectId?: string; serviceId?: string; initialStep?: number }) {
@@ -99,8 +98,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setRuntime({
       repository: saved.repository ?? "", gitRef: saved.gitRef, registry: saved.registry,
       registryCredentialId: saved.registryCredentialId ?? null,
-      imageName: saved.imageName, imageTag: saved.imageTag, containerPort: saved.containerPort ?? undefined,
-      hostPort: saved.hostPort ?? undefined, network: saved.network, restartPolicy: saved.restartPolicy,
+      imageName: saved.imageName, imageTag: saved.imageTag,
+      network: saved.network, restartPolicy: saved.restartPolicy,
       environment: saved.environment, env: saved.env,
     });
     setEnvText(Object.entries(saved.env).map(([key, value]) => `${key}=${value}`).join("\n"));
@@ -149,7 +148,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const saveSource = async () => {
     try {
       const env = parseEnv(envText);
-      await saveRuntime.mutateAsync({ ...runtime, registryCredentialId: registryCredentialId || null, repository: runtime.repository?.trim() || null, env, serviceId });
+      await saveRuntime.mutateAsync({ ...runtime, containerPort: undefined, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, registryCredentialId: registryCredentialId || null, repository: runtime.repository?.trim() || null, env, serviceId });
       toast.success("Source and runtime settings saved");
       goToStep(2);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
@@ -259,13 +258,10 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                   <div className="space-y-2"><Label>Registry</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
                   <div className="space-y-2"><Label>Image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
-                  <div className="space-y-2"><Label>Container port</Label><Input type="number" value={runtime.containerPort ?? ""} onChange={e => setRuntime({ ...runtime, containerPort: e.target.value ? Number(e.target.value) : undefined })} placeholder="80" /><p className="text-xs text-muted-foreground">Required so the gateway can resolve the active runtime. Its host port is allocated dynamically.</p></div>
                   <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select></div>
                   <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
-                  <div className="space-y-2"><Label>Readiness probe</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.readinessType ?? "http"} onChange={e => setRuntime({ ...runtime, readinessType: e.target.value })}><option value="http">HTTP</option><option value="tcp">TCP</option><option value="process">Process running</option></select></div>
-                  <div className="space-y-2"><Label>Probe target</Label><Input value={runtime.readinessTarget ?? ""} onChange={e => setRuntime({ ...runtime, readinessTarget: e.target.value })} placeholder="80/" /></div>
-                  <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder={"NODE_ENV=production\nPORT=80"} /><p className="text-xs text-muted-foreground">Use this for ordinary app settings. Put passwords, API keys, and other sensitive values in Credentials.</p></div>
-                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName || !runtime.containerPort || runtime.containerPort < 1 || runtime.containerPort > 65535} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
+                  <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Use this for ordinary app settings. Put passwords, API keys, and other sensitive values in Credentials.</p></div>
+                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card></>}
 
