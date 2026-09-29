@@ -275,6 +275,24 @@ export function useSaveServiceEnvironment(projectId: string) {
   });
 }
 
+export function useDeleteServiceEnvironmentVariable(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ serviceId, environment, key }: { serviceId: string; environment: string; key: string }) =>
+      (await api.delete<{ setId: string; version: number; deploymentIds: string[] }>(`/admin/projects/${projectId}/services/${serviceId}/environment/${encodeURIComponent(key)}`, { params: { environment } })).data,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
+      invalidateSetup(qc, projectId);
+      await qc.invalidateQueries({ queryKey: ["project-overview"] });
+      await qc.invalidateQueries({ queryKey: ["project-deployment-history"] });
+      await qc.invalidateQueries({ queryKey: ["project-services", projectId] });
+      await qc.invalidateQueries({ queryKey: ["project-service-history"] });
+      await qc.invalidateQueries({ queryKey: ["service-active-deployment", projectId] });
+      await qc.invalidateQueries({ queryKey: ["deployments"] });
+    },
+  });
+}
+
 export function useProjectDeploymentHistory(slug: string) {
   return useQuery({
     queryKey: ["project-deployment-history", slug],

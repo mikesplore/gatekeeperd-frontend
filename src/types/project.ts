@@ -84,7 +84,7 @@ export interface ProjectOverview {
 export interface ServiceAdminView { id: string; projectId: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null }
 export interface EnvironmentVersionView { id: string; version: number; environment: string; keys: string[]; createdAt: string; createdBy?: string | null }
 export interface SharedEnvironmentMetadata { projectId: string; environment: string; latest?: EnvironmentVersionView | null; versions: EnvironmentVersionView[]; values: "write-only" }
-export interface ServiceEnvironmentMetadata { projectId: string; serviceId: string; environment: string; configuredSetId?: string | null; configuredSetVersion?: number | null; configuredSharedSetId?: string | null; configuredSharedSetVersion?: number | null; versions: EnvironmentVersionView[]; values: "write-only" }
+export interface ServiceEnvironmentMetadata { projectId: string; serviceId: string; environment: string; configuredSetId?: string | null; configuredSetVersion?: number | null; configuredSharedSetId?: string | null; configuredSharedSetVersion?: number | null; versions: EnvironmentVersionView[]; effectiveVariables: { key: string; source: "service" | "project_shared" }[]; values: "write-only" }
 export interface ServiceActiveDeployment { deploymentId: string; containerName?: string | null; serviceId: string; environment: string; imageName: string; imageTag: string; imageDigest?: string | null; commitSha?: string | null; activeAt?: string | null; sharedSetId?: string | null; sharedSetVersion?: number | null; serviceSetId?: string | null; serviceSetVersion?: number | null; variables: { key: string; source: string; fingerprint: string }[] }
 
 export interface ProjectDeploymentHistoryItem {

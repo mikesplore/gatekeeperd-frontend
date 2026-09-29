@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useContainer, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata } from "@/hooks/useProjects";
+import { useContainer, useDeleteServiceEnvironmentVariable, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata } from "@/hooks/useProjects";
 import type { Project } from "@/types/project";
 import type { DashboardSite } from "@/types/sites";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
@@ -132,8 +132,10 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedVersions,
   const activeContainerName = activeInspection.data?.containerName ?? "";
   const activeContainer = useContainer(activeContainerName);
   const save = useSaveServiceEnvironment(project.id);
+  const deleteEnvironmentVariable = useDeleteServiceEnvironmentVariable(project.id);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
+  const [variableToDelete, setVariableToDelete] = useState<string | null>(null);
   const [blockReason, setBlockReason] = useState(service.blockReason ?? "");
   const [blockReasonCode, setBlockReasonCode] = useState("");
   const [blocking, setBlocking] = useState(false);
@@ -148,7 +150,10 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedVersions,
   const configuredSet = environment.data?.versions.find(item => item.id === environment.data.configuredSetId && item.version === environment.data.configuredSetVersion);
   const hasRuntimeConfiguration = Boolean(setupStatus.data?.sourceRuntime);
   const stagedSet = !hasRuntimeConfiguration && !environment.data?.configuredSetId ? environment.data?.versions[0] : undefined;
-  const serviceKeys = configuredSet?.keys ?? stagedSet?.keys ?? [];
+  const serviceKeys = [...new Set([
+    ...(configuredSet?.keys ?? stagedSet?.keys ?? environment.data?.versions[0]?.keys ?? []),
+    ...(environment.data?.effectiveVariables?.filter(variable => variable.source === "service").map(variable => variable.key) ?? []),
+  ])].sort();
   const serviceHealth = sites.find(site => site.runtimeHealth)?.runtimeHealth ?? active?.healthCheckResult ?? latestDeployment?.healthCheckResult ?? latestDeployment?.status ?? "not deployed";
   const saveServiceName = async () => {
     const name = serviceName.trim();
@@ -179,6 +184,10 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedVersions,
     : undefined;
   const effectiveSharedSet = importEnabled ? (pinnedSharedSet ?? sharedSet) : undefined;
   const effectiveSharedKeys = effectiveSharedSet?.keys ?? [];
+  const configuredSharedKeys = environment.data?.effectiveVariables?.filter(variable => variable.source === "project_shared").map(variable => variable.key) ?? [];
+  const activeVariables = activeInspection.data?.variables ?? [];
+  const activeKeys = activeVariables.map(variable => variable.key);
+  const visibleKeys = [...new Set([...serviceKeys, ...configuredSharedKeys, ...effectiveSharedKeys, ...activeKeys, ...Object.keys(draft)])].sort();
   const sharedSetUnchanged = Boolean(environment.data?.configuredSharedSetId && environment.data.configuredSharedSetId === sharedSet?.id && environment.data.configuredSharedSetVersion === sharedSet?.version);
   const setToSave = async () => {
     try {
@@ -299,20 +308,24 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedVersions,
         <div className="space-y-3">
           <div><p className="text-sm font-medium">Service environment</p><p className="text-xs text-muted-foreground">Values you enter are visible here. Saved values stay write-only; enter replacements to change them.</p><p className="mt-1 text-xs text-muted-foreground">Service set: {environment.data?.configuredSetVersion ? `v${environment.data.configuredSetVersion}` : stagedSet ? `v${stagedSet.version} · saved, runtime not configured` : "not configured"} · Active service set: {activeInspection.data?.serviceSetVersion ? `v${activeInspection.data.serviceSetVersion}` : "not recorded"}</p></div>
           {sharedSet && hasRuntimeConfiguration ? <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm"><input className="mt-1" type="checkbox" checked={importEnabled} onChange={event => setSharedImport(event.target.checked)} /><span><span className="font-medium">Import shared set v{sharedSet.version}</span><span className="block text-xs text-muted-foreground">Pins {sharedKeys.length} shared key(s): {sharedKeys.join(", ") || "empty set"}. Current pin: {environment.data?.configuredSharedSetVersion ? `v${environment.data.configuredSharedSetVersion}` : "none"}. Later shared edits require an explicit refresh.</span></span></label> : sharedSet ? <p className="text-xs text-muted-foreground">Configure a runtime to import shared variables.</p> : <p className="text-xs text-muted-foreground">No shared environment set exists for production yet.</p>}
-          {[...new Set([...serviceKeys, ...effectiveSharedKeys, ...Object.keys(draft)])].sort().map(key => {
+          {visibleKeys.map(key => {
             const configured = serviceKeys.includes(key);
-            const inherited = effectiveSharedKeys.includes(key);
+            const inherited = configuredSharedKeys.includes(key) || effectiveSharedKeys.includes(key);
+            const activeVariable = activeVariables.find(variable => variable.key === key);
             const hasServiceValue = configured || key in draft;
-            const source = configured && inherited ? "service override" : configured ? "service" : inherited ? "shared · inherited" : "new service variable";
-            return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{source}</span></Label>{hasServiceValue ? <Input aria-label={`Value for ${key}`} placeholder={configured ? "Saved value hidden · enter replacement" : "Enter value"} value={draft[key] ?? ""} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /> : <p className="flex items-center text-xs text-muted-foreground">Inherited from shared set · value write-only</p>}<Button size="sm" variant="ghost" disabled={!hasServiceValue} onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>{configured ? "Clear replacement" : "Remove"}</Button></div>;
+            const source = configured && inherited ? "service override" : configured ? "service" : inherited ? "shared · inherited" : activeVariable ? `active ${activeVariable.source === "project_shared" ? "shared" : "service"} · saved config differs` : "new service variable";
+            return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{source}</span></Label>{hasServiceValue ? <Input aria-label={`Value for ${key}`} placeholder={configured ? "Saved value hidden · enter replacement" : "Enter value"} value={draft[key] ?? ""} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /> : <p className="flex items-center text-xs text-muted-foreground">{activeVariable ? "Present in active deployment · value write-only" : "Inherited from shared set · value write-only"}</p>}{configured ? <Button size="sm" variant="ghost" disabled={deleteEnvironmentVariable.isPending} onClick={() => draft[key] !== undefined ? setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key))) : setVariableToDelete(key)}>{draft[key] !== undefined ? "Clear edit" : "Delete"}</Button> : key in draft ? <Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>Remove</Button> : <span />}</div>;
           })}
           <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add / override</Button></div>
-          {Object.keys(draft).length > 0 && <p className="text-xs text-muted-foreground">Pending replacements: {Object.keys(draft).sort().join(", ")}. Saving replaces the whole service set, so reenter any existing values you want to keep.</p>}
+          {Object.keys(draft).length > 0 && <p className="text-xs text-muted-foreground">Pending changes: {Object.keys(draft).sort().join(", ")}. Other saved variables are kept.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Imported shared set: {importEnabled ? `v${sharedSet?.version}` : "none"}</p><Button size="sm" disabled={save.isPending || setupStatus.isLoading || setupStatus.isError || (!Object.keys(draft).length && importEnabled === sharedSetUnchanged)} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : setupStatus.isLoading ? "Checking runtime…" : setupStatus.isError ? "Runtime status unavailable" : hasRuntimeConfiguration ? "Save & deploy service" : "Save variables"}</Button></div>
         </div>
       </CardContent>
     </Card>
     {blockDialog}
+    <AlertDialog open={variableToDelete !== null} onOpenChange={open => { if (!deleteEnvironmentVariable.isPending && !open) setVariableToDelete(null); }}>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {variableToDelete}?</AlertDialogTitle><AlertDialogDescription>This removes the service override and creates a new encrypted environment version. A deployment will be queued if this service has a runtime configuration. Other saved values are preserved.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleteEnvironmentVariable.isPending}>Cancel</AlertDialogCancel><AlertDialogAction disabled={deleteEnvironmentVariable.isPending} onClick={event => { event.preventDefault(); if (!variableToDelete) return; void deleteEnvironmentVariable.mutateAsync({ serviceId: service.id, environment: "production", key: variableToDelete }).then(result => { setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== variableToDelete))); toast.success(result.deploymentIds.length ? `${variableToDelete} deleted; deployment queued.` : `${variableToDelete} deleted from saved variables.`); setVariableToDelete(null); }).catch(error => toast.error(getApiErrorMessage(error))); }}>{deleteEnvironmentVariable.isPending ? "Deleting…" : "Delete variable"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+    </AlertDialog>
     <Dialog open={editOpen} onOpenChange={open => { if (!serviceActionPending) setEditOpen(open); }}>
       <DialogContent><DialogHeader><DialogTitle>Rename service</DialogTitle><DialogDescription>Choose a name for this service within {project.name}.</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor={`service-name-${service.id}`}>Service name</Label><Input id={`service-name-${service.id}`} value={serviceName} onChange={event => setServiceName(event.target.value)} autoFocus /></div><DialogFooter><Button variant="outline" disabled={serviceActionPending} onClick={() => setEditOpen(false)}>Cancel</Button><Button disabled={serviceActionPending || !serviceName.trim() || serviceName.trim() === service.name} onClick={() => void saveServiceName()}>{serviceActionPending ? "Saving…" : "Save name"}</Button></DialogFooter></DialogContent>
     </Dialog>
