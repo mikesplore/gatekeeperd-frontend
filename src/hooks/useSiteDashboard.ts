@@ -17,13 +17,15 @@ export function useDeleteDashboardSite() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: (slug: string) => api.delete(`/admin/dashboard/sites/${encodeURIComponent(slug)}`), onSuccess: (_data, slug) => { queryClient.invalidateQueries({ queryKey: ["dashboard"] }); queryClient.invalidateQueries({ queryKey: ["projects"] }); queryClient.removeQueries({ queryKey: ["dashboard", "site", slug] }); } });
 }
-export function useDeadConfigs() { return useQuery({ queryKey: ["dashboard", "dead-configs"], queryFn: async () => (await api.get<DashboardSite[]>("/admin/dashboard/dead-configs")).data }); }
+export interface NginxConfigArtifact { filename: string; domains: string[]; available: boolean; enabled: boolean; managed: boolean; tracked: boolean; orphaned: boolean; projectId?: string | null; serviceId?: string | null; siteId?: string | null; }
+export function useDeadConfigs() { return useQuery({ queryKey: ["nginx", "config-artifacts"], queryFn: async () => (await api.get<NginxConfigArtifact[]>("/admin/nginx/configs")).data }); }
 export function useDeleteDeadConfig() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (filename: string) => api.delete(`/admin/dashboard/dead-configs/${encodeURIComponent(filename)}`, { data: { confirm: true } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard", "dead-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["nginx", "config-artifacts"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "sites"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "summary"] });
     },
