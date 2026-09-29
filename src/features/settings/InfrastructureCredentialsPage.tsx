@@ -22,6 +22,7 @@ export function InfrastructureCredentialsPage() {
   const [tab, setTab] = useState<CredentialTab>("registry");
   const [panel, setPanel] = useState<CredentialPanel>(null);
   const [registry, setRegistry] = useState("");
+  const [registryAction, setRegistryAction] = useState<"connect" | "rotate">("connect");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -35,6 +36,7 @@ export function InfrastructureCredentialsPage() {
   });
   const history = useMemo(() => [...(credentials.data ?? [])].sort((a, b) => a.provider.localeCompare(b.provider) || a.scope.localeCompare(b.scope) || b.version - a.version), [credentials.data]);
   const providers = useMemo(() => [...new Set(history.map(item => item.provider))].sort(), [history]);
+  const currentDockerHubCredential = credentials.data?.find(item => item.provider === "docker" && item.type === "registry" && item.scope === "docker.io" && item.current);
   const columns = useMemo<DataTableColumn<ProviderCredentialMetadata>[]>(() => [
     { key: "credential", header: "Credential", searchable: true, searchValue: item => `${item.displayName ?? ""} ${item.scope} ${item.provider} ${item.type}`, sortable: true, sortValue: item => item.displayName || item.scope, render: item => <div className="min-w-0"><p className="font-medium">{item.displayName || item.scope}</p><p className="break-words text-xs text-muted-foreground">{item.type} · {item.scope}</p></div> },
     { key: "provider", header: "Provider", searchable: true, searchValue: item => item.provider, sortable: true, sortValue: item => item.provider, render: item => <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">{item.provider}</span> },
@@ -55,7 +57,7 @@ export function InfrastructureCredentialsPage() {
       setUsername("");
       setPassword("");
       await queryClient.invalidateQueries({ queryKey: ["provider-credentials-metadata"] });
-      toast.success("Registry credential rotated");
+      toast.success(registryAction === "rotate" ? "Docker Hub token rotated" : "Docker Hub connected");
       setRegistry("");
       setUsername("");
       setPassword("");
@@ -96,10 +98,9 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="registry">
         <Card>
-          <CardHeader className="border-b pb-4"><CardDescription>Connect a Docker Hub account for private image pulls. Provider connections are separate from service .env variables.</CardDescription></CardHeader>
-          <CardContent className="flex flex-col gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-xl text-sm text-muted-foreground">Connect a Docker Hub username and access token. You can assign the connection to a service in that service’s deployment setup. Previous versions remain available in history.</p>
-            <Button className="shrink-0" onClick={() => { setRegistry("docker.io"); setPanel("registry"); }}><RotateCw className="h-4 w-4" />Connect Docker Hub</Button>
+          <CardHeader className="border-b pb-4"><CardDescription>Manage Docker Hub access for private image pulls. Provider credentials are separate from service environment variables.</CardDescription></CardHeader>
+          <CardContent className="pt-5">
+            {credentials.isLoading ? <p className="text-sm text-muted-foreground">Checking Docker Hub connection…</p> : credentials.isError ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-destructive">{getApiErrorMessage(credentials.error)}</p><Button variant="outline" size="sm" onClick={() => void credentials.refetch()}>Retry</Button></div> : currentDockerHubCredential ? <div className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"><div className="space-y-1"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" /><p className="font-medium">Docker Hub connected</p></div><p className="text-sm text-foreground/80">{currentDockerHubCredential.displayName}</p><p className="text-xs text-muted-foreground">{currentDockerHubCredential.scope} · version {currentDockerHubCredential.version} · added {new Date(currentDockerHubCredential.createdAt).toLocaleString()}</p><p className="text-xs text-muted-foreground">Assign this connection to a service in its deployment settings. Previous credential versions remain in history.</p></div><Button variant="outline" className="shrink-0" onClick={() => { setRegistry(currentDockerHubCredential.scope); setUsername(currentDockerHubCredential.displayName); setPassword(""); setRegistryAction("rotate"); setPanel("registry"); }}><RotateCw className="h-4 w-4" />Rotate token</Button></div> : <div className="flex flex-col gap-4 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">Docker Hub is not connected</p><p className="mt-1 text-sm text-muted-foreground">Connect a Docker Hub username and access token, then assign the connection to a service for private image pulls.</p></div><Button className="shrink-0" onClick={() => { setRegistry("docker.io"); setUsername(""); setPassword(""); setRegistryAction("connect"); setPanel("registry"); }}><RotateCw className="h-4 w-4" />Connect Docker Hub</Button></div>}
           </CardContent>
         </Card>
       </TabsContent>
@@ -144,7 +145,7 @@ export function InfrastructureCredentialsPage() {
             <div className="space-y-1.5"><Label htmlFor="registry-username">Docker Hub username</Label><Input id="registry-username" autoComplete="off" value={username} onChange={event => setUsername(event.target.value)} required /></div>
             <div className="space-y-1.5"><Label htmlFor="registry-password">Docker Hub access token</Label><Input id="registry-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} required /><p className="text-xs text-muted-foreground">Use a Docker Hub personal access token with read access to the required repositories.</p></div>
           </div>
-          <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={saving || !registry.trim() || !username.trim() || !password}>{saving ? "Saving…" : "Connect account"}</Button></SidePanelFooter>
+          <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={saving || !registry.trim() || !username.trim() || !password}>{saving ? "Saving…" : registryAction === "rotate" ? "Rotate token" : "Connect account"}</Button></SidePanelFooter>
         </form> : panel === "github-webhook" ? <form className="flex min-h-0 flex-col" onSubmit={event => void rotateGithub(event, "webhook_secret", githubWebhookSecret)}>
           <div className="flex-1 space-y-4 overflow-y-auto p-6"><div className="space-y-1.5"><Label htmlFor="github-webhook-secret">New webhook secret</Label><Input id="github-webhook-secret" type="password" autoComplete="new-password" autoFocus placeholder="Enter a new webhook secret" value={githubWebhookSecret} onChange={event => setGithubWebhookSecret(event.target.value)} required /></div><p className="text-xs text-muted-foreground">GitHub uses this value to sign webhook requests.</p></div>
           <SidePanelFooter className="border-t p-6 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setPanel(null)}>Cancel</Button><Button type="submit" disabled={savingGithub || !githubWebhookSecret}>{savingGithub ? "Saving…" : "Save webhook secret"}</Button></SidePanelFooter>
