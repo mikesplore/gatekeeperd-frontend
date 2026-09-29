@@ -42,6 +42,7 @@ export interface NginxBackup {
 
 export interface NginxWizardContext {
   slug: string;
+  serviceId: string;
   domain: string;
   nginxEnabled: boolean;
   configuredPort: number | null;
@@ -52,6 +53,7 @@ export interface NginxWizardContext {
 }
 
 export interface EnableNginxPayload {
+  serviceId?: string;
   certificateDomain?: string;
   sslCertificatePath?: string;
   sslCertificateKeyPath?: string;

@@ -68,12 +68,12 @@ export function useNginxRollback(slug: string) {
   });
 }
 
-export function useNginxWizardContext(slug: string) {
+export function useNginxWizardContext(slug: string, serviceId: string) {
   return useQuery({
-    queryKey: ["nginx", "wizard", slug],
+    queryKey: ["nginx", "wizard", slug, serviceId],
     queryFn: async () =>
-      (await api.get<NginxWizardContext>(`/admin/nginx/wizard/context/${slug}`)).data,
-    enabled: !!slug,
+      (await api.get<NginxWizardContext>(`/admin/nginx/wizard/context/${slug}`, { params: { serviceId } })).data,
+    enabled: !!slug && !!serviceId,
   });
 }
 

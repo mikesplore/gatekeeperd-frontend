@@ -20,7 +20,7 @@ import {
   useNginxVersions,
   useNginxRollback,
 } from "@/hooks/useNginx";
-import { useProjects } from "@/hooks/useProjects";
+import { useProjectServices, useProjects } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,7 +109,10 @@ export function NginxPage() {
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [previewConfig, setPreviewConfig] = useState<string | null>(null);
-  const selectedDomain = projects?.find((p) => p.slug === selectedSlug)?.domain ?? "";
+  const selectedProjectRecord = projects?.find((p) => p.slug === selectedSlug);
+  const { data: selectedServices } = useProjectServices(selectedProjectRecord?.id ?? "");
+  const defaultServiceId = selectedServices?.find((service) => service.isDefault)?.id ?? "";
+  const selectedDomain = selectedProjectRecord?.domain ?? "";
 
   const { data: nginxStatus, isLoading: statusLoading, refetch: refetchStatus } = useNginxStatus(selectedSlug);
   const { data: nginxConfig, refetch: refetchConfig } = useNginxConfig(selectedSlug);
@@ -121,7 +124,7 @@ export function NginxPage() {
   const [editingBlock, setEditingBlock] = useState<number | null>(null);
   const [blockContent, setBlockContent] = useState("");
   const [previewedConfig, setPreviewedConfig] = useState<string | null>(null);
-  const { data: wizardContext, refetch: refetchWizardContext } = useNginxWizardContext(selectedSlug);
+  const { data: wizardContext, refetch: refetchWizardContext } = useNginxWizardContext(selectedSlug, defaultServiceId);
   const validateEnable = useValidateNginxEnable(selectedSlug);
   const enableNginx = useEnableNginx();
   const disableNginx = useDisableNginx();
@@ -163,6 +166,7 @@ export function NginxPage() {
   const handleEnable = async (data: EnableFormData) => {
     if (!selectedSlug) return;
     const payload: EnableNginxPayload = {
+      serviceId: defaultServiceId || undefined,
       certificateDomain: data.certificateDomain || undefined,
       sslCertificatePath: data.sslCertificatePath || undefined,
       sslCertificateKeyPath: data.sslCertificateKeyPath || undefined,
@@ -183,6 +187,7 @@ export function NginxPage() {
   const handleValidatePreview = async (data: EnableFormData) => {
     if (!selectedSlug) return;
     const payload: EnableNginxPayload = {
+      serviceId: defaultServiceId || undefined,
       certificateDomain: data.certificateDomain || undefined,
       sslCertificatePath: data.sslCertificatePath || undefined,
       sslCertificateKeyPath: data.sslCertificateKeyPath || undefined,
