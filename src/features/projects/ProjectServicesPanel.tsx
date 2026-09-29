@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -133,6 +133,8 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
   const save = useSaveServiceEnvironment(project.id);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
+  const [envImportText, setEnvImportText] = useState("");
+  const envFileInput = useRef<HTMLInputElement>(null);
   const [blockReason, setBlockReason] = useState(service.blockReason ?? "");
   const [blockReasonCode, setBlockReasonCode] = useState("");
   const [blocking, setBlocking] = useState(false);
@@ -181,6 +183,18 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
       setDraft({});
       toast.success(`Service variables saved as v${result.version}; deployment queued.`);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
+  };
+
+  const importEnvText = (text: string) => {
+    try {
+      const values = parseEnvContent(text);
+      if (!Object.keys(values).length) throw new Error("No KEY=value entries found.");
+      setDraft({ ...draft, ...values });
+      setEnvImportText("");
+      toast.success(`Added ${Object.keys(values).length} variable(s) to the pending changes.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not parse environment variables.");
+    }
   };
 
   const toggleBlock = async () => {
@@ -266,6 +280,22 @@ function ServiceCard({ project, service, view, sites, sharedSet, sharedImport, s
         {service.accessStatus !== "active" && <p className="text-sm text-red-700">{service.blockReason || "No block reason set."}</p>}
         <div className="space-y-3">
           <div><p className="text-sm font-medium">Service environment overrides</p><p className="text-xs text-muted-foreground">Matching service keys override shared values. Existing values stay hidden; enter replacements or add keys.</p><p className="mt-1 text-xs text-muted-foreground">Configured service set: {environment.data?.configuredSetVersion ? `v${environment.data.configuredSetVersion}` : "not configured"} · Active service set: {activeInspection.data?.serviceSetVersion ? `v${activeInspection.data.serviceSetVersion}` : "not recorded"}</p></div>
+          <div className="space-y-2 rounded-md border p-3">
+            <Label htmlFor={`env-import-${service.id}`}>Paste multiple variables or upload a .env file</Label>
+            <Textarea id={`env-import-${service.id}`} rows={4} value={envImportText} onChange={event => setEnvImportText(event.target.value)} placeholder={'DATABASE_URL=...\nAPI_KEY="..."\n# blank lines and comments are okay'} className="font-mono text-xs" />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => importEnvText(envImportText)} disabled={!envImportText.trim()}>Add pasted variables</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => envFileInput.current?.click()}>Upload .env file</Button>
+              <input ref={envFileInput} type="file" accept=".env,text/plain" className="hidden" aria-label="Upload .env file" onChange={async event => {
+                const input = event.currentTarget;
+                const file = input.files?.[0];
+                if (!file) return;
+                try { importEnvText(await file.text()); }
+                finally { input.value = ""; }
+              }} />
+            </div>
+            <p className="text-xs text-muted-foreground">Values are read in your browser and added to the pending changes. They are never displayed after import; save and deploy when ready.</p>
+          </div>
           {sharedSet ? <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm"><input className="mt-1" type="checkbox" checked={importEnabled} onChange={event => setSharedImport(event.target.checked)} /><span><span className="font-medium">Import shared set v{sharedSet.version}</span><span className="block text-xs text-muted-foreground">Pins {sharedKeys.length} shared key(s): {sharedKeys.join(", ") || "empty set"}. Current pin: {environment.data?.configuredSharedSetVersion ? `v${environment.data.configuredSharedSetVersion}` : "none"}. Later shared edits require an explicit refresh.</span></span></label> : <p className="text-xs text-muted-foreground">No shared environment set exists for production yet.</p>}
           {importEnabled && sharedKeys.length > 0 && <div className="flex flex-wrap gap-2">{sharedKeys.map(key => <span key={key} className="rounded border px-2 py-1 font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{serviceKeys.includes(key) ? "service override" : "from shared"}</span></span>)}</div>}
           {serviceKeys.map(key => <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}<span className="ml-2 text-muted-foreground">{sharedKeys.includes(key) ? "overrides shared" : "service only"}</span></Label><Input type="password" autoComplete="new-password" placeholder="Value hidden; enter replacement" value={draft[key] ?? ""} onChange={event => setDraft({ ...draft, [key]: event.target.value })} /><Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>Clear replacement</Button></div>)}
@@ -306,6 +336,40 @@ function validateDraft(draft: Record<string, string>) {
     if (value.includes("\u0000")) throw new Error(`Invalid value for ${key}`);
   }
   return draft;
+}
+
+function parseEnvContent(content: string) {
+  const values: Record<string, string> = {};
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    let line = lines[index].trim();
+    if (!line || line.startsWith("#")) continue;
+    if (line.startsWith("export ")) line = line.slice(7).trimStart();
+    const equalsAt = line.indexOf("=");
+    if (equalsAt < 1) throw new Error(`Invalid .env entry on line ${index + 1}; expected KEY=value.`);
+    const key = line.slice(0, equalsAt).trim();
+    if (!isVariableName(key)) throw new Error(`Invalid variable name on line ${index + 1}: ${key || "(empty)"}`);
+    let value = line.slice(equalsAt + 1).trim();
+    if (value.startsWith("'") || value.startsWith('"')) {
+      const quote = value[0];
+      let closingQuote = -1;
+      for (let cursor = value.length - 1; cursor > 0; cursor -= 1) {
+        if (value[cursor] !== quote) continue;
+        let backslashes = 0;
+        for (let previous = cursor - 1; previous >= 0 && value[previous] === "\\"; previous -= 1) backslashes += 1;
+        if (backslashes % 2 === 0) { closingQuote = cursor; break; }
+      }
+      if (closingQuote < 1 || value.slice(closingQuote + 1).trim().replace(/^#.*$/, "").trim()) {
+        throw new Error(`Unclosed or malformed quoted value on line ${index + 1}.`);
+      }
+      value = value.slice(1, closingQuote);
+    } else {
+      value = value.replace(/\s+#.*$/, "").trimEnd();
+    }
+    if (value.includes("\u0000")) throw new Error(`Invalid value on line ${index + 1}.`);
+    values[key] = value;
+  }
+  return values;
 }
 
 function isVariableName(value: string) { return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value); }
