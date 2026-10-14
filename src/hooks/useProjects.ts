@@ -159,7 +159,10 @@ export function useSaveProjectSetupRuntime(projectId: string) {
   return useMutation({
     mutationFn: async (payload: ProjectSetupRuntimeInput) =>
       (await api.put(`/admin/project-setup/projects/${projectId}/source-runtime`, payload)).data,
-    onSuccess: () => invalidateSetup(qc, projectId),
+    onSuccess: () => {
+      invalidateSetup(qc, projectId);
+      qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
+    },
   });
 }
 
@@ -185,7 +188,12 @@ export function useDeployProjectSetup(projectId: string, serviceId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => (await api.post<{ deploymentId: string; status: string }>(`/admin/project-setup/projects/${projectId}/deploy`, null, { params: { serviceId } })).data,
-    onSuccess: () => { invalidateSetup(qc, projectId); qc.invalidateQueries({ queryKey: ["deployments"] }); },
+    onSuccess: () => {
+      invalidateSetup(qc, projectId);
+      qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
+      qc.invalidateQueries({ queryKey: ["service-runtime", projectId] });
+      qc.invalidateQueries({ queryKey: ["deployments"] });
+    },
   });
 }
 

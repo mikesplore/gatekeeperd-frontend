@@ -132,7 +132,7 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
   const save = useSaveServiceEnvironment(project.id);
   const [removedKeys, setRemovedKeys] = useState<string[]>([]);
   const [environmentDirty, setEnvironmentDirty] = useState(false);
-  const usedSavedValuesFallback = useRef(false);
+  const lastSyncedEnvironment = useRef("");
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
   const [blockReason, setBlockReason] = useState(service.blockReason ?? "");
@@ -149,12 +149,14 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
   const hasRuntimeConfiguration = Boolean(setupStatus.data?.sourceRuntime);
   const currentValues = environment.data?.effectiveValues ?? {};
   const serviceKeys = Object.keys(currentValues);
+  const environmentValues = environment.data?.effectiveValues;
+  const environmentSignature = environmentValues ? JSON.stringify(environmentValues) : "";
   useEffect(() => {
-    if (!usedSavedValuesFallback.current && environment.data?.effectiveValues) {
-      setDraft(Object.keys(draft).length ? draft : environment.data.effectiveValues);
-      usedSavedValuesFallback.current = true;
-    }
-  }, [environment.data?.effectiveValues, draft, setDraft]);
+    if (!environmentValues || environmentDirty || lastSyncedEnvironment.current === environmentSignature) return;
+    lastSyncedEnvironment.current = environmentSignature;
+    setDraft(environmentValues);
+    setRemovedKeys([]);
+  }, [environmentDirty, environmentSignature, environmentValues, setDraft]);
   const serviceHealth = sites.find(site => site.runtimeHealth)?.runtimeHealth ?? active?.healthCheckResult ?? latestDeployment?.healthCheckResult ?? latestDeployment?.status ?? "not deployed";
   const saveServiceName = async () => {
     const name = serviceName.trim();
