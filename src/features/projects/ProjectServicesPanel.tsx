@@ -14,6 +14,7 @@ import type { DashboardSite } from "@/types/sites";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type HistoryResponse = { projectId: string; environment: string; items: { id: string; serviceId?: string; status: string; createdAt: string; activeAt?: string | null; imageName: string; imageTag: string; imageDigest?: string | null; sourceCommit?: string | null; healthCheckResult: string }[] };
 export function ProjectServicesPanel({ project, view = "overview", serviceId }: { project: Project; view?: "overview" | "settings" | "detail"; serviceId?: string }) {
+  const queryClient = useQueryClient();
   const servicesQuery = useProjectServices(project.id);
   const sitesQuery = useDashboardSites("all", 500, 0);
   const sharedMetadata = useSharedEnvironmentMetadata(project.id);
@@ -71,14 +73,14 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
         {servicesQuery.isLoading && <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>}
         {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
         {!servicesQuery.isLoading && !servicesQuery.isError && servicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No services are configured for this project.</p>}
-        {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={() => servicesQuery.refetch()} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
+        {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
       </CardContent>
     </Card>}
     {view === "detail" && <>
       {servicesQuery.isLoading && <Skeleton className="h-32 w-full" />}
       {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
       {!servicesQuery.isLoading && !servicesQuery.isError && !(servicesQuery.data ?? []).some(service => service.id === serviceId) && <Alert><AlertTitle>Service not found</AlertTitle><AlertDescription>This service does not belong to this project.</AlertDescription></Alert>}
-      {(servicesQuery.data ?? []).filter(service => service.id === serviceId).map(service => <ServiceCard key={service.id} project={project} service={service} view="detail" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={() => servicesQuery.refetch()} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
+      {(servicesQuery.data ?? []).filter(service => service.id === serviceId).map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="detail" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
     </>}
   </div>;
 }
@@ -106,9 +108,10 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
   </Card>;
 }
 
-function ServiceCard({ project, service, view, sites, refreshServices, draft, setDraft }: {
+function ServiceCard({ project, service, serviceCount, view, sites, refreshServices, draft, setDraft }: {
   project: Project;
   view: "overview" | "detail";
+  serviceCount: number;
   service: { id: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null };
   sites: DashboardSite[];
   refreshServices: () => void;
@@ -167,6 +170,15 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
       await refreshServices();
       setEditOpen(false);
       toast.success("Service renamed");
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+    finally { setServiceActionPending(false); }
+  };
+  const makeDefault = async () => {
+    setServiceActionPending(true);
+    try {
+      await api.patch(`/admin/projects/${project.id}/services/${service.id}`, { isDefault: true });
+      await refreshServices();
+      toast.success(`${service.name} is now the default service`);
     } catch (error) { toast.error(getApiErrorMessage(error)); }
     finally { setServiceActionPending(false); }
   };
@@ -263,10 +275,10 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
     return <Card className="overflow-hidden">
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="text-base font-semibold transition-colors hover:text-primary">{service.name}</Link><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>{formatStatus(service.accessStatus)}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(serviceHealth)}</span></div>
+          <div className="flex flex-wrap items-center gap-2"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="text-base font-semibold transition-colors hover:text-primary">{service.name}</Link>{service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>{formatStatus(service.accessStatus)}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(serviceHealth)}</span></div>
           <p className="truncate text-sm text-muted-foreground">{sites.length ? sites.map(site => site.domain).join(", ") : "No domain attached"}</p>
         </div>
-        <div className="flex shrink-0 gap-2"><Button asChild size="sm" variant="outline"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Manage service</Link></Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button></div>
+        <div className="flex shrink-0 flex-wrap gap-2">{serviceCount > 1 && !service.isDefault && <Button size="sm" variant="outline" disabled={serviceActionPending} onClick={() => void makeDefault()}>{serviceActionPending ? "Saving…" : "Set as default"}</Button>}<Button asChild size="sm" variant="outline"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Manage service</Link></Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button></div>
       </CardContent>
       {blockDialog}
     </Card>;
@@ -284,7 +296,7 @@ function ServiceCard({ project, service, view, sites, refreshServices, draft, se
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">{sites.length ? sites.map(site => <a className="inline-flex items-center gap-1.5 transition-colors hover:text-primary" key={site.slug} href={`${site.tlsMode === "http_only" ? "http" : "https"}://${site.domain}`} target="_blank" rel="noreferrer"><Globe className="h-3.5 w-3.5" />{site.domain}</a>) : <span>No domain attached</span>}</div>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}><Settings2 className="h-4 w-4" />Configure service</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem><DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+        <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}><Settings2 className="h-4 w-4" />Configure service</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem>{serviceCount > 1 && !service.isDefault && <DropdownMenuItem disabled={serviceActionPending} onSelect={() => void makeDefault()}><Settings2 className="mr-2 h-4 w-4" />Set as default</DropdownMenuItem>}<DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
       </CardContent>
     </Card>
     <Card>
