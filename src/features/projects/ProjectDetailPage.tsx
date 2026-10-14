@@ -196,6 +196,7 @@ export function ProjectDetailPage() {
                   <InfoRow label="Digest" value={overview.data?.currentDeployment.imageDigest ? <div className="flex min-w-0 items-center gap-1"><code className="min-w-0 truncate text-xs" title={overview.data.currentDeployment.imageDigest}>{formatDigest(overview.data.currentDeployment.imageDigest)}</code><Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Copy full image digest" title="Copy full digest" onClick={async () => { try { await navigator.clipboard.writeText(overview.data!.currentDeployment.imageDigest!); toast.success("Digest copied"); } catch { toast.error("Could not copy digest"); } }}><Copy className="h-3.5 w-3.5" /></Button></div> : "Not available"} />
                   <InfoRow label="Commit" value={overview.data?.currentDeployment.commitSha ?? "Not available"} />
                   <InfoRow label="Upstream" value={overview.data?.currentDeployment.runtimeUpstreamHost && overview.data.currentDeployment.runtimeUpstreamPort ? `${overview.data.currentDeployment.runtimeUpstreamHost}:${overview.data.currentDeployment.runtimeUpstreamPort}` : "Not resolved"} />
+                  <InfoRow label="Public binding" value={overview.data?.currentDeployment.publicExposure ? <span className="font-medium text-amber-600 dark:text-amber-400">Exposed on a public host address until this deployment is retired</span> : "Loopback only"} />
                 </CardContent>
               </Card>
               <Card>
