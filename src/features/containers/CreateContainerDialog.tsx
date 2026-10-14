@@ -156,7 +156,8 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
   const [redisVolume, setRedisVolume] = useState("redis-data");
   const [showDatabasePassword, setShowDatabasePassword] = useState(false);
   const [showRedisPassword, setShowRedisPassword] = useState(false);
-  const [createdDetails, setCreatedDetails] = useState<{ id: string; name: string; ports: string } | null>(null);
+  const [showAdvancedContainerOptions, setShowAdvancedContainerOptions] = useState(false);
+  const [createdDetails, setCreatedDetails] = useState<{ id: string; name: string; ports: string; network: string } | null>(null);
   const [network, setNetwork] = useState(wizardContext?.internalNetwork || "bridge");
   const [restartPolicy, setRestartPolicy] = useState("unless-stopped");
   const [pullImage, setPullImage] = useState(true);
@@ -182,6 +183,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
     setRedisVolume("redis-data");
     setShowDatabasePassword(false);
     setShowRedisPassword(false);
+    setShowAdvancedContainerOptions(false);
     setCreatedDetails(null);
     setImageChecked(false);
     setImageNotLocal(false);
@@ -229,7 +231,6 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
         ? [{ hostPath: redisVolume, containerPath: "/data", readOnly: false, volumeName: redisVolume }, ...volumes.filter((v) => v.hostPath && v.containerPath)]
       : volumes.filter((v) => v.hostPath && v.containerPath);
     const effectivePorts = { ...portMap };
-    const effectiveNetwork = preset === "generic" ? network : (wizardContext?.internalNetwork || network);
     return {
       preset,
       name: name || undefined,
@@ -238,7 +239,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
       ports: Object.keys(effectivePorts).length > 0 ? effectivePorts : undefined,
       env: Object.keys(effectiveEnv).length > 0 ? effectiveEnv : undefined,
       runtimeOptions: preset === "redis" ? { command: redisPassword ? ["redis-server", "--appendonly", "yes", "--requirepass", redisPassword] : ["redis-server", "--appendonly", "yes"] } : undefined,
-      network: effectiveNetwork,
+      network,
       volumes: effectiveVolumes,
       restartPolicy: restartPolicy as "no" | "always" | "unless-stopped" | "on-failure",
       pullImage,
@@ -418,7 +419,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
         description: "Image pulling and startup are continuing in the background.",
       });
       if (preset === "postgres" || preset === "redis") {
-        setCreatedDetails({ id: response.data.id, name: response.data.name || name || projectSlug, ports: response.data.ports });
+        setCreatedDetails({ id: response.data.id, name: response.data.name || name || projectSlug, ports: response.data.ports, network: payload.network || "bridge" });
       } else {
         resetForm();
         onOpenChange(false);
@@ -462,12 +463,12 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                 <InfoRow label="Database" value={postgresDatabase} mono />
                 <InfoRow label="Username" value={postgresUser} mono />
                 <div className="space-y-2"><Label>Password</Label><div className="flex gap-2"><Input readOnly type={showDatabasePassword ? "text" : "password"} value={postgresPassword} /><Button type="button" variant="outline" size="icon" onClick={() => setShowDatabasePassword((visible) => !visible)}>{showDatabasePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(postgresPassword, "Database password")}><Copy className="h-4 w-4" /></Button></div></div>
-                <div className="space-y-2"><Label>Docker network URL</Label><div className="flex gap-2"><Input readOnly className="font-mono text-xs" value={encodePostgresUrl(postgresUser, postgresPassword, createdDetails.name, 5432, postgresDatabase)} /><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(encodePostgresUrl(postgresUser, postgresPassword, createdDetails.name, 5432, postgresDatabase), "Docker database URL")}><Copy className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">Use this from another container attached to the selected user-defined Docker network.</p></div>
+                {createdDetails.network !== "bridge" ? <div className="space-y-2"><Label>Docker network URL</Label><div className="flex gap-2"><Input readOnly className="font-mono text-xs" value={encodePostgresUrl(postgresUser, postgresPassword, createdDetails.name, 5432, postgresDatabase)} /><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(encodePostgresUrl(postgresUser, postgresPassword, createdDetails.name, 5432, postgresDatabase), "Docker database URL")}><Copy className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">Use this from another container attached to the selected user-defined Docker network.</p></div> : <p className="text-xs text-amber-700">Docker's default bridge does not provide stable container-name DNS. Use a user-defined network for a stable service URL, or connect using the container's current IP.</p>}
                 {Object.entries(buildPayload().ports ?? {}).filter(([, containerPort]) => containerPort === 5432).map(([hostPort]) => <div key={hostPort} className="space-y-2"><Label>Host database URL</Label><div className="flex gap-2"><Input readOnly className="font-mono text-xs" value={encodePostgresUrl(postgresUser, postgresPassword, "127.0.0.1", Number(hostPort), postgresDatabase)} /><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(encodePostgresUrl(postgresUser, postgresPassword, "127.0.0.1", Number(hostPort), postgresDatabase), "Host database URL")}><Copy className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">Use this from the Docker host. The published port may be reachable from outside the host depending on Docker and firewall configuration.</p></div>)}
               </> : <>
                 {redisPassword && <><InfoRow label="Username" value="default" mono />
                 <div className="space-y-2"><Label>Password</Label><div className="flex gap-2"><Input readOnly type={showRedisPassword ? "text" : "password"} value={redisPassword} /><Button type="button" variant="outline" size="icon" onClick={() => setShowRedisPassword((visible) => !visible)}>{showRedisPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(redisPassword, "Redis password")}><Copy className="h-4 w-4" /></Button></div></div></>}
-                <div className="space-y-2"><Label>Docker network URL</Label><div className="flex gap-2"><Input readOnly className="font-mono text-xs" value={redisPassword ? `redis://default:${encodeURIComponent(redisPassword)}@${createdDetails.name}:6379` : `redis://${createdDetails.name}:6379`} /><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(redisPassword ? `redis://default:${encodeURIComponent(redisPassword)}@${createdDetails.name}:6379` : `redis://${createdDetails.name}:6379`, "Docker Redis URL")}><Copy className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">Use this from another container attached to the selected user-defined Docker network.</p></div>
+                {createdDetails.network !== "bridge" ? <div className="space-y-2"><Label>Docker network URL</Label><div className="flex gap-2"><Input readOnly className="font-mono text-xs" value={redisPassword ? `redis://default:${encodeURIComponent(redisPassword)}@${createdDetails.name}:6379` : `redis://${createdDetails.name}:6379`} /><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(redisPassword ? `redis://default:${encodeURIComponent(redisPassword)}@${createdDetails.name}:6379` : `redis://${createdDetails.name}:6379`, "Docker Redis URL")}><Copy className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">Use this from another container attached to the selected user-defined Docker network.</p></div> : <p className="text-xs text-amber-700">Docker's default bridge does not provide stable container-name DNS. Use a user-defined network for a stable service URL, or connect using the container's current IP.</p>}
                 {Object.entries(buildPayload().ports ?? {}).filter(([, containerPort]) => containerPort === 6379).map(([hostPort]) => <div key={hostPort} className="space-y-2"><Label>Host Redis URL</Label><div className="flex gap-2"><Input readOnly className="font-mono text-xs" value={redisPassword ? `redis://default:${encodeURIComponent(redisPassword)}@127.0.0.1:${hostPort}` : `redis://127.0.0.1:${hostPort}`} /><Button type="button" variant="outline" size="icon" onClick={() => void copyValue(redisPassword ? `redis://default:${encodeURIComponent(redisPassword)}@127.0.0.1:${hostPort}` : `redis://127.0.0.1:${hostPort}`, "Host Redis URL")}><Copy className="h-4 w-4" /></Button></div><p className="text-xs text-muted-foreground">Use this from the Docker host. The published port may be reachable from outside the host depending on Docker and firewall configuration.</p></div>)}
               </>}
               {!Object.keys(buildPayload().ports ?? {}).length && <p className="text-xs text-muted-foreground">No host port is published. To connect from the host, recreate the container with a host-port mapping.</p>}
@@ -577,7 +578,6 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                       id="network"
                       value={network}
                       onChange={(e) => setNetwork(e.target.value)}
-                      disabled={preset !== "generic"}
                       className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       {(!wizardContext || wizardContext.networks.length === 0) && (
@@ -599,8 +599,8 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                   </>
                 )}
               </div>
-              {preset !== "generic" && <p className="text-xs text-muted-foreground">Database and Redis use the Gatekeeper internal network so containers can resolve them by name.</p>}
-              {preset !== "generic" && <p className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">The standard container port is configured below. Leave the host port blank for Docker-only access; enter a host port only if the Docker host must connect. Other containers should use the container name on the selected internal network.</p>}
+              {preset !== "generic" && <p className="text-xs text-muted-foreground">Choose a user-defined Docker network shared with the containers that need this service. The Gatekeeper internal network is selected by default.</p>}
+              {preset !== "generic" && <p className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">The standard container port is configured below. Leave the host port blank for Docker-only access; enter a host port only if the Docker host must connect. Containers on the same user-defined network can connect by container name.</p>}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -647,13 +647,22 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
             <section className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold tracking-wide">Environment & Volumes</h3>
-                <p className="text-xs text-muted-foreground">Set env vars (or upload a .env file) and optional volume mounts.</p>
+                <p className="text-xs text-muted-foreground">{preset === "generic" ? "Set env vars (or upload a .env file) and optional volume mounts." : "The preset already configures its required data volume. Add custom environment variables or extra mounts only if your setup needs them."}</p>
               </div>
               <Separator />
 
+              {preset !== "generic" && <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <p className="text-sm font-medium">Optional advanced settings</p>
+                <p className="text-xs text-muted-foreground">Most database and Redis containers can skip this step. Use these options for custom initialization, configuration, or extra files.</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowAdvancedContainerOptions((show) => !show)}>
+                  {showAdvancedContainerOptions ? "Hide advanced settings" : "Configure advanced settings"}
+                </Button>
+              </div>}
+
+              {(preset === "generic" || showAdvancedContainerOptions || envVars.length > 0 || volumes.length > 0 || envFile !== null) && <>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Environment Variables</Label>
+                  <Label>{preset === "generic" ? "Environment Variables" : "Additional environment variables"}</Label>
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
@@ -731,7 +740,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Volume Mounts</Label>
+                  <Label>{preset === "generic" ? "Volume Mounts" : "Additional volume mounts"}</Label>
                   <Button type="button" variant="outline" size="sm" onClick={() => setVolumes([...volumes, { hostPath: "", containerPath: "", readOnly: false }])}>
                     <Plus className="h-3 w-3 mr-1" />
                     Add Volume
@@ -764,6 +773,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                   </div>
                 ))}
               </div>
+              </>}
             </section>
           )}
 
@@ -799,7 +809,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                       />
                     )}
 
-                  {(preset === "postgres" || preset === "redis") && <div className="rounded-md border p-3 space-y-2"><p className="text-sm font-medium">Connection guidance</p><p className="text-xs text-muted-foreground">From a container on the <span className="font-mono">{validation.normalizedRequest.network}</span> network, connect to <span className="font-mono">{validation.normalizedRequest.name}:{preset === "postgres" ? "5432" : "6379"}</span>. From the Docker host, connect to <span className="font-mono">127.0.0.1:&lt;host-port&gt;</span> only if you enter a host port mapping below. Docker-published ports may be reachable from outside the host depending on firewall settings.</p>{preset === "redis" && !redisPassword && <p className="text-xs font-medium text-amber-700">Redis password authentication is disabled. Only use this on a trusted private Docker network.</p>}</div>}
+                  {(preset === "postgres" || preset === "redis") && <div className="rounded-md border p-3 space-y-2"><p className="text-sm font-medium">Connection guidance</p>{validation.normalizedRequest.network === "bridge" ? <p className="text-xs text-amber-700">Docker's default bridge does not provide stable container-name DNS. Choose a user-defined network to connect by container name.</p> : <p className="text-xs text-muted-foreground">From a container on the <span className="font-mono">{validation.normalizedRequest.network}</span> network, connect to <span className="font-mono">{validation.normalizedRequest.name}:{preset === "postgres" ? "5432" : "6379"}</span>.</p>}<p className="text-xs text-muted-foreground">From the Docker host, connect to <span className="font-mono">127.0.0.1:&lt;host-port&gt;</span> only if you enter a host port mapping below. Docker-published ports may be reachable from outside the host depending on firewall settings.</p>{preset === "redis" && !redisPassword && <p className="text-xs font-medium text-amber-700">Redis password authentication is disabled. Only use this on a trusted private Docker network.</p>}</div>}
 
                   {validation.normalizedRequest.env &&
                     Object.keys(validation.normalizedRequest.env).length > 0 && (

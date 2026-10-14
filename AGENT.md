@@ -13,6 +13,7 @@ This repository is the React + TypeScript admin dashboard for the Gatekeeperd AP
 - Use `npm run dev` for local development, `npm run build` for the required type-check plus production build, `npm run lint` for ESLint, and `npm run preview` to preview `dist/`.
 - The Vite dev server proxies `/api` to `http://localhost:8080`.
 - The API base URL is `VITE_API_BASE_URL`; it defaults to `/api` when unset. Keep secrets and environment-specific values out of source control.
+- The deployed Gatekeeperd API is available at `https://gateapi.mikesplore.me`. Use this as the production API host when debugging or coordinating frontend work with the deployed backend; local development should continue to use the configured local proxy/API base URL.
 
 ## Application shape
 
