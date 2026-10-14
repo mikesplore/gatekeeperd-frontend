@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, RefreshCw, RotateCcw, Wrench } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Check, Plus, RefreshCw, RotateCcw, Trash2, Wrench } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -8,9 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { QueryState } from "@/components/QueryState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDashboardSite } from "@/hooks/useSiteDashboard";
-import { useNginxBlockUpdate, useNginxConfig, useNginxDiagnostics, useNginxRollback, useNginxVersions } from "@/hooks/useNginx";
+import { useNginxConfig, useNginxCustomLocationAdd, useNginxCustomLocationRemove, useNginxDiagnostics, useNginxRollback, useNginxVersions } from "@/hooks/useNginx";
 import { getApiErrorMessage } from "@/lib/api";
-import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
 function StatusTicker({ label, value, tone }: { label: string; value: string; tone: "good" | "warn" | "bad" }) {
   const classes = tone === "good"
@@ -39,53 +38,10 @@ export function SiteAdvancedConfigPage() {
   const diagnostics = useNginxDiagnostics();
   const versions = useNginxVersions(slug);
   const rollback = useNginxRollback(slug);
-  const preview = useNginxBlockUpdate(slug, "preview");
-  const apply = useNginxBlockUpdate(slug, "apply");
-  const [editing, setEditing] = useState<number | null>(null);
-  const [content, setContent] = useState("");
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewing, setPreviewing] = useState(false);
-  const [diffReviewed, setDiffReviewed] = useState(false);
-  const latestPreview = useRef(0);
-  const mutatePreview = preview.mutateAsync;
-  const activeBlock = editing == null ? null : config.data?.blocks[editing] ?? null;
-
-  useEffect(() => {
-    if (editing == null) return;
-    const requestId = ++latestPreview.current;
-    setPreviewing(true);
-    setPreviewError(null);
-    const timer = window.setTimeout(() => {
-      void mutatePreview({ blockIndex: editing, content }).then(result => {
-        if (latestPreview.current === requestId) setPreviewContent(result.data.config);
-      }).catch(error => {
-        if (latestPreview.current === requestId) setPreviewError(getApiErrorMessage(error));
-      }).finally(() => {
-        if (latestPreview.current === requestId) setPreviewing(false);
-      });
-    }, 450);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [editing, content, mutatePreview]);
-
-  const startEditing = (index: number) => {
-    const block = config.data?.blocks[index];
-    if (!block) return;
-    setEditing(index);
-    setContent(block.content);
-    setPreviewContent(null);
-    setDiffReviewed(false);
-  };
-
-  const closeEditor = () => {
-    latestPreview.current++;
-    setEditing(null);
-    setPreviewContent(null);
-    setPreviewError(null);
-    setPreviewing(false);
-  };
+  const addLocation = useNginxCustomLocationAdd(slug);
+  const removeLocation = useNginxCustomLocationRemove(slug);
+  const [locationPath, setLocationPath] = useState("");
+  const [locationDirectives, setLocationDirectives] = useState("");
 
   return <QueryState isLoading={site.isLoading} isError={site.isError} error={site.error} data={site.data}>
     {detail => <div className="w-full space-y-5">
@@ -113,25 +69,26 @@ export function SiteAdvancedConfigPage() {
         </div>
         <TabsContent value="blocks">
       <Card>
-        <CardHeader className="border-b bg-muted/20"><CardDescription>Edit a managed block and review its preview next to the deployed config.</CardDescription></CardHeader>
+        <CardHeader className="border-b bg-muted/20"><CardTitle>Custom Nginx locations</CardTitle><CardDescription>Add app-specific location blocks. Gatekeeper’s auth and paywall checks are automatically retained; generated core blocks stay protected.</CardDescription></CardHeader>
         <CardContent className="grid gap-5 p-4 lg:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.2fr)] lg:p-5">
-          <section className="min-w-0 space-y-3"><div><h2 className="text-sm font-semibold">Managed blocks</h2><p className="text-xs text-muted-foreground">Open a block in the editor panel; the list and diff remain in view.</p></div>
-            {config.data?.blocks?.length ? <div className="space-y-2">{config.data.blocks.map((block, index) => <div key={`${block.header}-${index}`} className={`rounded-lg border p-3 transition-colors ${editing === index ? "border-primary/50 bg-primary/5" : "bg-background"}`}><div className="flex items-center justify-between gap-3"><div className="min-w-0"><span className="block font-medium capitalize">{block.type}</span><span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground">{block.header}</span></div><Button size="sm" variant="outline" onClick={() => startEditing(index)}>Edit block</Button></div></div>)}</div> : <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">{config.isLoading ? "Loading managed blocks…" : "No managed blocks found in this configuration."}</p>}
+          <section className="min-w-0 space-y-3"><div><h2 className="text-sm font-semibold">Add a location</h2><p className="text-xs text-muted-foreground">Use a path such as /socket.io/ and valid Nginx directives.</p></div>
+            <form className="space-y-3 rounded-lg border bg-background p-3" onSubmit={event => { event.preventDefault(); addLocation.mutate({ path: locationPath, directives: locationDirectives }, { onSuccess: () => { setLocationPath(""); setLocationDirectives(""); toast.success("Custom location added and Nginx reloaded"); }, onError: error => toast.error(getApiErrorMessage(error)) }); }}>
+              <label className="block space-y-1 text-xs font-medium">Location path<input required value={locationPath} onChange={event => setLocationPath(event.target.value)} placeholder="/socket.io/" className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm" /></label>
+              <label className="block space-y-1 text-xs font-medium">Additional directives<textarea required value={locationDirectives} onChange={event => setLocationDirectives(event.target.value)} placeholder={'proxy_http_version 1.1;\nproxy_set_header Upgrade $http_upgrade;\nproxy_set_header Connection "upgrade";'} className="mt-1 min-h-32 w-full rounded-md border bg-background p-3 font-mono text-xs" /><span className="text-muted-foreground">The app upstream, payment gate, and paywall are added automatically. Don’t add a proxy_pass directive.</span></label>
+              <Button type="submit" size="sm" disabled={addLocation.isPending}><Plus className="mr-2 h-4 w-4" />{addLocation.isPending ? "Applying…" : "Add location"}</Button>
+            </form>
+            <div className="space-y-2"><h2 className="text-sm font-semibold">Existing custom locations</h2>
+              {config.data?.customLocations?.length ? config.data.customLocations.map(location => <div key={location.id} className="rounded-lg border bg-background p-3"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><code className="font-medium">location {location.path}</code><pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{location.directives}</pre></div><Button size="sm" variant="outline" disabled={removeLocation.isPending} onClick={() => { if (confirm(`Remove location ${location.path}?`)) removeLocation.mutate(location.id, { onSuccess: () => toast.success("Custom location removed and Nginx reloaded"), onError: error => toast.error(getApiErrorMessage(error)) }); }}><Trash2 className="mr-2 h-4 w-4" />Remove</Button></div></div>) : <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No custom location blocks yet.</p>}
+            </div>
+            <div className="space-y-2"><h2 className="text-sm font-semibold">Gatekeeper blocks</h2><div className="flex flex-wrap gap-2">{config.data?.blocks.filter(block => block.type !== "custom").map((block, index) => <Badge key={`${block.type}-${index}`} variant="secondary">{block.type} · protected</Badge>)}</div><p className="text-xs text-muted-foreground">Authentication, paywall, bypass, and application routing blocks cannot be removed here.</p></div>
           </section>
-          <section className="min-w-0 space-y-3"><div className="flex flex-wrap items-end justify-between gap-2"><div><h2 className="text-sm font-semibold">Live diff preview</h2><p className="text-xs text-muted-foreground">{activeBlock ? `Previewing edits to ${activeBlock.type}.` : "Generated configuration compared with the deployed file."}</p></div>{activeBlock && <span className="text-[11px] text-muted-foreground">Unsaved preview</span>}</div><DiffView before={config.data?.content ?? detail.currentConfig} after={previewContent ?? detail.generatedConfig} isUpdating={previewing} error={previewError} /><label className="flex w-fit items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={diffReviewed} onChange={event => setDiffReviewed(event.target.checked)} className="h-4 w-4 rounded border accent-primary" />I’ve reviewed this diff</label></section>
+          <section className="min-w-0 space-y-3"><div><h2 className="text-sm font-semibold">Live diff preview</h2><p className="text-xs text-muted-foreground">Generated configuration compared with the deployed file.</p></div><DiffView before={config.data?.content ?? detail.currentConfig} after={detail.generatedConfig} isUpdating={false} error={null} /></section>
         </CardContent>
       </Card>
         </TabsContent>
         <TabsContent value="deployed" className="min-w-0"><Card className="flex min-w-0 flex-col overflow-hidden" style={{ height: "calc(100dvh - 16rem)" }}><CardHeader className="shrink-0"><CardTitle>Deployed configuration</CardTitle><CardDescription>{config.data?.configPath ?? "Current Nginx site file"}</CardDescription></CardHeader><CardContent className="min-h-0 min-w-0 flex-1 overflow-hidden"><div style={{ height: "100%", width: "100%", overflow: "auto", overscrollBehavior: "contain" }} className="rounded-lg border bg-muted/40">{config.data?.content ? <pre style={{ width: "max-content", minWidth: "100%" }} className="whitespace-pre p-4 text-xs leading-relaxed">{config.data.content}</pre> : <p className="p-6 text-sm text-muted-foreground">{config.isLoading ? "Loading deployed file…" : "No deployed configuration is available."}</p>}</div></CardContent></Card></TabsContent>
         <TabsContent value="history"><Card><CardHeader><CardTitle>Configuration history</CardTitle><CardDescription>{versions.data?.length ?? 0} saved versions available for rollback.</CardDescription></CardHeader><CardContent className="space-y-2">{versions.data?.length ? versions.data.map(version => <div key={version.name} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><div><p className="font-mono text-xs">{version.name}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(version.createdAt).toLocaleString()} · {version.sizeBytes.toLocaleString()} bytes</p></div><Button size="sm" variant="outline" disabled={rollback.isPending} onClick={() => { if (confirm(`Roll back to ${version.name}?`)) rollback.mutate(version.name, { onSuccess: () => { void config.refetch(); void site.refetch(); toast.success("Configuration restored"); }, onError: error => toast.error(getApiErrorMessage(error)) }); }}><RotateCcw className="mr-2 h-4 w-4" />Restore</Button></div>) : <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">{versions.isLoading ? "Loading saved versions…" : "No saved versions yet."}</p>}</CardContent></Card></TabsContent>
       </Tabs>
-
-      <SidePanel open={editing !== null} onOpenChange={open => { if (!open) closeEditor(); }}>
-        <SidePanelContent className="grid-rows-[auto_1fr]">
-          <SidePanelHeader className="border-b p-6 pr-14"><SidePanelTitle className="capitalize">Edit {activeBlock?.type ?? "configuration block"}</SidePanelTitle><SidePanelDescription>{activeBlock?.header ?? "Edit the selected managed Nginx block."} Your changes preview beside the deployed file.</SidePanelDescription></SidePanelHeader>
-          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-6"><textarea aria-label={`Edit ${activeBlock?.type ?? "configuration"} block`} value={content} onChange={event => { setContent(event.target.value); setDiffReviewed(false); }} spellCheck={false} className="min-h-[50vh] w-full flex-1 resize-y rounded-md border bg-background p-3 font-mono text-xs leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"/><p className="text-xs text-muted-foreground">Preview updates as you type. Review the diff before saving.</p><SidePanelFooter className="mt-auto gap-2 border-t pt-4"><Button variant="outline" onClick={closeEditor}>Cancel</Button><Button disabled={apply.isPending || previewing || editing === null} onClick={() => editing !== null && apply.mutate({ blockIndex: editing, content }, { onSuccess: () => { closeEditor(); void config.refetch(); void site.refetch(); toast.success("Nginx block saved"); }, onError: error => toast.error(getApiErrorMessage(error)) })}>{apply.isPending ? "Saving…" : "Save block"}</Button></SidePanelFooter></div>
-        </SidePanelContent>
-      </SidePanel>
 
     </div>}
   </QueryState>;

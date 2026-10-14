@@ -10,6 +10,7 @@ import type {
   NginxTestResult,
   NginxBackup,
   NginxWizardContext,
+  NginxCustomLocation,
 } from "@/types/nginx";
 
 export function useNginxStatus(slug: string) {
@@ -34,16 +35,25 @@ export function useNginxDiagnostics() {
   });
 }
 
-export function useNginxBlockUpdate(slug: string, action: "preview" | "apply") {
+export function useNginxCustomLocationAdd(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ blockIndex, content }: { blockIndex: number; content: string }) =>
-      api.post<{ slug: string; blockIndex: number; config: string }>(
-        `/admin/nginx/config/${slug}/blocks/${blockIndex}/${action}`,
-        { blockIndex, content },
-      ),
+    mutationFn: (location: { path: string; directives: string }) =>
+      api.post<{ success: boolean; message: string; locations: NginxCustomLocation[] }>(`/admin/nginx/config/${slug}/custom-blocks`, location),
     onSuccess: () => {
-      if (action === "apply") qc.invalidateQueries({ queryKey: ["nginx", "config", slug] });
+      qc.invalidateQueries({ queryKey: ["nginx", "config", slug] });
+      qc.invalidateQueries({ queryKey: ["dashboard", "site", slug] });
+    },
+  });
+}
+
+export function useNginxCustomLocationRemove(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/admin/nginx/config/${slug}/custom-blocks/${encodeURIComponent(id)}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["nginx", "config", slug] });
+      qc.invalidateQueries({ queryKey: ["dashboard", "site", slug] });
     },
   });
 }

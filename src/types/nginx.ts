@@ -19,12 +19,19 @@ export interface NginxConfigInspection {
   isSymlink: boolean;
   content?: string | null;
   blocks: { type: string; header: string; content: string }[];
+  customLocations?: NginxCustomLocation[];
   modifiedAt?: string | null;
   sizeBytes?: number | null;
   managed: boolean;
   drifted: boolean;
   actualSha256?: string | null;
   managedSha256?: string | null;
+}
+
+export interface NginxCustomLocation {
+  id: string;
+  path: string;
+  directives: string;
 }
 
 export interface NginxTestResult {
