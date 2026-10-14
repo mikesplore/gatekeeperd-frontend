@@ -32,12 +32,18 @@ export interface VolumeMount {
 }
 
 export interface CreateContainerPayload {
-  preset?: "generic" | "postgres";
+  preset?: "generic" | "postgres" | "redis";
   name?: string;
   projectSlug?: string;
   image: string;
   ports?: Record<string, number>;
   env?: Record<string, string>;
+  runtimeOptions?: {
+    command?: string[];
+    entrypoint?: string[];
+    workingDirectory?: string;
+    user?: string;
+  };
   network?: string;
   volumes?: VolumeMount[];
   restartPolicy?: "no" | "always" | "unless-stopped" | "on-failure";
