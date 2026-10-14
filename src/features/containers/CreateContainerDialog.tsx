@@ -69,7 +69,7 @@ function parseEnvFile(content: string): EnvVar[] {
       value = value.slice(1, -1);
     }
 
-    if (key) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
       vars.push({ key, value });
     }
   }
@@ -280,6 +280,32 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
       toast.error("Failed to read the .env file");
       e.target.value = "";
     }
+  };
+
+  const handleEnvPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const content = e.clipboardData.getData("text");
+    const looksLikeEnv = content.split(/\r?\n/).some((line) =>
+      /^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=/.test(line),
+    );
+    if (!looksLikeEnv) return;
+
+    e.preventDefault();
+    const parsed = parseEnvFile(content);
+    if (parsed.length === 0) {
+      toast.error("No valid KEY=value environment variables found in the clipboard");
+      return;
+    }
+
+    setEnvVars((existing) => {
+      const merged = existing.filter((env) => env.key.trim() || env.value.trim());
+      for (const env of parsed) {
+        const index = merged.findIndex((current) => current.key === env.key);
+        if (index === -1) merged.push(env);
+        else merged[index] = env;
+      }
+      return merged;
+    });
+    toast.success(`Pasted ${parsed.length} environment variable${parsed.length === 1 ? "" : "s"}`);
   };
 
   const handleNext = async () => {
@@ -630,6 +656,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                     <Input
                       placeholder="Key (e.g. DB_HOST)"
                       value={env.key}
+                      onPaste={handleEnvPaste}
                       onChange={(e) => {
                         const next = [...envVars];
                         next[idx].key = e.target.value;
@@ -639,6 +666,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                     <Input
                       placeholder="Value"
                       value={env.value}
+                      onPaste={handleEnvPaste}
                       onChange={(e) => {
                         const next = [...envVars];
                         next[idx].value = e.target.value;
