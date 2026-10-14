@@ -487,101 +487,72 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
                 <p className="text-xs text-muted-foreground">Name, image, and restart behavior.</p>
               </div>
               <Separator />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="preset">Service preset</Label>
-                  <select id="preset" value={preset} onChange={(e) => { const next = e.target.value as ServicePreset; setPreset(next); if (next === "postgres") { setImage("postgres:16"); setPostgresPassword((current) => current || generatePassword()); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "5432" }]); } else if (next === "redis") { setImage("redis:7-alpine"); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "6379" }]); } else { setImage(""); setPorts([{ host: "", container: "" }]); } }} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="generic">Generic container</option>
-                    <option value="postgres">PostgreSQL database</option>
-                    <option value="redis">Redis cache</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground">Database and Redis presets configure persistent storage, credentials, and the internal Docker network. Host port publishing is optional.</p>
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-sm font-medium">Container identity</h4>
+                  <p className="text-xs text-muted-foreground">Choose a preset, then identify this container.</p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-app (optional with project slug)" />
-                  <p className="text-xs text-muted-foreground">
-                    Optional if a project slug is provided. Gatekeeper will auto-name using the slug.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="projectSlug">Project Slug</Label>
-                  <Input
-                    id="projectSlug"
-                    value={projectSlug}
-                    onChange={(e) => setProjectSlug(e.target.value)}
-                    placeholder="my-app (optional)"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Links this container to a project. If name is blank, the container is auto-named from this slug.
-                  </p>
-                </div>
-                {preset === "postgres" && <>
-                  <div className="space-y-2"><Label htmlFor="postgresDatabase">Database name</Label><Input id="postgresDatabase" value={postgresDatabase} onChange={(e) => setPostgresDatabase(e.target.value)} /></div>
-                  <div className="space-y-2"><Label htmlFor="postgresUser">Database user</Label><Input id="postgresUser" value={postgresUser} onChange={(e) => setPostgresUser(e.target.value)} /></div>
-                  <div className="space-y-2"><Label htmlFor="postgresPassword">Database password</Label><div className="flex min-w-0 gap-2"><Input id="postgresPassword" className="min-w-0 flex-1" type={showDatabasePassword ? "text" : "password"} value={postgresPassword} onChange={(e) => setPostgresPassword(e.target.value)} autoComplete="new-password" /><Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={showDatabasePassword ? "Hide database password" : "Show database password"} onClick={() => setShowDatabasePassword((visible) => !visible)}>{showDatabasePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="sm" className="shrink-0 px-3" aria-label="Generate database password" onClick={() => setPostgresPassword(generatePassword())}>Generate</Button></div></div>
-                  <div className="space-y-2"><Label htmlFor="postgresVolume">Named data volume</Label><select id="postgresVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === postgresVolume) ? postgresVolume : "__new__"} onChange={(e) => { if (e.target.value !== "__new__") setPostgresVolume(e.target.value); }}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === postgresVolume) && <Input value={postgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} placeholder="postgres-data" />}</div>
-                </>}
-                {preset === "redis" && <>
-                  <div className="space-y-2"><Label htmlFor="redisPassword">Redis password (optional)</Label><div className="flex min-w-0 gap-2"><Input id="redisPassword" className="min-w-0 flex-1" type={showRedisPassword ? "text" : "password"} value={redisPassword} onChange={(e) => setRedisPassword(e.target.value)} autoComplete="new-password" placeholder="No password" /><Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={showRedisPassword ? "Hide Redis password" : "Show Redis password"} onClick={() => setShowRedisPassword((visible) => !visible)}>{showRedisPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="sm" className="shrink-0 px-3" aria-label="Generate Redis password" onClick={() => setRedisPassword(generatePassword())}>Generate</Button></div><p className="text-xs text-muted-foreground">Leave blank to disable authentication. Use only on a trusted private Docker network without a password.</p></div>
-                  <div className="space-y-2"><Label htmlFor="redisVolume">Named data volume</Label><select id="redisVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === redisVolume) ? redisVolume : "__new__"} onChange={(e) => { if (e.target.value !== "__new__") setRedisVolume(e.target.value); }}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === redisVolume) && <Input value={redisVolume} onChange={(e) => setRedisVolume(e.target.value)} placeholder="redis-data" />}</div>
-                </>}
-                <div className="space-y-2">
-                    <Label htmlFor="image">Image *</Label>
-                  <Input
-                    id="image"
-                    value={image}
-                    disabled={preset !== "generic"}
-                    onChange={(e) => {
-                      setImage(e.target.value);
-                      setImageChecked(false);
-                      setImageNotLocal(false);
-                    }}
-                    onBlur={handleImageBlur}
-                    placeholder="nginx:latest"
-                  />
-                  {imageChecked && (
-                    <p className={`text-xs flex items-center gap-1 ${imageNotLocal ? "text-amber-600" : "text-emerald-600"}`}>
-                      {imageNotLocal ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                      {imageNotLocal ? "Image is not available locally. It will be pulled before creation." : "Image is available locally. No pull is needed."}
-                    </p>
-                  )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="preset">Service preset</Label>
+                    <select id="preset" value={preset} onChange={(e) => { const next = e.target.value as ServicePreset; setPreset(next); if (next === "postgres") { setImage("postgres:16"); setPostgresPassword((current) => current || generatePassword()); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "5432" }]); } else if (next === "redis") { setImage("redis:7-alpine"); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "6379" }]); } else { setImage(""); setPorts([{ host: "", container: "" }]); } }} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="generic">Generic container</option>
+                      <option value="postgres">PostgreSQL database</option>
+                      <option value="redis">Redis cache</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">Database and Redis presets configure persistent storage and credentials. Host port publishing is optional.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-app" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="projectSlug">Project slug</Label>
+                    <Input id="projectSlug" value={projectSlug} onChange={(e) => setProjectSlug(e.target.value)} placeholder="my-app (optional)" />
+                  </div>
+                  <p className="text-xs text-muted-foreground sm:col-span-2">Enter a container name or project slug. If the name is blank, Gatekeeperd uses the normalized project slug as the container name.</p>
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="restartPolicy">Restart Policy</Label>
-                  <select
-                    id="restartPolicy"
-                    value={restartPolicy}
-                    onChange={(e) => setRestartPolicy(e.target.value)}
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="no">no</option>
-                    <option value="always">always</option>
-                    <option value="unless-stopped">unless-stopped</option>
-                    <option value="on-failure">on-failure</option>
-                  </select>
+
+              {preset !== "generic" && <div className="space-y-3 border-t pt-4">
+                <div>
+                  <h4 className="text-sm font-medium">{preset === "postgres" ? "PostgreSQL settings" : "Redis settings"}</h4>
+                  <p className="text-xs text-muted-foreground">Data is stored in a named Docker volume.</p>
                 </div>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={pullImage}
-                      onChange={(e) => setPullImage(e.target.checked)}
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    Pull image if it is not available locally
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={pullViaCli}
-                      onChange={(e) => setPullViaCli(e.target.checked)}
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    Use host Docker credentials for private image pulls
-                  </label>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {preset === "postgres" ? <>
+                    <div className="space-y-2"><Label htmlFor="postgresDatabase">Database name</Label><Input id="postgresDatabase" value={postgresDatabase} onChange={(e) => setPostgresDatabase(e.target.value)} /></div>
+                    <div className="space-y-2"><Label htmlFor="postgresUser">Database user</Label><Input id="postgresUser" value={postgresUser} onChange={(e) => setPostgresUser(e.target.value)} /></div>
+                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresPassword">Database password</Label><div className="flex min-w-0 gap-2"><Input id="postgresPassword" className="min-w-0 flex-1" type={showDatabasePassword ? "text" : "password"} value={postgresPassword} onChange={(e) => setPostgresPassword(e.target.value)} autoComplete="new-password" /><Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={showDatabasePassword ? "Hide database password" : "Show database password"} onClick={() => setShowDatabasePassword((visible) => !visible)}>{showDatabasePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="sm" className="shrink-0 px-3" onClick={() => setPostgresPassword(generatePassword())}>Generate password</Button></div></div>
+                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresVolume">Named data volume</Label><select id="postgresVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === postgresVolume) ? postgresVolume : "__new__"} onChange={(e) => { if (e.target.value !== "__new__") setPostgresVolume(e.target.value); }}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === postgresVolume) && <Input value={postgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} placeholder="postgres-data" />}</div>
+                  </> : <>
+                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="redisPassword">Redis password (optional)</Label><div className="flex min-w-0 gap-2"><Input id="redisPassword" className="min-w-0 flex-1" type={showRedisPassword ? "text" : "password"} value={redisPassword} onChange={(e) => setRedisPassword(e.target.value)} autoComplete="new-password" placeholder="No password" /><Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={showRedisPassword ? "Hide Redis password" : "Show Redis password"} onClick={() => setShowRedisPassword((visible) => !visible)}>{showRedisPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="sm" className="shrink-0 px-3" onClick={() => setRedisPassword(generatePassword())}>Generate password</Button></div><p className="text-xs text-muted-foreground">Leave blank to disable authentication. Use only on a trusted private Docker network without a password.</p></div>
+                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="redisVolume">Named data volume</Label><select id="redisVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === redisVolume) ? redisVolume : "__new__"} onChange={(e) => { if (e.target.value !== "__new__") setRedisVolume(e.target.value); }}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === redisVolume) && <Input value={redisVolume} onChange={(e) => setRedisVolume(e.target.value)} placeholder="redis-data" />}</div>
+                  </>}
+                </div>
+              </div>}
+
+              <div className="space-y-3 border-t pt-4">
+                <div>
+                  <h4 className="text-sm font-medium">Image and runtime</h4>
+                  <p className="text-xs text-muted-foreground">Set the image, restart behavior, and image-pull options.</p>
+                </div>
+                <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="image">Image *</Label>
+                    <Input id="image" value={image} disabled={preset !== "generic"} onChange={(e) => { setImage(e.target.value); setImageChecked(false); setImageNotLocal(false); }} onBlur={handleImageBlur} placeholder="nginx:latest" />
+                    {imageChecked && <p className={`text-xs flex items-center gap-1 ${imageNotLocal ? "text-amber-600" : "text-emerald-600"}`}>{imageNotLocal ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}{imageNotLocal ? "Image is not available locally. It will be pulled before creation." : "Image is available locally. No pull is needed."}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="restartPolicy">Restart policy</Label>
+                    <select id="restartPolicy" value={restartPolicy} onChange={(e) => setRestartPolicy(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="no">no</option><option value="always">always</option><option value="unless-stopped">unless-stopped</option><option value="on-failure">on-failure</option>
+                    </select>
+                  </div>
+                  <div className="space-y-3 sm:pt-1">
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pullImage} onChange={(e) => setPullImage(e.target.checked)} className="h-4 w-4 rounded border-input" />Pull image if it is not available locally</label>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={pullViaCli} onChange={(e) => setPullViaCli(e.target.checked)} className="h-4 w-4 rounded border-input" />Use host Docker credentials for private image pulls</label>
+                  </div>
                 </div>
               </div>
             </section>
