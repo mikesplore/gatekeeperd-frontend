@@ -67,6 +67,20 @@ export function getApiErrorMessage(err: unknown): string {
   if (body?.message) {
     return body.message;
   }
+  if (axios.isAxiosError(err)) {
+    if (err.response?.status === 504) {
+      return "The server did not finish before the reverse-proxy timeout. The Certbot operation may still be running; check Gatekeeperd logs before retrying.";
+    }
+    if (err.response?.status) {
+      return `The server returned HTTP ${err.response.status} without an error message.`;
+    }
+    if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+      return "The request timed out. The operation may still be running; check its status before retrying.";
+    }
+    if (err.request) {
+      return "No response was received from the server. Check the connection and server logs before retrying.";
+    }
+  }
   return "Something went wrong. Please try again.";
 }
 
