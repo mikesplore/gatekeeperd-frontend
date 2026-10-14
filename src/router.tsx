@@ -30,6 +30,7 @@ import { CustomerDetailPage, CustomersPage } from "@/features/dashboard/Customer
 import { SiteAdvancedConfigPage } from "@/features/nginx/SiteAdvancedConfigPage";
 import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
 import { InfrastructureCredentialsPage } from "@/features/settings/InfrastructureCredentialsPage";
+import { LogsPage } from "@/features/logs/LogsPage";
 
 export const router = createBrowserRouter([
   {
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
           { path: "customers", element: <CustomersPage /> },
           { path: "customers/:id", element: <CustomerDetailPage /> },
           { path: "operations", element: <OperationsPage /> },
+          { path: "logs", element: <LogsPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "notifications", element: <NotificationsPage /> },
           { path: "deployments", element: <DeploymentsPage /> },
