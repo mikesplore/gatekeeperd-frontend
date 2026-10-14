@@ -81,6 +81,7 @@ export function CertificatesPage() {
       <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Certificate source</CardTitle></CardHeader><CardContent className="text-sm">Let’s Encrypt via Certbot</CardContent></Card>
       <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Renewal needed soon</CardTitle></CardHeader><CardContent className={`text-3xl font-semibold ${renewalNeeded ? "text-amber-600" : "text-emerald-600"}`}>{query.isLoading ? "—" : renewalNeeded}</CardContent></Card>
     </div>
+    {query.data && query.data.managerReady === false && <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm"><p className="font-medium text-destructive">Certificate management is not ready</p><p className="mt-1 text-muted-foreground">{query.data.managerMessage || "Check that Certbot, the Gatekeeperd Certbot helper, and its restricted sudoers rule are installed on the server."}</p></div>}
     <Card>
       <CardHeader className="border-b"><CardTitle>Installed certificates</CardTitle><CardDescription>Only certificates with both certificate and private-key files present are listed. Select a certificate to inspect its paths and expiry details.</CardDescription></CardHeader>
       <CardContent className="pt-4">

@@ -95,6 +95,8 @@ export interface CertificateInfo {
 
 export interface CertificateListResponse {
   certificates: CertificateInfo[];
+  managerReady?: boolean;
+  managerMessage?: string | null;
 }
 
 export interface CertificateRenewalResponse {
