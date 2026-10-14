@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import QRCode from "qrcode";
+import { Check, CircleHelp, RefreshCw, TriangleAlert } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,6 +19,21 @@ import { api, getApiErrorMessage } from "@/lib/api";
 
 type Setup = { secret: string; otpauthUri: string; recoveryCodes: string[] };
 type Tab = "general" | "security";
+type VersionStatus = {
+  status: "up_to_date" | "update_available" | "deployment_failed" | "check_stale" | "unknown";
+  runningCommit: string | null;
+  latestSuccessfulCommit: string | null;
+  checkedAt: string | null;
+  upToDate: boolean | null;
+};
+
+const versionMessages: Record<VersionStatus["status"], string> = {
+  up_to_date: "This server is running the latest successful build.",
+  update_available: "A newer successful build is available and has not been deployed.",
+  deployment_failed: "The latest successful build failed to deploy. The previous version is still running.",
+  check_stale: "The server has not checked GitHub recently. The status may be out of date.",
+  unknown: "Version status is not available yet. The auto-deploy checker may not have run.",
+};
 
 export function ProfileSettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,6 +84,9 @@ export function ProfileSettingsPage() {
   const regenerate2fa = useMutation({
     mutationFn: async () => (await api.post<{ recoveryCodes: string[] }>("/auth/2fa/recovery-codes/regenerate", { currentPassword: disablePassword, code: disableCode })).data,
   });
+  const versionCheck = useMutation({
+    mutationFn: async () => (await api.get<VersionStatus>("/version")).data,
+  });
   useEffect(() => {
     if (account.data?.displayName !== undefined)
       setDisplayName(account.data.displayName);
@@ -115,6 +134,7 @@ export function ProfileSettingsPage() {
         </Button>
       </div>
       {tab === "general" && (
+        <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
@@ -166,6 +186,39 @@ export function ProfileSettingsPage() {
             </Button>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Deployment version</CardTitle>
+            <CardDescription>Check whether this server is running the latest successful Gatekeeperd build.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                disabled={versionCheck.isPending}
+                onClick={() => versionCheck.mutate()}
+              >
+                <RefreshCw className={versionCheck.isPending ? "animate-spin" : ""} />
+                {versionCheck.isPending ? "Checking…" : "Check deployment"}
+              </Button>
+              {versionCheck.data && (
+                <span className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${versionCheck.data.status === "up_to_date" ? "border-emerald-500/30 text-emerald-600" : versionCheck.data.status === "update_available" || versionCheck.data.status === "deployment_failed" ? "border-amber-500/30 text-amber-600" : "text-muted-foreground"}`}>
+                  {versionCheck.data.status === "up_to_date" ? <Check className="h-4 w-4" /> : versionCheck.data.status === "update_available" || versionCheck.data.status === "deployment_failed" ? <TriangleAlert className="h-4 w-4" /> : <CircleHelp className="h-4 w-4" />}
+                  {versionMessages[versionCheck.data.status]}
+                </span>
+              )}
+            </div>
+            {versionCheck.data && (
+              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                <div><span className="text-muted-foreground">Running commit</span><p className="font-mono">{versionCheck.data.runningCommit?.slice(0, 12) ?? "Unknown"}</p></div>
+                <div><span className="text-muted-foreground">Latest successful build</span><p className="font-mono">{versionCheck.data.latestSuccessfulCommit?.slice(0, 12) ?? "Unknown"}</p></div>
+                {versionCheck.data.checkedAt && <p className="text-xs text-muted-foreground sm:col-span-2">Last check: {new Date(versionCheck.data.checkedAt).toLocaleString()}</p>}
+              </div>
+            )}
+            {versionCheck.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(versionCheck.error)}</p>}
+          </CardContent>
+        </Card>
+        </div>
       )}
       {tab === "security" && (
         <div className="grid gap-6 lg:grid-cols-2">
