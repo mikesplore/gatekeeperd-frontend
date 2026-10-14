@@ -11,6 +11,7 @@ const sections = [
   { to: "/app/networks", label: "Networks" },
   { to: "/app/volumes", label: "Volumes" },
   { to: "/app/operations", label: "Operations" },
+  { to: "/app/logs", label: "Logs" },
   { to: "/app/audit", label: "Audit log" },
   { to: "/app/notifications", label: "Notifications" },
   { to: "/app/deployments", label: "Deployments" },

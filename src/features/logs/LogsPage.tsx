@@ -86,11 +86,11 @@ export function LogsPage() {
 
   return <div className="space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div><h1 className="text-2xl font-semibold tracking-tight">Application logs</h1><p className="mt-1 text-sm text-muted-foreground">Recent Gatekeeperd service logs, searchable by message, source, request ID, and level.</p></div>
+      <p className="text-sm text-muted-foreground">Recent Gatekeeperd service logs, searchable by message, source, request ID, and level.</p>
       <Button variant="outline" size="sm" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />Refresh</Button>
     </div>
 
-    <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={data} loadingFallback={<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <Card key={index}><CardContent className="h-28" /></Card>)}</div>}>
+    <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={data} loadingFallback={<div className="py-8 text-center text-sm text-muted-foreground">Loading logs…</div>}>
       {page => <>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard title="Scanned logs" value={page.summary.scanned.toLocaleString()} detail="Latest journal window" icon={Activity} />
@@ -117,7 +117,7 @@ export function LogsPage() {
               pageSize={page.limit}
               total={page.total}
               onPageChange={nextPage => update({ offset: String(nextPage * page.limit) })}
-              isLoading={query.isFetching}
+              isLoading={false}
               loadingRows={page.limit}
               emptyMessage="No log entries match this search."
               hideToolbar

@@ -124,15 +124,49 @@ export function AppShell() {
   const profileName = profile.data?.displayName?.trim() || email || "Admin";
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-background">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[min(18rem,85vw)] flex-col border-r bg-sidebar text-sidebar-foreground shadow-xl transition-transform md:static md:z-auto md:w-56 md:shrink-0 md:shadow-none",
+          "fixed inset-y-0 left-0 z-40 flex h-dvh max-h-dvh w-[min(18rem,85vw)] flex-col overflow-hidden border-r bg-sidebar text-sidebar-foreground shadow-xl transition-transform md:static md:z-auto md:w-56 md:shrink-0 md:shadow-none",
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
         <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4 font-semibold">Gatekeeperd</div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><SidebarNav onNav={() => setSidebarOpen(false)} /></div>
+        <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"><SidebarNav onNav={() => setSidebarOpen(false)} /></div>
+        <div className="shrink-0 border-t border-sidebar-border p-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-auto w-full justify-start gap-3 px-2 py-2 text-left">
+                <Avatar className="h-9 w-9">
+                  {profile.data?.avatarUrl && <AvatarImage src={profile.data.avatarUrl} alt={`${profileName} profile`} />}
+                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                </Avatar>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium" title={profileName}>{profileName}</span>
+                  {email && <span className="block truncate text-xs text-muted-foreground" title={email}>{email}</span>}
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" className="w-52">
+              <DropdownMenuItem onSelect={toggleTheme}>
+                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {dark ? "Light theme" : "Dark theme"}
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/app/settings/profile"><Settings className="h-4 w-4" />Settings</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => {
+                void api.post("/auth/revoke-refresh", { refreshToken });
+                logout();
+                window.location.href = "/login";
+              }}>
+                <LogOut className="h-4 w-4" />Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </aside>
 
       {sidebarOpen && (
