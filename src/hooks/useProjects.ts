@@ -7,6 +7,7 @@ import type { AuditLogEntry } from "@/types/audit";
 import type {
   ContainerInfo,
   ContainerLogsResponse,
+  ContainerPresetCredentials,
   ContainerValidateResponse,
   ContainerWizardContext,
   CreateContainerPayload,
@@ -502,6 +503,12 @@ export function useContainerLogs(name: string, tail = 100) {
     queryKey: ["container", name, "logs", tail],
     queryFn: async () => (await api.get<ContainerLogsResponse>(`/admin/containers/${encodeURIComponent(name)}/logs`, { params: { tail } })).data,
     enabled: Boolean(name),
+  });
+}
+
+export function useContainerPresetCredentials(name: string) {
+  return useMutation({
+    mutationFn: async () => (await api.get<ContainerPresetCredentials>(`/admin/containers/${encodeURIComponent(name)}/credentials`)).data,
   });
 }
 

@@ -24,6 +24,17 @@ export interface ContainerInfo {
 
 export interface ContainerLogsResponse { container: string; tail: number; logs: string }
 
+export interface ContainerPresetCredentials {
+  preset: "postgres" | "redis";
+  database?: string | null;
+  username?: string | null;
+  password?: string | null;
+  hostPort?: number | null;
+  internalAddress: string;
+  internalDnsAvailable: boolean;
+  hostAddress?: string | null;
+}
+
 export interface VolumeMount {
   hostPath: string;
   containerPath: string;
