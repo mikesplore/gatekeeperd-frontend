@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useRepairDeploymentUpstream } from "@/hooks/useDeployments";
 
 function parseSecretEnv(text: string): [string, string][] {
   const entries: [string, string][] = [];
@@ -81,6 +82,8 @@ export function ProjectDetailPage() {
   const [secretRows, setSecretRows] = useState<{ name: string; value: string }[]>([{ name: "", value: "" }]);
   const invoiceQuery = useProjectInvoice(slug);
   const servicesQuery = useProjectServices(data?.project.id ?? "");
+  const defaultServiceId = servicesQuery.data?.find(service => service.isDefault)?.id ?? servicesQuery.data?.[0]?.id ?? "";
+  const repairUpstream = useRepairDeploymentUpstream(defaultServiceId);
   const [editOpen, setEditOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupStep, setSetupStep] = useState(1);
@@ -186,6 +189,7 @@ export function ProjectDetailPage() {
 
             <TabsContent value="deployment" className="space-y-4">
               {overview.data?.currentDeployment.status === "active" && history.data?.items[0]?.status.toLowerCase() === "failed" && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Running on the active build; latest deployment attempt failed</AlertTitle><AlertDescription>The active build {overview.data.currentDeployment.imageName}:{overview.data.currentDeployment.imageTag} is still serving traffic. The latest attempt failed on {new Date(history.data.items[0].createdAt).toLocaleString()}. Open that attempt’s Details row to see the failure reason.</AlertDescription></Alert>}
+              {history.data?.items[0]?.cutoverState === "repair_required" && <Alert variant="destructive"><AlertTitle>Gateway repair required</AlertTitle><AlertDescription className="space-y-2"><p>{history.data.items[0].cutoverError ?? "The deployment route could not be restored automatically."}</p><Button size="sm" variant="outline" disabled={!defaultServiceId || repairUpstream.isPending} onClick={async () => { try { await repairUpstream.mutateAsync(); toast.success("Gateway upstream repaired"); await Promise.all([history.refetch(), overview.refetch(), refetchProjectDetail()]); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairUpstream.isPending ? "Repairing…" : "Repair gateway upstream"}</Button></AlertDescription></Alert>}
               <Card>
                 <CardHeader><CardTitle>Current deployment</CardTitle><p className="text-sm text-muted-foreground">The active build currently serving this project.</p></CardHeader>
                 <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

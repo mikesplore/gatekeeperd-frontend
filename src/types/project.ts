@@ -93,6 +93,7 @@ export interface ProjectDeploymentHistoryItem {
   activeAt?: string | null; healthCheckResult: string; failureReason?: string | null;
   credentialSetId?: string | null; credentialSetVersion?: number | null;
   secretSetId?: string | null; secretSetVersion?: number | null; configurationId: string; actions: string[];
+  cutoverState?: string | null; cutoverError?: string | null;
 }
 
 export interface ProviderCredentialMetadata {

@@ -9,3 +9,29 @@ export interface CanonicalDeploymentHistoryItem {
   credentialSetId?: string | null; credentialSetVersion?: number | null;
   secretSetId?: string | null; secretSetVersion?: number | null; actions: string[];
 }
+
+export interface DeploymentDriftItem {
+  code: string;
+  detail: string;
+}
+
+export interface ActiveDeploymentReconciliation {
+  projectId: string;
+  projectSlug?: string | null;
+  environment: string;
+  deploymentId: string;
+  containerName?: string | null;
+  expectedPorts: Record<string, number>;
+  observedContainerState?: string | null;
+  observedPorts?: string | null;
+  gatewayTarget?: string | null;
+  drift: DeploymentDriftItem[];
+}
+
+export interface DeploymentReconciliationReport {
+  observedAt: string;
+  status: string;
+  entries: ActiveDeploymentReconciliation[];
+  errors: string[];
+  actionsTaken: string[];
+}

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import type { DeploymentReconciliationReport } from "@/types/deployment";
 
 export interface GitHubStatus {
   configured: boolean;
@@ -40,5 +41,30 @@ export function useUnlinkGitHub() {
   return useMutation({
     mutationFn: () => api.delete("/admin/github/installation"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["github", "status"] }),
+  });
+}
+export function useDeploymentReconciliation() {
+  return useQuery({
+    queryKey: ["deployment-reconciliation"],
+    queryFn: async () => (await api.get<DeploymentReconciliationReport>("/admin/deployments/reconciliation")).data,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useRepairDeploymentUpstream(serviceId: string, environment = "production") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<{ success: boolean; status: string; serviceId: string; environment: string; hostPort: number }>(
+        `/admin/nginx/upstream-repair/${encodeURIComponent(serviceId)}`,
+        undefined,
+        { params: { environment } },
+      )).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["project-deployment-history"] });
+      queryClient.invalidateQueries({ queryKey: ["deployment-reconciliation"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "site"] });
+    },
   });
 }

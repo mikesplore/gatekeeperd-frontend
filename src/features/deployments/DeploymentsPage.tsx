@@ -2,19 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Rocket, Square } from "lucide-react";
+import { AlertTriangle, RefreshCw, Rocket, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { QueryState } from "@/components/QueryState";
 import { api, getApiErrorMessage } from "@/lib/api";
+import { useDeploymentReconciliation } from "@/hooks/useDeployments";
 
 type DeploymentHistoryItem = {
   id: string; projectId: string; projectSlug: string; environment: string; sourceCommit?: string | null;
   imageName: string; imageTag: string; imageDigest?: string | null; trigger: string; status: string;
   createdAt: string; activeAt?: string | null; healthCheckResult: string; failureReason?: string | null;
   credentialSetId?: string | null; credentialSetVersion?: number | null; secretSetId?: string | null; secretSetVersion?: number | null; canRedeploy: boolean; canCancel: boolean;
+  cutoverState?: string | null; cutoverError?: string | null;
 };
 type DeploymentHistoryPage = { items: DeploymentHistoryItem[]; total: number; limit: number; offset: number };
 
@@ -84,6 +86,7 @@ function DeploymentDetails({ item }: { item: DeploymentHistoryItem }) {
 
 export function DeploymentsPage() {
   const queryClient = useQueryClient();
+  const reconciliation = useDeploymentReconciliation();
   const history = useQuery({
     queryKey: ["deployment-history"],
     queryFn: async () => (await api.get<DeploymentHistoryPage>("/admin/deployment-history", { params: { limit: 100, offset: 0 } })).data,
@@ -142,6 +145,34 @@ export function DeploymentsPage() {
     .map(status => ({ label: status.replace(/_/g, " "), value: status }));
 
   return <div className="space-y-6">
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-4">
+        <div>
+          <p className="font-medium">Runtime reconciliation</p>
+          <p className="text-sm text-foreground/70">Compare active deployment records with Docker and managed nginx routes.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => reconciliation.refetch()} disabled={reconciliation.isFetching}>
+          <RefreshCw className={`h-4 w-4 ${reconciliation.isFetching ? "animate-spin" : ""}`} />Refresh
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {reconciliation.isError ? <p className="text-sm text-destructive">{getApiErrorMessage(reconciliation.error)}</p> :
+          reconciliation.data && reconciliation.data.entries.length === 0 ? <p className="text-sm text-foreground/70">No active deployments were found.</p> :
+          <div className="space-y-3">
+            {reconciliation.data?.errors.map(error => <p key={error} className="text-sm text-destructive">{error}</p>)}
+            {reconciliation.data?.entries.map(entry => <div key={entry.deploymentId} className="rounded-md border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link className="font-medium text-primary hover:underline" to={`/app/projects/${entry.projectSlug ?? entry.projectId}?tab=deployment`}>{entry.projectSlug ?? entry.projectId}</Link>
+                <span className={entry.drift.length ? "inline-flex items-center gap-1 text-sm text-amber-600" : "text-sm text-emerald-600"}>
+                  {entry.drift.length ? <AlertTriangle className="h-4 w-4" /> : null}{entry.drift.length ? `${entry.drift.length} drift issue(s)` : "In sync"}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-foreground/70">Gateway: {entry.gatewayTarget ?? "not resolved"} · Runtime: {entry.containerName ?? "not recorded"} ({entry.observedContainerState ?? "unknown"})</p>
+              {entry.drift.map(drift => <p key={`${entry.deploymentId}-${drift.code}`} className="mt-1 text-xs text-amber-700 dark:text-amber-300">{drift.detail}</p>)}
+            </div>)}
+          </div>}
+      </CardContent>
+    </Card>
     <Card>
       <CardHeader>
         <p className="text-sm text-foreground/70">Canonical deployment history across projects.</p>
