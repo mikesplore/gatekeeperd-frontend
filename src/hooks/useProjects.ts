@@ -30,6 +30,8 @@ import type {
   ProjectDeploymentHistoryItem,
   ProviderCredentialMetadata,
   ServiceAdminView,
+  ServiceDomainBinding,
+  ServiceActiveDeployment,
   SharedEnvironmentMetadata,
   ServiceEnvironmentMetadata,
 } from "@/types/project";
@@ -137,7 +139,7 @@ function invalidateSetup(queryClient: ReturnType<typeof useQueryClient>, project
   queryClient.invalidateQueries({ queryKey: ["projects"] });
   if (projectId) {
     queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-    queryClient.invalidateQueries({ queryKey: ["project-overview", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["project-overview"] });
   }
 }
 
@@ -179,8 +181,8 @@ export function useSaveProjectSetupCredentials(projectId: string) {
 export function useSaveProjectSetupGateway(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { domain: string; serviceId?: string }) =>
-      (await api.put(`/admin/project-setup/projects/${projectId}/domain-gateway`, payload)).data,
+    mutationFn: async (payload: { domain: string; serviceId?: string; containerPort?: number }) =>
+      (await api.put<{ domain: string; status: string; serviceId?: string | null; containerPort?: number | null; bindings: ServiceDomainBinding[] }>(`/admin/project-setup/projects/${projectId}/domain-gateway`, payload)).data,
     onSuccess: () => invalidateSetup(qc, projectId),
   });
 }
@@ -226,6 +228,16 @@ export function useProjectServices(projectId: string) {
     queryKey: ["project-services", projectId],
     queryFn: async () => (await api.get<ServiceAdminView[]>(`/admin/projects/${projectId}/services`)).data,
     enabled: Boolean(projectId),
+    refetchInterval: 15_000,
+  });
+}
+
+export function useProjectServiceRuntime(projectId: string, serviceId: string) {
+  return useQuery({
+    queryKey: ["service-runtime", projectId, serviceId],
+    queryFn: async () => (await api.get<ServiceActiveDeployment>(`/admin/projects/${projectId}/services/${serviceId}/runtime`, { params: { environment: "production" } })).data,
+    enabled: Boolean(projectId && serviceId),
+    retry: false,
     refetchInterval: 15_000,
   });
 }

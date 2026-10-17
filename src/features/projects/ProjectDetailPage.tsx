@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject, useProjectDeploymentHistory, useProjectSecretRotation, useProjectServices } from "@/hooks/useProjects";
+import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject, useProjectDeploymentHistory, useProjectSecretRotation, useProjectServices, useSaveProjectSetupGateway } from "@/hooks/useProjects";
 import { useProjectPayments } from "@/hooks/usePayments";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useRepairDeploymentUpstream } from "@/hooks/useDeployments";
+import type { ProjectOverview, ServiceDomainBinding } from "@/types/project";
 
 function parseSecretEnv(text: string): [string, string][] {
   const entries: [string, string][] = [];
@@ -69,6 +70,33 @@ function parseSecretEnv(text: string): [string, string][] {
 
 function InfoHint({ children }: { children: string }) {
   return <Tooltip><TooltipTrigger asChild><button type="button" aria-label="More information" className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="h-4 w-4" /></button></TooltipTrigger><TooltipContent className="max-w-xs leading-relaxed">{children}</TooltipContent></Tooltip>;
+}
+
+function ProjectDomainBindings({ projectId, serviceId, gateway, portMappings, onSaved }: {
+  projectId: string;
+  serviceId: string;
+  gateway: ProjectOverview["domainsGateway"];
+  portMappings: NonNullable<ProjectOverview["currentDeployment"]["portMappings"]>;
+  onSaved: () => Promise<unknown>;
+}) {
+  const saveBinding = useSaveProjectSetupGateway(projectId);
+  const [domains, setDomains] = useState<Record<number, string>>({});
+  const bindings: ServiceDomainBinding[] = gateway.bindings ?? [];
+  const addDomain = async (containerPort: number) => {
+    const domain = domains[containerPort]?.trim();
+    if (!domain) return toast.error("Enter a domain name first");
+    try {
+      await saveBinding.mutateAsync({ domain, serviceId, containerPort });
+      setDomains(current => ({ ...current, [containerPort]: "" }));
+      await onSaved();
+      toast.success(`Domain ${domain} added for port ${containerPort}`);
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+  };
+
+  return <Card><CardHeader><CardTitle>Domain bindings</CardTitle><p className="text-sm text-muted-foreground">Each domain routes to one published container port. The service payment gate applies to every domain.</p></CardHeader><CardContent className="space-y-4">
+    {bindings.length ? <div className="space-y-2">{bindings.map(binding => <div key={binding.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"><span className="font-medium">{binding.domain}<span className="ml-2 font-normal text-muted-foreground">{binding.containerPort == null ? "port pending" : `container port ${binding.containerPort}`}</span></span><span className={`rounded px-2 py-1 text-xs ${binding.status === "bound" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : binding.status === "port_unavailable" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>{binding.status.replace(/_/g, " ")}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No domain bindings are saved yet.</p>}
+    {gateway.unboundPorts?.length ? <div className="space-y-3 border-t pt-4"><p className="text-sm font-medium">Published ports without a domain</p>{gateway.unboundPorts.map(port => <div key={port} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"><div className="space-y-1"><Label htmlFor={`domain-for-port-${port}`}>Container port {port}</Label><Input id={`domain-for-port-${port}`} value={domains[port] ?? ""} onChange={event => setDomains(current => ({ ...current, [port]: event.target.value }))} placeholder="app.example.com" /></div><Button type="button" variant="outline" disabled={saveBinding.isPending || !domains[port]?.trim()} onClick={() => void addDomain(port)}>{saveBinding.isPending ? "Saving…" : `Add domain for ${port}`}</Button></div>)}</div> : portMappings.length ? <p className="border-t pt-4 text-sm text-muted-foreground">Every published container port has a domain binding.</p> : <p className="border-t pt-4 text-sm text-muted-foreground">Deploy the service to see published ports and add a domain for each port.</p>}
+  </CardContent></Card>;
 }
 
 export function ProjectDetailPage() {
@@ -185,6 +213,7 @@ export function ProjectDetailPage() {
               </div>}
               {overview.isError && <Alert><AlertTitle>Project overview unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(overview.error)}. Existing project details are still shown below.</AlertDescription></Alert>}
               <ProjectServicesPanel project={project} view="overview" />
+              {overview.data && defaultServiceId && <ProjectDomainBindings projectId={project.id} serviceId={defaultServiceId} gateway={overview.data.domainsGateway} portMappings={overview.data.currentDeployment.portMappings ?? []} onSaved={() => overview.refetch()} />}
             </TabsContent>
 
             <TabsContent value="deployment" className="space-y-4">

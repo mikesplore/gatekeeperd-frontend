@@ -40,6 +40,14 @@ export interface ProjectDetailResponse {
   adjustments: ProjectAdjustment[];
 }
 
+export interface ServiceDomainBinding {
+  id: string;
+  serviceId: string;
+  containerPort: number | null;
+  domain: string;
+  status: "pending" | "bound" | "port_unavailable" | string;
+}
+
 export interface ProjectAdjustment { id: string; projectId: string; type: "ADDITIONAL_CHARGE" | "DISCOUNT"; amount: number; reason: string; actor: string; createdAt: string }
 
 export interface ProjectHealthResponse {
@@ -63,8 +71,9 @@ export interface ProjectSetupConfiguration {
 }
 export interface ProjectSetupStatus {
   projectId: string; slug: string; name: string; domain: string; sourceRuntime?: ProjectSetupConfiguration | null;
+  serviceId?: string | null;
   credentialsConfigured: boolean; credentialVersion?: number | null;
-  gateway?: { domain: string; status: string } | null;
+  gateway?: { domain: string; status: string; serviceId?: string | null; containerPort?: number | null; bindings?: ServiceDomainBinding[] } | null;
   activeDeploymentId?: string | null; activeDeploymentStatus?: string | null;
   latestDeploymentId?: string | null; latestDeploymentStatus?: string | null;
 }
@@ -78,7 +87,7 @@ export interface ProjectOverview {
   accessLifecycle: { accessStatus: string; blockReason?: string | null; deploymentMode: string; serviceMode: string; lifecycleStatus: string };
   desiredConfiguration: { configurationId?: string | null; environment?: string | null; repository?: string | null; gitRef?: string | null; registry?: string | null; imageName?: string | null; imageTag?: string | null; containerPort?: number | null; envKeys: string[]; secretSetId?: string | null; secretSetVersion?: number | null };
   currentDeployment: { id?: string | null; status: string; environment: string; triggerSource?: string | null; createdAt?: string | null; activeAt?: string | null; imageName?: string | null; imageTag?: string | null; imageDigest?: string | null; commitSha?: string | null; runtimeHealth: string; runtimeUpstreamHost?: string | null; runtimeUpstreamPort?: number | null; portMappings?: { containerPort: number; hostPort: number; hostIp?: string | null }[]; publicExposure?: boolean; credentialSetId?: string | null; credentialSetVersion?: number | null; secretSetId?: string | null; secretSetVersion?: number | null };
-  domainsGateway: { siteId?: string | null; domain?: string | null; configured: boolean; tlsMode?: string | null; gateEnabled?: boolean | null; reconciliationStatus?: string | null; resolvedUpstreamHost?: string | null; resolvedUpstreamPort?: number | null };
+  domainsGateway: { siteId?: string | null; domain?: string | null; configured: boolean; tlsMode?: string | null; gateEnabled?: boolean | null; reconciliationStatus?: string | null; resolvedUpstreamHost?: string | null; resolvedUpstreamPort?: number | null; bindings?: ServiceDomainBinding[]; unboundPorts?: number[] };
   customerBilling: { customerId?: string | null; customerName?: string | null; customerEmail?: string | null; billingName?: string | null; billingEmail?: string | null; billingAddress?: string | null; currency: string; billed: number; paid: number; balance: number; dueDate?: string | null };
 }
 

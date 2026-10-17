@@ -30,9 +30,9 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
   const { data: projects, isLoading: projectsLoading } = useProjects();
   const [slug, setSlug] = useState("");
   const [serviceId, setServiceId] = useState("");
+  const [selectedDomain, setSelectedDomain] = useState("");
   const [step, setStep] = useState(0);
   const [preview, setPreview] = useState("");
-  const [selectedContainerPort, setSelectedContainerPort] = useState<number>();
   const selectedProject = projects?.find((project) => project.slug === slug);
   const { data: services, isLoading: servicesLoading } = useProjectServices(selectedProject?.id ?? "");
   const selectedService = services?.find((service) => service.id === serviceId);
@@ -49,29 +49,25 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
       setPreview("");
       setSlug("");
       setServiceId("");
-      setSelectedContainerPort(undefined);
+      setSelectedDomain("");
       reset({});
     }
   };
 
   useEffect(() => {
-    const availablePorts = Object.keys(context.data?.publishedPorts ?? {})
-      .map(Number)
-      .filter(Number.isInteger)
-      .sort((a, b) => a - b);
-    if (availablePorts.length === 0) {
-      setSelectedContainerPort(undefined);
-      return;
-    }
-    setSelectedContainerPort((current) =>
-      current !== undefined && availablePorts.includes(current)
-        ? current
-        : context.data?.configuredContainerPort ?? availablePorts[0],
-    );
+    const bindings = context.data?.bindings?.filter(binding => binding.status === "bound") ?? [];
+    if (!bindings.length) { setSelectedDomain(""); return; }
+    setSelectedDomain(current => bindings.some(binding => binding.domain === current)
+      ? current
+      : bindings.find(binding => binding.domain === context.data?.domain)?.domain ?? bindings[0].domain);
   }, [context.data]);
+
+  const selectedBinding = context.data?.bindings?.find(binding => binding.domain === selectedDomain && binding.status === "bound");
+  const selectedContainerPort = selectedBinding?.containerPort ?? undefined;
 
   const payloadFrom = (values: FormValues): EnableNginxPayload => ({
     serviceId: serviceId || undefined,
+    domain: selectedDomain || undefined,
     containerPort: selectedContainerPort,
     certificateDomain: values.certificateDomain || undefined,
     sslCertificatePath: values.sslCertificatePath || undefined,
@@ -134,7 +130,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border bg-muted/30 p-4">
                   <Globe2 className="mt-0.5 h-5 w-5 text-primary" />
-                  <div><h3 className="font-medium">Choose a service</h3><p className="mt-1 text-sm text-muted-foreground">Select the service and its configured public domain.</p></div>
+                  <div><h3 className="font-medium">Choose a domain binding</h3><p className="mt-1 text-sm text-muted-foreground">Select the domain and container port this Nginx site should serve.</p></div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="site-project">Project</Label>
@@ -145,30 +141,31 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
                     </select>
                   )}
                 </div>
-                {selectedService && context.data && !context.data.domain && <p className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">This service has no domain configured. Configure a domain in Service settings before adding its Nginx site.</p>}
-                {selectedProject && <div className="space-y-2"><Label htmlFor="site-service">Service</Label>{servicesLoading ? <Skeleton className="h-10 w-full" /> :                 <select id="site-service" value={serviceId} onChange={(event) => { setServiceId(event.target.value); setSelectedContainerPort(undefined); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Select a service</option>{services?.map((service) => <option key={service.id} value={service.id}>{service.name}{service.isDefault ? " · default service" : ""}</option>)}</select>}{selectedService && <div className="rounded-lg border p-4 text-sm"><p className="font-medium">{selectedProject.name} · {selectedService.name}</p><p className="mt-1 text-muted-foreground">{context.isLoading ? "Resolving service domain…" : context.data?.domain ?? "No domain attached to this service"} <span className="px-1">·</span> {selectedProject.slug}</p></div>}</div>}
+                {selectedService && context.data && !(context.data.bindings ?? []).some(binding => binding.status === "bound") && <p className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">Add a domain binding and assign its container port in the project overview before adding its Nginx site.</p>}
+                {selectedProject && <div className="space-y-2"><Label htmlFor="site-service">Service</Label>{servicesLoading ? <Skeleton className="h-10 w-full" /> : <select id="site-service" value={serviceId} onChange={(event) => { setServiceId(event.target.value); setSelectedDomain(""); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Select a service</option>{services?.map((service) => <option key={service.id} value={service.id}>{service.name}{service.isDefault ? " · default service" : ""}</option>)}</select>}{selectedService && <div className="rounded-lg border p-4 text-sm"><p className="font-medium">{selectedProject.name} · {selectedService.name}</p><p className="mt-1 text-muted-foreground">{context.isLoading ? "Loading domain bindings…" : `${(context.data?.bindings ?? []).filter(binding => binding.status === "bound").length} available domain binding(s)`} <span className="px-1">·</span> {selectedProject.slug}</p></div>}</div>}
+                {selectedService && context.data && <div className="space-y-2"><Label htmlFor="site-domain">Domain binding</Label><select id="site-domain" value={selectedDomain} onChange={event => setSelectedDomain(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Select a bound domain</option>{(context.data.bindings ?? []).filter(binding => binding.status === "bound").map(binding => <option key={binding.id} value={binding.domain}>{binding.domain} · container port {binding.containerPort}</option>)}</select></div>}
               </section>
             )}
 
             {step === 1 && (
               <section className="space-y-4">
-                <div className="flex gap-3 rounded-lg border bg-muted/30 p-4"><Server className="mt-0.5 h-5 w-5 text-primary" /><div><h3 className="font-medium">Upstream connection</h3><p className="mt-1 text-sm text-muted-foreground">Nginx will forward requests for {context.data?.domain ?? "the selected service domain"} to {selectedService?.name ?? "the selected service"}.</p></div></div>
+                <div className="flex gap-3 rounded-lg border bg-muted/30 p-4"><Server className="mt-0.5 h-5 w-5 text-primary" /><div><h3 className="font-medium">Upstream connection</h3><p className="mt-1 text-sm text-muted-foreground">Nginx will forward requests for {selectedDomain || "the selected domain"} to {selectedService?.name ?? "the selected service"}.</p></div></div>
                 {context.isLoading ? <Skeleton className="h-20 w-full" /> : context.data && <div className="rounded-md border p-4 text-sm"><p className="text-xs text-muted-foreground">Resolved upstream</p><p className="mt-1 font-medium">{context.data.resolvedUpstreamHost && context.data.configuredPort ? `${context.data.resolvedUpstreamHost}:${context.data.configuredPort}` : "No active deployment runtime found"}</p><p className="mt-1 text-xs text-muted-foreground">Nginx connects to the Docker-published host port. {context.data.runtimeHealth ? `Runtime: ${context.data.runtimeHealth}` : "Deploy or attach a running service before adding its site."}</p></div>}
-                {Object.keys(context.data?.publishedPorts ?? {}).length > 1 && <div className="space-y-2 rounded-md border p-4"><Label htmlFor="site-container-port">Container port</Label><select id="site-container-port" value={selectedContainerPort ?? ""} onChange={(event) => setSelectedContainerPort(Number(event.target.value))} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{Object.entries(context.data?.publishedPorts ?? {}).sort(([a], [b]) => Number(a) - Number(b)).map(([containerPort, hostPort]) => <option key={containerPort} value={containerPort}>{containerPort} → host port {hostPort}{Number(containerPort) === context.data?.configuredContainerPort ? " · current" : ""}</option>)}</select><p className="text-xs text-muted-foreground">Choose which published Docker port this Nginx site should expose.</p></div>}\n+                <p className="rounded-md border p-4 text-sm">The active deployment supplies its published port mappings. Nginx uses HTTP to reach the selected container port.</p>
+                {selectedBinding && <div className="rounded-md border p-4 text-sm"><p className="font-medium">{selectedBinding.domain} → container port {selectedBinding.containerPort}</p><p className="mt-1 text-xs text-muted-foreground">Host port {context.data?.publishedPorts?.[String(selectedBinding.containerPort)] ?? "not published by the active deployment"}</p></div>}
               </section>
             )}
 
             {step === 2 && (
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border bg-muted/30 p-4"><LockKeyhole className="mt-0.5 h-5 w-5 text-primary" /><div><h3 className="font-medium">TLS and certificate</h3><p className="mt-1 text-sm text-muted-foreground">Gatekeeper can reuse an installed certificate matching this domain.</p></div></div>
-                <p className="rounded-md border p-4 text-sm">HTTPS is required by default. Gatekeeper will use an installed certificate matching {context.data?.domain ?? "the service domain"}.</p><details className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Advanced certificate settings</summary><div className="mt-4 space-y-4">{context.data?.installedCertificates.length ? <div className="space-y-2"><Label htmlFor="site-certificate">Installed certificate</Label><select id="site-certificate" {...register("certificateDomain")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Auto-select for service domain</option>{context.data.installedCertificates.map((domain) => <option key={domain} value={domain}>{domain}</option>)}</select></div> : <div className="space-y-2"><Label htmlFor="site-certificate">Certificate domain</Label><Input id="site-certificate" placeholder="example.com" {...register("certificateDomain")} /></div>}<div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="site-cert-path">Certificate path override</Label><Input id="site-cert-path" placeholder="/etc/letsencrypt/live/domain/fullchain.pem" {...register("sslCertificatePath")} /></div><div className="space-y-2"><Label htmlFor="site-key-path">Private key path override</Label><Input id="site-key-path" placeholder="/etc/letsencrypt/live/domain/privkey.pem" {...register("sslCertificateKeyPath")} /></div></div></div></details>
+                <p className="rounded-md border p-4 text-sm">HTTPS is required by default. Gatekeeper will use an installed certificate matching {selectedDomain || "the selected domain"}.</p><details className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Advanced certificate settings</summary><div className="mt-4 space-y-4">{context.data?.installedCertificates.length ? <div className="space-y-2"><Label htmlFor="site-certificate">Installed certificate</Label><select id="site-certificate" {...register("certificateDomain")} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Auto-select for selected domain</option>{context.data.installedCertificates.map((domain) => <option key={domain} value={domain}>{domain}</option>)}</select></div> : <div className="space-y-2"><Label htmlFor="site-certificate">Certificate domain</Label><Input id="site-certificate" placeholder="example.com" {...register("certificateDomain")} /></div>}<div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="site-cert-path">Certificate path override</Label><Input id="site-cert-path" placeholder="/etc/letsencrypt/live/domain/fullchain.pem" {...register("sslCertificatePath")} /></div><div className="space-y-2"><Label htmlFor="site-key-path">Private key path override</Label><Input id="site-key-path" placeholder="/etc/letsencrypt/live/domain/privkey.pem" {...register("sslCertificateKeyPath")} /></div></div></div></details>
               </section>
             )}
 
             {step === 3 && (
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4"><Check className="mt-0.5 h-5 w-5 text-emerald-600" /><div><h3 className="font-medium">Configuration validated</h3><p className="mt-1 text-sm text-muted-foreground">Review the server block before applying it.</p></div></div>
-                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project · service</p><p className="mt-1 font-medium">{selectedProject?.name} · {selectedService?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{context.data?.domain ?? "Not configured"}</p></div><div><p className="text-xs text-muted-foreground">Container port</p><p className="mt-1 font-medium">{selectedContainerPort ?? "Not available"}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{context.data?.publishedPorts?.[String(selectedContainerPort)] ?? context.data?.configuredPort ?? "Not available"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
+                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project · service</p><p className="mt-1 font-medium">{selectedProject?.name} · {selectedService?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{selectedDomain || "Not configured"}</p></div><div><p className="text-xs text-muted-foreground">Container port</p><p className="mt-1 font-medium">{selectedContainerPort ?? "Not available"}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{selectedContainerPort == null ? "Not available" : context.data?.publishedPorts?.[String(selectedContainerPort)] ?? "Not published"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
                 {validate.isPending ? <Skeleton className="h-56 w-full" /> : <pre className="max-h-[42vh] overflow-auto rounded-lg bg-muted p-4 text-xs leading-relaxed">{preview || "No preview available."}</pre>}
               </section>
             )}
@@ -176,7 +173,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
         </div>
         <div className="flex items-center justify-between border-t px-6 py-4">
           <Button type="button" variant="outline" onClick={() => step === 0 ? close(false) : setStep(step - 1)}><ChevronLeft className="mr-2 h-4 w-4" />{step === 0 ? "Cancel" : "Back"}</Button>
-          <Button type="submit" form="add-site-form" disabled={enable.isPending || validate.isPending || (step === 0 && (!slug || !serviceId || !context.data?.domain))}>{step === 3 ? enable.isPending ? "Deploying…" : "Deploy site" : step === 2 ? validate.isPending ? "Validating…" : "Review site" : <>Continue<ChevronRight className="ml-2 h-4 w-4" /></>}</Button>
+          <Button type="submit" form="add-site-form" disabled={enable.isPending || validate.isPending || (step === 0 && (!slug || !serviceId || !selectedDomain))}>{step === 3 ? enable.isPending ? "Deploying…" : "Deploy site" : step === 2 ? validate.isPending ? "Validating…" : "Review site" : <>Continue<ChevronRight className="ml-2 h-4 w-4" /></>}</Button>
         </div>
       </SidePanelContent>
     </SidePanel>

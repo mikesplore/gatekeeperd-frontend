@@ -1,3 +1,5 @@
+import type { ServiceDomainBinding } from "@/types/project";
+
 export interface NginxStatus {
   enabled: boolean;
   configPath: string;
@@ -59,10 +61,12 @@ export interface NginxWizardContext {
   resolvedUpstreamHost: string | null;
   installedCertificates: string[];
   resolvedCertificateDomain: string | null;
+  bindings?: ServiceDomainBinding[];
 }
 
 export interface EnableNginxPayload {
   serviceId?: string;
+  domain?: string;
   containerPort?: number;
   certificateDomain?: string;
   sslCertificatePath?: string;
@@ -123,3 +127,4 @@ export interface CertificateStatusResponse {
   certificatePath: string | null;
   privateKeyPath: string | null;
 }
+
