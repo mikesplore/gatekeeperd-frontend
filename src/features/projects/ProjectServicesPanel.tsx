@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { Button } from "@/components/ui/button";
@@ -8,21 +8,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useContainer, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata } from "@/hooks/useProjects";
-import type { Project } from "@/types/project";
+import { useAdoptableContainers, useAdoptProjectContainer, useContainer, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata } from "@/hooks/useProjects";
+import type { Project, ServiceType } from "@/types/project";
 import type { DashboardSite } from "@/types/sites";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
+import { useDeployProjectSetup } from "@/hooks/useProjects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-type HistoryResponse = { projectId: string; environment: string; items: { id: string; serviceId?: string; status: string; createdAt: string; activeAt?: string | null; imageName: string; imageTag: string; imageDigest?: string | null; sourceCommit?: string | null; healthCheckResult: string }[] };
+type HistoryResponse = { projectId: string; environment: string; items: { id: string; serviceId?: string; status: string; createdAt: string; activeAt?: string | null; environment: string; trigger: string; failureReason?: string | null; imageName: string; imageTag: string; imageDigest?: string | null; sourceCommit?: string | null; healthCheckResult: string }[] };
 export function ProjectServicesPanel({ project, view = "overview", serviceId }: { project: Project; view?: "overview" | "settings" | "detail"; serviceId?: string }) {
   const queryClient = useQueryClient();
   const servicesQuery = useProjectServices(project.id);
@@ -33,6 +34,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
   const [sharedNewKey, setSharedNewKey] = useState("");
   const [sharedNewValue, setSharedNewValue] = useState("");
   const [newServiceName, setNewServiceName] = useState("");
+  const [newServiceType, setNewServiceType] = useState<ServiceType>("frontend");
   const [serviceDrafts, setServiceDrafts] = useState<Record<string, Record<string, string>>>({});
 
   const relevantSites = useMemo(() => (sitesQuery.data?.sites ?? []).filter(site => site.projectId === project.id), [sitesQuery.data?.sites, project.id]);
@@ -67,7 +69,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
     {view === "overview" && <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div><CardTitle>Services</CardTitle><p className="mt-1 text-sm text-muted-foreground">Each service owns its deployment, access block, runtime health, and domains.</p></div>
-        <div className="flex gap-2"><Input aria-label="New service name" placeholder="e.g. frontend" value={newServiceName} onChange={event => setNewServiceName(event.target.value)} /><Button disabled={!newServiceName.trim() || servicesQuery.isFetching} onClick={async () => { try { await api.post(`/admin/projects/${project.id}/services`, { name: newServiceName.trim() }); setNewServiceName(""); await servicesQuery.refetch(); toast.success("Service created"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Plus className="h-4 w-4" />Add</Button></div>
+        <div className="flex flex-wrap gap-2"><Input aria-label="New service name" placeholder="e.g. frontend" value={newServiceName} onChange={event => setNewServiceName(event.target.value)} /><Select value={newServiceType} onValueChange={value => setNewServiceType(value as ServiceType)}><SelectTrigger className="w-[140px]" aria-label="New service type"><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select><Button disabled={!newServiceName.trim() || servicesQuery.isFetching} onClick={async () => { try { await api.post(`/admin/projects/${project.id}/services`, { name: newServiceName.trim(), serviceType: newServiceType }); setNewServiceName(""); await servicesQuery.refetch(); toast.success("Service created"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Plus className="h-4 w-4" />Add</Button></div>
       </CardHeader>
       <CardContent className="space-y-4">
         {servicesQuery.isLoading && <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>}
@@ -112,7 +114,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   project: Project;
   view: "overview" | "detail";
   serviceCount: number;
-  service: { id: string; name: string; accessStatus: string; isDefault: boolean; blockReason?: string | null };
+  service: { id: string; name: string; serviceType: ServiceType; accessStatus: string; isDefault: boolean; blockReason?: string | null };
   sites: DashboardSite[];
   refreshServices: () => void;
   draft: Record<string, string>; setDraft: (draft: Record<string, string>) => void;
@@ -133,8 +135,14 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
     .map(([containerPort, hostPort]) => `${hostPort}:${containerPort}/tcp`)
     .join(", ");
   const save = useSaveServiceEnvironment(project.id);
+  const deploy = useDeployProjectSetup(project.id, service.id);
+  const adoptable = useAdoptableContainers(true);
+  const adopt = useAdoptProjectContainer(project.id);
+  const [containerToAttach, setContainerToAttach] = useState("");
   const [removedKeys, setRemovedKeys] = useState<string[]>([]);
   const [environmentDirty, setEnvironmentDirty] = useState(false);
+  const [environmentEditing, setEnvironmentEditing] = useState(false);
+  const [environmentVisible, setEnvironmentVisible] = useState(false);
   const lastSyncedEnvironment = useRef("");
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
@@ -146,6 +154,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [serviceName, setServiceName] = useState(service.name);
+  const [serviceType, setServiceType] = useState<ServiceType>(service.serviceType);
   const [serviceActionPending, setServiceActionPending] = useState(false);
   const latestDeployment = history.data?.items[0];
   const active = history.data?.items.find(item => item.status === "active");
@@ -166,7 +175,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
     if (!name) return toast.error("Service name is required.");
     setServiceActionPending(true);
     try {
-      await api.patch(`/admin/projects/${project.id}/services/${service.id}`, { name });
+      await api.patch(`/admin/projects/${project.id}/services/${service.id}`, { name, serviceType });
       await refreshServices();
       setEditOpen(false);
       toast.success("Service renamed");
@@ -275,7 +284,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
     return <Card className="overflow-hidden">
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="text-base font-semibold transition-colors hover:text-primary">{service.name}</Link>{service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>{formatStatus(service.accessStatus)}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(serviceHealth)}</span></div>
+          <div className="flex flex-wrap items-center gap-2"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="text-base font-semibold transition-colors hover:text-primary">{service.name}</Link><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(service.serviceType)}</span>{service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>{formatStatus(service.accessStatus)}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(serviceHealth)}</span></div>
           <p className="truncate text-sm text-muted-foreground">{sites.length ? sites.map(site => site.domain).join(", ") : "No domain attached"}</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">{serviceCount > 1 && !service.isDefault && <Button size="sm" variant="outline" disabled={serviceActionPending} onClick={() => void makeDefault()}>{serviceActionPending ? "Saving…" : "Set as default"}</Button>}<Button asChild size="sm" variant="outline"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Manage service</Link></Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button></div>
@@ -289,7 +298,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
       <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="text-base">{service.name}</CardTitle>
+            <            CardTitle className="text-base">{service.name}</CardTitle><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(service.serviceType)}</span>
             {service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>Status: {formatStatus(service.accessStatus)}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">Health: {formatStatus(serviceHealth)}</span>
@@ -299,31 +308,37 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
         <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}><Settings2 className="h-4 w-4" />Configure service</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem>{serviceCount > 1 && !service.isDefault && <DropdownMenuItem disabled={serviceActionPending} onSelect={() => void makeDefault()}><Settings2 className="mr-2 h-4 w-4" />Set as default</DropdownMenuItem>}<DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
       </CardContent>
     </Card>
+    {(!hasRuntimeConfiguration || setupStatus.data?.gateway?.status !== "active" || latestDeployment?.status.toLowerCase() === "failed") && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Next steps for {service.name}</AlertTitle><AlertDescription className="space-y-2"><p>{!hasRuntimeConfiguration ? "Configure source and runtime before deploying this service." : setupStatus.data?.gateway?.status !== "active" ? "The service is deployed, but its gateway is not active yet. Configure or repair the site before sending traffic." : `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}`}</p><div className="flex flex-wrap gap-2">{!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}>Configure runtime</Button> : <Button size="sm" variant="outline" disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Service deployment queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Deploy service"}</Button>}</div></AlertDescription></Alert>}
     <Card>
-      <CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base">Deployment container</CardTitle>{activeInspection.data?.status === "ready" && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">Ready · gateway cutover pending</span>}</div></CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div><Button size="sm" onClick={async () => { try { await deploy.mutateAsync(); toast.success("Service deployment queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }} disabled={deploy.isPending || !hasRuntimeConfiguration}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queuing…" : "Deploy"}</Button></CardHeader>
+      <CardContent className="space-y-2">{history.data?.items.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"><div className="min-w-0"><p className="truncate font-medium">{item.imageName}:{item.imageTag}</p><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</p>{item.failureReason && <p className="mt-1 text-xs text-destructive">{item.failureReason}</p>}</div><span className={`rounded px-2 py-1 text-xs font-medium ${item.status.toLowerCase() === "failed" ? "bg-red-500/10 text-red-700" : item.status.toLowerCase() === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted"}`}>{formatStatus(item.status)}</span></div>)}{!history.isLoading && !history.data?.items.length && <p className="text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}</CardContent>
+    </Card>
+    <Card>
+      <CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle className="text-base">Service containers</CardTitle><p className="mt-1 text-xs text-muted-foreground">Bundle application, database, Redis, and cache containers with this service.</p></div>{activeInspection.data?.status === "ready" && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">Ready · gateway cutover pending</span>}</div></CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-3">
         <div className="min-w-0"><p className="text-xs font-medium uppercase text-muted-foreground">Container</p>{activeContainerName ? <Link className="break-all font-medium text-primary hover:underline" to={`/app/containers/${encodeURIComponent(activeContainerName)}`}>{activeContainerName}</Link> : <p className="text-sm text-muted-foreground">{activeInspection.isLoading ? "Loading…" : "No active container"}</p>}</div>
         <div><p className="text-xs font-medium uppercase text-muted-foreground">Health</p><p className="text-sm">{activeContainer.isLoading ? "Loading…" : activeInspection.data?.status === "ready" || active?.healthCheckResult === "passed" ? "Passed readiness" : activeContainer.data?.health ?? (activeContainer.data?.state === "running" ? "No health check" : activeContainer.data?.state ?? "Not available")}</p></div>
         <div><p className="text-xs font-medium uppercase text-muted-foreground">Port</p><p className="text-sm font-mono">{activeInspection.isLoading ? "Loading…" : publishedPortText || "Not published"}</p></div>
         {activeInspection.data?.publicExposure && <div className="sm:col-span-3 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">This adopted container is bound to a public host address. The warning clears when this deployment is retired.</div>}
+        <div className="sm:col-span-3 flex flex-wrap items-center gap-2 border-t pt-3"><Select value={containerToAttach} onValueChange={setContainerToAttach}><SelectTrigger className="min-w-[220px] flex-1" aria-label="Container to attach"><SelectValue placeholder={adoptable.isLoading ? "Loading containers…" : "Attach an existing container"} /></SelectTrigger><SelectContent>{(adoptable.data ?? []).map(container => <SelectItem key={container.id} value={container.id}>{container.name} · {container.image}</SelectItem>)}</SelectContent></Select><Button size="sm" variant="outline" disabled={!containerToAttach || adopt.isPending} onClick={async () => { const selected = adoptable.data?.find(item => item.id === containerToAttach); const port = selected?.ports[0]?.containerPort; if (!selected || !port) return toast.error("Select a container with a published port."); try { await adopt.mutateAsync({ containerId: selected.id, containerPort: port, serviceId: service.id }); setContainerToAttach(""); toast.success(`${selected.name} attached to ${service.name}`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{adopt.isPending ? "Attaching…" : "Attach container"}</Button></div>
       </CardContent>
     </Card>
     <Card className="overflow-hidden">
       <CardContent className="space-y-5 pt-4">
         {service.accessStatus !== "active" && <p className="text-sm text-red-700">{service.blockReason || "No block reason set."}</p>}
         <div className="space-y-3">
-          <div><p className="text-sm font-medium">Service environment</p><p className="text-xs text-muted-foreground">Values are prefilled from the current service configuration. Edit or remove rows, then save and redeploy.</p></div>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-medium">Service environment</p><p className="text-xs text-muted-foreground">Values are hidden by default. Enable editing to replace or remove variables, then save and redeploy.</p></div><div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setEnvironmentVisible(value => !value)}>{environmentVisible ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}{environmentVisible ? "Hide values" : "Reveal values"}</Button><Button type="button" size="sm" variant={environmentEditing ? "secondary" : "outline"} onClick={() => setEnvironmentEditing(value => !value)}>{environmentEditing ? "Done editing" : "Edit variables"}</Button></div></div>
           {visibleKeys.map(key => {
-            return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}</Label><Input aria-label={`Value for ${key}`} value={draft[key] ?? currentValues[key] ?? ""} onChange={event => { setDraft({ ...draft, [key]: event.target.value }); setEnvironmentDirty(true); }} /><Button size="sm" variant="ghost" onClick={() => { setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key))); setRemovedKeys(current => [...new Set([...current, key])]); setEnvironmentDirty(true); }}>Delete</Button></div>;
+            return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}</Label><Input aria-label={`Value for ${key}`} type={environmentVisible ? "text" : "password"} readOnly={!environmentEditing} value={draft[key] ?? currentValues[key] ?? ""} onChange={event => { setDraft({ ...draft, [key]: event.target.value }); setEnvironmentDirty(true); }} /><Button disabled={!environmentEditing} size="sm" variant="ghost" onClick={() => { setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key))); setRemovedKeys(current => [...new Set([...current, key])]); setEnvironmentDirty(true); }}>Delete</Button></div>;
           })}
-          <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setRemovedKeys(current => current.filter(item => item !== key)); setEnvironmentDirty(true); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add variable</Button></div>
-          <div className="flex justify-end"><Button size="sm" disabled={save.isPending || setupStatus.isLoading || setupStatus.isError || !environmentDirty} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : setupStatus.isLoading ? "Checking runtime…" : setupStatus.isError ? "Runtime status unavailable" : hasRuntimeConfiguration ? "Save & deploy" : "Save variables"}</Button></div>
+          {environmentEditing && <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} type={environmentVisible ? "text" : "password"} placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setRemovedKeys(current => current.filter(item => item !== key)); setEnvironmentDirty(true); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add variable</Button></div>}
+          {environmentEditing && <div className="flex justify-end"><Button size="sm" disabled={save.isPending || setupStatus.isLoading || setupStatus.isError || !environmentDirty} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : setupStatus.isLoading ? "Checking runtime…" : setupStatus.isError ? "Runtime status unavailable" : hasRuntimeConfiguration ? "Save & deploy" : "Save variables"}</Button></div>}
         </div>
       </CardContent>
     </Card>
     {blockDialog}
     <Dialog open={editOpen} onOpenChange={open => { if (!serviceActionPending) setEditOpen(open); }}>
-      <DialogContent><DialogHeader><DialogTitle>Rename service</DialogTitle><DialogDescription>Choose a name for this service within {project.name}.</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor={`service-name-${service.id}`}>Service name</Label><Input id={`service-name-${service.id}`} value={serviceName} onChange={event => setServiceName(event.target.value)} autoFocus /></div><DialogFooter><Button variant="outline" disabled={serviceActionPending} onClick={() => setEditOpen(false)}>Cancel</Button><Button disabled={serviceActionPending || !serviceName.trim() || serviceName.trim() === service.name} onClick={() => void saveServiceName()}>{serviceActionPending ? "Saving…" : "Save name"}</Button></DialogFooter></DialogContent>
+      <DialogContent><DialogHeader><DialogTitle>Edit service</DialogTitle><DialogDescription>Manage the service identity and runtime role within {project.name}.</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor={`service-name-${service.id}`}>Service name</Label><Input id={`service-name-${service.id}`} value={serviceName} onChange={event => setServiceName(event.target.value)} autoFocus /></div><div className="space-y-2"><Label>Service type</Label><Select value={serviceType} onValueChange={value => setServiceType(value as ServiceType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select></div><DialogFooter><Button variant="outline" disabled={serviceActionPending} onClick={() => setEditOpen(false)}>Cancel</Button><Button disabled={serviceActionPending || !serviceName.trim() || (serviceName.trim() === service.name && serviceType === service.serviceType)} onClick={() => void saveServiceName()}>{serviceActionPending ? "Saving…" : "Save service"}</Button></DialogFooter></DialogContent>
     </Dialog>
     <AlertDialog open={deleteOpen} onOpenChange={open => { if (!serviceActionPending) setDeleteOpen(open); }}>
       <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {service.name}?</AlertDialogTitle><AlertDialogDescription>This removes the service from {project.name}. Services with deployment, environment, or domain history cannot be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={serviceActionPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={serviceActionPending} onClick={event => { event.preventDefault(); void deleteService(); }}>{serviceActionPending ? "Deleting…" : "Delete service"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
@@ -344,6 +359,18 @@ function useProjectServiceHistory(projectSlug: string, serviceId: string) {
       return response.data;
     },
   });
+}
+
+function ServiceTypeOptions() {
+  return <>{[
+    ["frontend", "Frontend"],
+    ["backend", "Backend / API"],
+    ["worker", "Worker"],
+    ["database", "Database"],
+    ["redis", "Redis"],
+    ["cache", "Cache"],
+    ["custom", "Custom container"],
+  ].map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</>;
 }
 
 function validateDraft(draft: Record<string, string>) {
