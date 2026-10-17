@@ -53,6 +53,8 @@ export interface NginxWizardContext {
   domain: string | null;
   nginxEnabled: boolean;
   configuredPort: number | null;
+  configuredContainerPort: number | null;
+  publishedPorts: Record<string, number>;
   runtimeHealth: string | null;
   resolvedUpstreamHost: string | null;
   installedCertificates: string[];
@@ -61,6 +63,7 @@ export interface NginxWizardContext {
 
 export interface EnableNginxPayload {
   serviceId?: string;
+  containerPort?: number;
   certificateDomain?: string;
   sslCertificatePath?: string;
   sslCertificateKeyPath?: string;

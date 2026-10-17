@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Globe2, LockKeyhole, Server } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
   const [serviceId, setServiceId] = useState("");
   const [step, setStep] = useState(0);
   const [preview, setPreview] = useState("");
+  const [selectedContainerPort, setSelectedContainerPort] = useState<number>();
   const selectedProject = projects?.find((project) => project.slug === slug);
   const { data: services, isLoading: servicesLoading } = useProjectServices(selectedProject?.id ?? "");
   const selectedService = services?.find((service) => service.id === serviceId);
@@ -48,12 +49,30 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
       setPreview("");
       setSlug("");
       setServiceId("");
+      setSelectedContainerPort(undefined);
       reset({});
     }
   };
 
+  useEffect(() => {
+    const availablePorts = Object.keys(context.data?.publishedPorts ?? {})
+      .map(Number)
+      .filter(Number.isInteger)
+      .sort((a, b) => a - b);
+    if (availablePorts.length === 0) {
+      setSelectedContainerPort(undefined);
+      return;
+    }
+    setSelectedContainerPort((current) =>
+      current !== undefined && availablePorts.includes(current)
+        ? current
+        : context.data?.configuredContainerPort ?? availablePorts[0],
+    );
+  }, [context.data]);
+
   const payloadFrom = (values: FormValues): EnableNginxPayload => ({
     serviceId: serviceId || undefined,
+    containerPort: selectedContainerPort,
     certificateDomain: values.certificateDomain || undefined,
     sslCertificatePath: values.sslCertificatePath || undefined,
     sslCertificateKeyPath: values.sslCertificateKeyPath || undefined,
@@ -127,7 +146,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
                   )}
                 </div>
                 {selectedService && context.data && !context.data.domain && <p className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">This service has no domain configured. Configure a domain in Service settings before adding its Nginx site.</p>}
-                {selectedProject && <div className="space-y-2"><Label htmlFor="site-service">Service</Label>{servicesLoading ? <Skeleton className="h-10 w-full" /> : <select id="site-service" value={serviceId} onChange={(event) => setServiceId(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Select a service</option>{services?.map((service) => <option key={service.id} value={service.id}>{service.name}{service.isDefault ? " · default service" : ""}</option>)}</select>}{selectedService && <div className="rounded-lg border p-4 text-sm"><p className="font-medium">{selectedProject.name} · {selectedService.name}</p><p className="mt-1 text-muted-foreground">{context.isLoading ? "Resolving service domain…" : context.data?.domain ?? "No domain attached to this service"} <span className="px-1">·</span> {selectedProject.slug}</p></div>}</div>}
+                {selectedProject && <div className="space-y-2"><Label htmlFor="site-service">Service</Label>{servicesLoading ? <Skeleton className="h-10 w-full" /> :                 <select id="site-service" value={serviceId} onChange={(event) => { setServiceId(event.target.value); setSelectedContainerPort(undefined); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Select a service</option>{services?.map((service) => <option key={service.id} value={service.id}>{service.name}{service.isDefault ? " · default service" : ""}</option>)}</select>}{selectedService && <div className="rounded-lg border p-4 text-sm"><p className="font-medium">{selectedProject.name} · {selectedService.name}</p><p className="mt-1 text-muted-foreground">{context.isLoading ? "Resolving service domain…" : context.data?.domain ?? "No domain attached to this service"} <span className="px-1">·</span> {selectedProject.slug}</p></div>}</div>}
               </section>
             )}
 
@@ -135,7 +154,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border bg-muted/30 p-4"><Server className="mt-0.5 h-5 w-5 text-primary" /><div><h3 className="font-medium">Upstream connection</h3><p className="mt-1 text-sm text-muted-foreground">Nginx will forward requests for {context.data?.domain ?? "the selected service domain"} to {selectedService?.name ?? "the selected service"}.</p></div></div>
                 {context.isLoading ? <Skeleton className="h-20 w-full" /> : context.data && <div className="rounded-md border p-4 text-sm"><p className="text-xs text-muted-foreground">Resolved upstream</p><p className="mt-1 font-medium">{context.data.resolvedUpstreamHost && context.data.configuredPort ? `${context.data.resolvedUpstreamHost}:${context.data.configuredPort}` : "No active deployment runtime found"}</p><p className="mt-1 text-xs text-muted-foreground">Nginx connects to the Docker-published host port. {context.data.runtimeHealth ? `Runtime: ${context.data.runtimeHealth}` : "Deploy or attach a running service before adding its site."}</p></div>}
-                <p className="rounded-md border p-4 text-sm">The active deployment supplies its published application port. Nginx uses HTTP to reach the container.</p>
+                {Object.keys(context.data?.publishedPorts ?? {}).length > 1 && <div className="space-y-2 rounded-md border p-4"><Label htmlFor="site-container-port">Container port</Label><select id="site-container-port" value={selectedContainerPort ?? ""} onChange={(event) => setSelectedContainerPort(Number(event.target.value))} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{Object.entries(context.data?.publishedPorts ?? {}).sort(([a], [b]) => Number(a) - Number(b)).map(([containerPort, hostPort]) => <option key={containerPort} value={containerPort}>{containerPort} → host port {hostPort}{Number(containerPort) === context.data?.configuredContainerPort ? " · current" : ""}</option>)}</select><p className="text-xs text-muted-foreground">Choose which published Docker port this Nginx site should expose.</p></div>}\n+                <p className="rounded-md border p-4 text-sm">The active deployment supplies its published port mappings. Nginx uses HTTP to reach the selected container port.</p>
               </section>
             )}
 
@@ -149,7 +168,7 @@ export function AddSitePanel({ open, onOpenChange }: AddSitePanelProps) {
             {step === 3 && (
               <section className="space-y-4">
                 <div className="flex gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4"><Check className="mt-0.5 h-5 w-5 text-emerald-600" /><div><h3 className="font-medium">Configuration validated</h3><p className="mt-1 text-sm text-muted-foreground">Review the server block before applying it.</p></div></div>
-                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project · service</p><p className="mt-1 font-medium">{selectedProject?.name} · {selectedService?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{context.data?.domain ?? "Not configured"}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{context.data?.configuredPort ?? "Not available"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
+                <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 text-sm"><div><p className="text-xs text-muted-foreground">Project · service</p><p className="mt-1 font-medium">{selectedProject?.name} · {selectedService?.name}</p></div><div><p className="text-xs text-muted-foreground">Domain</p><p className="mt-1 font-medium">{context.data?.domain ?? "Not configured"}</p></div><div><p className="text-xs text-muted-foreground">Container port</p><p className="mt-1 font-medium">{selectedContainerPort ?? "Not available"}</p></div><div><p className="text-xs text-muted-foreground">Upstream port</p><p className="mt-1 font-medium">{context.data?.publishedPorts?.[String(selectedContainerPort)] ?? context.data?.configuredPort ?? "Not available"}</p></div><div><p className="text-xs text-muted-foreground">TLS</p><p className="mt-1 font-medium">{formValues.requireSsl ? "Required" : "Automatic"}</p></div></div>
                 {validate.isPending ? <Skeleton className="h-56 w-full" /> : <pre className="max-h-[42vh] overflow-auto rounded-lg bg-muted p-4 text-xs leading-relaxed">{preview || "No preview available."}</pre>}
               </section>
             )}
