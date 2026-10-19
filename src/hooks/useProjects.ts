@@ -155,7 +155,7 @@ export function useCreateProjectSetup() {
 export type ProjectSetupRuntimeInput = {
   repository: string | null; gitRef: string; registry: string; registryCredentialId?: string | null; imageName: string; imageTag: string; serviceId?: string; containerPort?: number;
   hostPort?: number; network: string; restartPolicy: string; env?: Record<string, string>; environment: string;
-  readinessType?: string; readinessTarget?: string;
+  readinessType?: string; readinessTarget?: string; autoDeploy?: boolean;
 };
 export function useSaveProjectSetupRuntime(projectId: string) {
   const qc = useQueryClient();

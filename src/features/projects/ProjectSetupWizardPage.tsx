@@ -44,7 +44,7 @@ function parseEnv(text: string): Record<string, string> {
 
 const initialRuntime: ProjectSetupRuntimeInput = {
   repository: "", gitRef: "main", registry: "docker.io", imageName: "", imageTag: "latest",
-  network: "bridge", restartPolicy: "unless-stopped", environment: "production", env: {},
+  network: "bridge", restartPolicy: "unless-stopped", environment: "production", env: {}, autoDeploy: false,
 };
 
 export function ProjectSetupWizardPage({ open, onOpenChange, projectId: providedProjectId, serviceId, initialStep = 1 }: { open?: boolean; onOpenChange?: (open: boolean) => void; projectId?: string; serviceId?: string; initialStep?: number }) {
@@ -110,6 +110,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
       imageName: saved.imageName, imageTag: saved.imageTag,
       network: saved.network, restartPolicy: saved.restartPolicy,
       environment: saved.environment, env: saved.env,
+      autoDeploy: saved.autoDeploy ?? false,
     });
     setEnvText(Object.entries(saved.env).map(([key, value]) => `${key}=${value}`).join("\n"));
     setRegistryCredentialId(saved.registryCredentialId ?? "");
@@ -275,12 +276,13 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                 <CardHeader><CardTitle>Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2"><Label>GitHub repository (optional)</Label><Input value={runtime.repository ?? ""} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /><p className="text-xs text-muted-foreground">Connect a repository to build from source, or leave this blank to deploy an existing Docker image.</p></div>
-                  <div className="space-y-2"><Label>Git ref</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Git ref</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} /><p className="text-xs text-muted-foreground">Use a branch name or tag. GitHub pushes matching this ref can trigger deployment.</p></div>
                   <div className="space-y-2"><Label>Registry</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
                   <div className="space-y-2"><Label>Image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select></div>
                   <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
+                  <label className="flex items-start gap-3 rounded-md border p-3 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={runtime.autoDeploy ?? false} onChange={event => setRuntime({ ...runtime, autoDeploy: event.target.checked })} /><span><span className="block text-sm font-medium">Deploy on matching GitHub pushes</span><span className="block text-xs text-muted-foreground">When enabled, pushes to the configured branch or tag queue a fresh deployment for this service.</span></span></label>
                   <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Use this for ordinary app settings. Put passwords, API keys, and other sensitive values in Credentials.</p></div>
                   <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
@@ -311,7 +313,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
               </Card>}
 
               {step === 4 && <Card>
-                <CardHeader><CardTitle>Deploy</CardTitle><CardDescription>Deployment is explicit. Saving credentials and runtime settings alone does not change the active service.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Deploy</CardTitle><CardDescription>Manual deploys and redeploys fetch the configured source or image again. GitHub-sourced services clone the selected ref, build, push, and deploy; prebuilt images are pulled from the registry. If matching-push auto-deploy is enabled, GitHub webhooks queue the same process automatically.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
                   <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Service domain</p><p className="mt-1 font-medium">{setup.gateway?.domain ?? "Not configured"}</p></div></div>
                   <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
