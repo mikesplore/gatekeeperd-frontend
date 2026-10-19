@@ -19,7 +19,17 @@ function Breakdown({ values }: { values: Record<string, number> }) {
 }
 
 function MetricCard({ label, value, detail }: { label: string; value: string | number; detail: string }) {
-  return <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></CardContent></Card>;
+  return (
+    <Card>
+      <CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-1">
+        <CardTitle className="truncate text-sm font-medium text-foreground/75">{label}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1 p-[clamp(0.75rem,1.5vw,1rem)] pt-0">
+        <p className="text-[clamp(1rem,2.5vw,1.5rem)] font-bold tabular-nums">{value}</p>
+        <p className="text-xs text-muted-foreground">{detail}</p>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function OperationsPage() {
@@ -36,19 +46,17 @@ export function OperationsPage() {
   return <div className="space-y-6">
     <p className="text-muted-foreground">Infrastructure, payment, and integration health.</p>
     <Tabs defaultValue="overview" className="space-y-4">
-      <div className="-mx-1 overflow-x-auto px-1">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
           <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>
           <TabsTrigger value="integrations" className="flex-1 sm:flex-none">Integrations</TabsTrigger>
           <TabsTrigger value="infrastructure" className="flex-1 sm:flex-none">Infrastructure</TabsTrigger>
         </TabsList>
-      </div>
 
       <TabsContent value="overview">
         <QueryState isLoading={summary.isLoading} isError={summary.isError} error={summary.error} data={summary.data} loadingFallback={<Skeleton className="h-64 w-full" />}>
           {data => <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-[clamp(0.5rem,1.5vw,1rem)] sm:grid-cols-4">
               <MetricCard label="Payment events" value={Object.values(data.payments).reduce((a, b) => a + b, 0)} detail="Across all providers" />
               <MetricCard label="Revenue this month" value={data.revenue.thisMonth} detail="Backend-reported" />
               <MetricCard label="Integration queue" value={data.integrations.outboxPending + data.integrations.outboxProcessing} detail={`${data.integrations.outboxDeadLetter} dead-lettered`} />

@@ -93,7 +93,7 @@ export function PaymentsPage() {
 
         <TabsContent value="payments">
           <Card>
-            <CardHeader><CardTitle>All payments</CardTitle></CardHeader>
+            <CardHeader className="gap-2"><CardTitle>All payments</CardTitle><p className="text-sm text-muted-foreground">Use the filters to narrow transactions, then open a project for full payment history.</p></CardHeader>
             <CardContent className="pt-0">
               <QueryState isLoading={payments.isLoading} isError={payments.isError} error={payments.error} data={payments.data}>
                 {result => <>
@@ -126,8 +126,8 @@ function PaymentsOverview({ report }: { report: RevenueReport }) {
   ];
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map(stat => <Card key={stat.label}><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{stat.label}</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{stat.value}</CardContent></Card>)}
+      <div className="grid grid-cols-2 gap-[clamp(0.5rem,1.5vw,1rem)] sm:grid-cols-4">
+        {stats.map(stat => <Card key={stat.label}><CardHeader className="p-[clamp(0.75rem,1.5vw,1rem)] pb-1"><CardTitle className="truncate text-sm font-medium text-foreground/75">{stat.label}</CardTitle></CardHeader><CardContent className="p-[clamp(0.75rem,1.5vw,1rem)] pt-0"><p className="text-[clamp(1rem,2.5vw,1.5rem)] font-bold">{stat.value}</p></CardContent></Card>)}
       </div>
       <Card>
         <CardHeader><CardTitle>Revenue over time</CardTitle><p className="text-sm text-muted-foreground">Successful payment totals by month · {report.currency}</p></CardHeader>

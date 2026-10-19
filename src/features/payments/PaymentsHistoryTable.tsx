@@ -46,10 +46,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
   }
 
   return (
-    <>
-      {/* Desktop table */}
-      <div className="hidden md:block">
-        <DataTable data={payments} getRowKey={(payment) => payment.id} pageSize={25} hidePagination
+    <DataTable data={payments} getRowKey={(payment) => payment.id} pageSize={25} hidePagination
           filters={[{ label: "Provider", options: [...new Set(payments.map((payment) => payment.provider))].map((value) => ({ label: value, value })), getValue: (payment) => payment.provider }, { label: "Status", options: [...new Set(payments.map((payment) => payment.gatewayStatus ?? payment.status))].map((value) => ({ label: value, value })), getValue: (payment) => payment.gatewayStatus ?? payment.status }]}
           columns={[
             { key: "reference", header: "Provider / reference", searchable: true, searchValue: (payment) => `${payment.provider} ${payment.providerReference}`, render: (payment) => <div className="min-w-0"><Badge variant="outline" className="capitalize">{payment.provider}</Badge><p className="mt-1 max-w-[14rem] truncate font-mono text-xs" title={payment.providerReference}>{payment.providerReference}</p></div> },
@@ -60,46 +57,5 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
             { key: "actions", header: "", render: (payment) => <div className="flex flex-wrap gap-2">{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{receiptLoading === payment.id ? "Downloading…" : "Receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: async (result) => { toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"); await onPaymentChanged?.(); }, onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</div> },
           ]}
         />
-      </div>
-
-      {/* Mobile card layout */}
-      <div className="md:hidden space-y-3">
-        {payments.map((payment) => (
-          <div key={payment.id} className="rounded-lg border bg-card p-3 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <Badge variant="outline" className="capitalize">{payment.provider}</Badge>
-                <p className="mt-1 truncate font-mono text-xs" title={payment.providerReference}>{payment.providerReference}</p>
-              </div>
-              <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} />
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-1.5 text-sm">
-              <div>
-                <span className="text-xs text-muted-foreground">Amount</span>
-                <p className="font-medium">
-                  {currency} {payment.amount.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Provider</span>
-                <p className="capitalize">{payment.provider}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Verified via</span>
-                <p className="capitalize">{payment.verifiedVia ?? "Not set"}</p>
-              </div>
-              <div className="col-span-2">
-                <span className="text-xs text-muted-foreground">Paid at</span>
-                <p>{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}</p>
-              </div>
-              {payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && (
-                <Button size="sm" variant="outline" className="col-span-2" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{receiptLoading === payment.id ? "Downloading…" : "Download receipt"}</Button>
-              )}
-              {payment.gatewayStatus !== "success" && <Button size="sm" variant="outline" className="col-span-2" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: async (result) => { toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"); await onPaymentChanged?.(); }, onError: () => toast.error("Unable to reconcile payment") })}>Reconcile payment</Button>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
   );
 }

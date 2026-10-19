@@ -21,7 +21,7 @@ export function ContainerDetailPage() {
   return <div className="space-y-6">
     <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={query.data}>
       {(container) => <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto p-1 sm:w-auto">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:flex sm:w-auto sm:flex-wrap">
           <TabsTrigger value="overview"><Box className="mr-2 h-4 w-4" />Overview</TabsTrigger>
           <TabsTrigger value="logs"><FileText className="mr-2 h-4 w-4" />Logs</TabsTrigger>
           <TabsTrigger value="configuration"><Settings2 className="mr-2 h-4 w-4" />Configuration</TabsTrigger>

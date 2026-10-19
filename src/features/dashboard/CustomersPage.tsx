@@ -60,7 +60,7 @@ export function CustomersPage() {
                 getRowKey={customer => customer.id}
                 columns={[
                   { key: "name", header: "Customer", render: customer => <Link className="font-medium text-primary hover:underline" to={`/app/customers/${customer.id}`}>{customer.name}</Link> },
-                  { key: "contact", header: "Contact", render: customer => <span className="text-sm">{customer.contactEmail ?? "No email"}<br /><span className="text-muted-foreground">{customer.contactPhone ?? "No phone"}</span></span> },
+                  { key: "contact", header: "Contact", render: customer => <span className="block max-w-[15rem] break-words text-sm">{customer.contactEmail ?? "No email"}<br /><span className="text-muted-foreground">{customer.contactPhone ?? "No phone"}</span></span> },
                   { key: "projects", header: "Projects", render: customer => customer.projectCount },
                   { key: "paid", header: "Paid", render: customer => <Money value={customer.totalPaid} /> },
                   { key: "balance", header: "Balance", render: customer => <Money value={customer.balance} /> },

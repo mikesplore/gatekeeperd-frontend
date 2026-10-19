@@ -23,7 +23,7 @@ function levelVariant(level: string): "default" | "secondary" | "destructive" | 
 }
 
 function MetricCard({ title, value, detail, icon: Icon }: { title: string; value: string | number; detail: string; icon: typeof Activity }) {
-  return <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle><Icon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></CardContent></Card>;
+  return <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 p-[clamp(0.75rem,1.5vw,1rem)] pb-1"><CardTitle className="truncate text-sm font-medium text-foreground/75">{title}</CardTitle><Icon className="h-4 w-4 shrink-0 text-muted-foreground" /></CardHeader><CardContent className="p-[clamp(0.75rem,1.5vw,1rem)] pt-0"><p className="text-[clamp(1rem,2.5vw,1.5rem)] font-bold tabular-nums">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></CardContent></Card>;
 }
 
 export function LogsPage() {
@@ -92,7 +92,7 @@ export function LogsPage() {
 
     <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={data} loadingFallback={<div className="py-8 text-center text-sm text-muted-foreground">Loading logs…</div>}>
       {page => <>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-[clamp(0.5rem,1.5vw,1rem)] sm:grid-cols-4">
           <MetricCard title="Scanned logs" value={page.summary.scanned.toLocaleString()} detail="Latest journal window" icon={Activity} />
           <MetricCard title="Error logs" value={page.summary.errorLogs.toLocaleString()} detail={`${page.summary.warningLogs.toLocaleString()} warnings in scanned entries`} icon={AlertCircle} />
           <MetricCard title="Request success" value={rate(page.summary.successRate)} detail={`${page.summary.successfulRequests.toLocaleString()} of ${page.summary.requestCount.toLocaleString()} HTTP responses`} icon={CheckCircle2} />

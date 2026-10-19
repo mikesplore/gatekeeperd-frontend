@@ -73,7 +73,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
         <div><CardTitle>Services</CardTitle><p className="mt-1 text-sm text-muted-foreground">Each service owns its deployment, access block, runtime health, and domains.</p></div>
         <div className="flex flex-wrap gap-2"><Input aria-label="New service name" placeholder="e.g. frontend" value={newServiceName} onChange={event => setNewServiceName(event.target.value)} /><Select value={newServiceType} onValueChange={value => setNewServiceType(value as ServiceType)}><SelectTrigger className="w-[140px]" aria-label="New service type"><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select><Button disabled={!newServiceName.trim() || servicesQuery.isFetching} onClick={async () => { try { await api.post(`/admin/projects/${project.id}/services`, { name: newServiceName.trim(), serviceType: newServiceType }); setNewServiceName(""); await servicesQuery.refetch(); toast.success("Service created"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Plus className="h-4 w-4" />Add</Button></div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="grid gap-4 md:grid-cols-2">
         {servicesQuery.isLoading && <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>}
         {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
         {!servicesQuery.isLoading && !servicesQuery.isError && servicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No services are configured for this project.</p>}
