@@ -20,6 +20,8 @@ export interface IntegrationOutboxEvent {
   idempotencyKey: string;
   payload: string;
   attempts: number;
+  status: string;
+  lastError: string | null;
 }
 
 export interface NotificationItem {

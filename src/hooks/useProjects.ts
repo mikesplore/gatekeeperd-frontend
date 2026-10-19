@@ -96,7 +96,7 @@ export function useIntegrationOutbox() {
 export function useReplayIntegrationEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.post(`/admin/integrations/outbox/${id}/replay`),
+    mutationFn: (id: string) => api.post<{ replayed: boolean; id: string; status: string; error?: string | null }>(`/admin/integrations/outbox/${id}/replay`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", "outbox"] }),
   });
 }
