@@ -31,6 +31,7 @@ import type {
   ProviderCredentialMetadata,
   ServiceAdminView,
   ServiceDomainBinding,
+  ServiceDomainBindingsResponse,
   ServiceActiveDeployment,
   SharedEnvironmentMetadata,
   ServiceEnvironmentMetadata,
@@ -183,6 +184,60 @@ export function useSaveProjectSetupGateway(projectId: string) {
   return useMutation({
     mutationFn: async (payload: { domain: string; serviceId?: string; containerPort?: number }) =>
       (await api.put<{ domain: string; status: string; serviceId?: string | null; containerPort?: number | null; bindings: ServiceDomainBinding[] }>(`/admin/project-setup/projects/${projectId}/domain-gateway`, payload)).data,
+    onSuccess: () => invalidateSetup(qc, projectId),
+  });
+}
+
+export function useServiceDomainBindings(projectId: string, serviceId: string) {
+  return useQuery({
+    queryKey: ["service-domains", projectId, serviceId],
+    queryFn: async () => (await api.get<ServiceDomainBindingsResponse>(`/admin/projects/${projectId}/services/${serviceId}/domains`)).data,
+    enabled: Boolean(projectId && serviceId),
+  });
+}
+
+export function useCreateServiceDomain(projectId: string, serviceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { domain: string; containerPort?: number }) =>
+      api.post(`/admin/projects/${projectId}/services/${serviceId}/domains`, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["service-domains", projectId, serviceId] }),
+  });
+}
+
+export function useUpdateServiceDomain(projectId: string, serviceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bindingId, ...payload }: { bindingId: string; domain: string; containerPort?: number }) =>
+      api.put(`/admin/projects/${projectId}/services/${serviceId}/domains/${bindingId}`, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["service-domains", projectId, serviceId] }),
+  });
+}
+
+export function useDeleteServiceDomain(projectId: string, serviceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (bindingId: string) => api.delete(`/admin/projects/${projectId}/services/${serviceId}/domains/${bindingId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["service-domains", projectId, serviceId] }),
+  });
+}
+
+export function useSetPrimaryServiceDomain(projectId: string, serviceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (bindingId: string) => api.post(`/admin/projects/${projectId}/services/${serviceId}/domains/${bindingId}/primary`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["service-domains", projectId, serviceId] });
+      qc.invalidateQueries({ queryKey: ["project-overview"] });
+    },
+  });
+}
+
+export function useDeleteProjectSetupGateway(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { domain: string; serviceId?: string }) =>
+      (await api.delete<{ domain: string; status: string; serviceId?: string | null; containerPort?: number | null; bindings: ServiceDomainBinding[] }>(`/admin/project-setup/projects/${projectId}/domain-gateway`, { data: payload })).data,
     onSuccess: () => invalidateSetup(qc, projectId),
   });
 }

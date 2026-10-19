@@ -14,11 +14,9 @@ import {
   useCreateProjectSetup,
   useDeployProjectSetup,
   useProjectSetupStatus,
-  useProjectServiceRuntime,
   useAdoptableContainers,
   useAdoptProjectContainer,
   useSaveProjectSetupCredentials,
-  useSaveProjectSetupGateway,
   useSaveProjectSetupRuntime,
   useContainerWizardContext,
   useProviderCredentialMetadata,
@@ -27,7 +25,7 @@ import {
 import { getApiErrorMessage } from "@/lib/api";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
-const steps = ["Source & runtime", "Credentials", "Domain & gateway", "Deploy"];
+const steps = ["Source & runtime", "Credentials", "Deploy"];
 const inProgressDeploymentStatuses = new Set(["queued", "building", "starting", "health-checking", "ready"]);
 
 function parseEnv(text: string): Record<string, string> {
@@ -53,38 +51,25 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [searchParams] = useSearchParams();
   const projectId = providedProjectId ?? routeProjectId;
   const requestedStep = Number(searchParams.get("step") ?? String(initialStep));
-  const [step, setStep] = useState(projectId ? Math.max(1, Math.min(4, requestedStep)) : 0);
+  const [step, setStep] = useState(projectId ? Math.max(1, Math.min(3, requestedStep)) : 0);
   const [projectForm, setProjectForm] = useState({ name: "", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
   const [registryCredentialId, setRegistryCredentialId] = useState("");
-  const [gateway, setGateway] = useState({ domain: "" });
-  const [gatewayContainerPort, setGatewayContainerPort] = useState<number>();
   const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
   const status = useProjectSetupStatus(projectId, serviceId);
-  const selectedServiceId = serviceId ?? status.data?.serviceId ?? "";
-  const serviceRuntime = useProjectServiceRuntime(projectId, selectedServiceId);
   const providerCredentials = useProviderCredentialMetadata();
   const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1);
   const adoptContainer = useAdoptProjectContainer(projectId);
   const dockerNetworkContext = useContainerWizardContext();
   const loadedConfiguration = useRef("");
   const savedRuntime = status.data?.sourceRuntime;
-  const savedGatewayDomain = status.data?.gateway?.domain;
-  const activePortMappings = Object.entries(serviceRuntime.data?.publishedPorts ?? {})
-    .map(([containerPort, hostPort]) => ({ containerPort: Number(containerPort), hostPort }))
-    .sort((a, b) => a.containerPort - b.containerPort);
-  const gatewayBindings = status.data?.gateway?.bindings ?? [];
-  const gatewayUnboundPorts = activePortMappings
-    .map(port => port.containerPort)
-    .filter(port => !gatewayBindings.some(binding => binding.containerPort === port && binding.status === "bound"));
   const customers = useDashboardCustomers(100);
   const createProject = useCreateProjectSetup();
   const saveRuntime = useSaveProjectSetupRuntime(projectId);
   const saveCredentials = useSaveProjectSetupCredentials(projectId);
-  const saveGateway = useSaveProjectSetupGateway(projectId);
   const deploy = useDeployProjectSetup(projectId, serviceId);
   const customerList = customers.data?.customers ?? [];
   const configuredRegistry = status.data?.sourceRuntime?.registry ?? runtime.registry;
@@ -117,24 +102,13 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   }, [projectId, savedRuntime]);
 
   useEffect(() => {
-    if (savedGatewayDomain) setGateway({ domain: savedGatewayDomain });
-  }, [savedGatewayDomain]);
-
-  useEffect(() => {
-    if (activePortMappings.length === 1) setGatewayContainerPort(activePortMappings[0].containerPort);
-    else if (gatewayContainerPort != null && !activePortMappings.some(port => port.containerPort === gatewayContainerPort)) {
-      setGatewayContainerPort(undefined);
-    }
-  }, [activePortMappings, gatewayContainerPort]);
-
-  useEffect(() => {
-    if (projectId) setStep(Math.max(1, Math.min(4, requestedStep)));
+    if (projectId) setStep(Math.max(1, Math.min(3, requestedStep)));
   }, [projectId, requestedStep]);
 
   const deploymentBadge = useMemo(() => active ? "default" : currentDeployment === "failed" ? "destructive" : "secondary", [active, currentDeployment]);
 
   const goToStep = (next: number) => {
-    const bounded = Math.max(projectId ? 1 : 0, Math.min(4, next));
+    const bounded = Math.max(projectId ? 1 : 0, Math.min(3, next));
     setStep(bounded);
   };
 
@@ -144,7 +118,6 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setRuntime(initialRuntime);
     setEnvText("");
     setRegistryCredentialId("");
-    setGateway({ domain: "" });
     setQueuedDeploymentId("");
     setAdoptContainerId("");
     setAdoptContainerPort("");
@@ -179,19 +152,6 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
       toast.success("Service registry credential saved");
       goToStep(3);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
-  };
-
-  const saveGatewayStep = async () => {
-    try {
-      if (activePortMappings.length > 1 && gatewayContainerPort == null) {
-        toast.error("Choose the container port for this domain");
-        return;
-      }
-      await saveGateway.mutateAsync({ domain: gateway.domain.trim(), serviceId: selectedServiceId, containerPort: gatewayContainerPort });
-      await Promise.all([status.refetch(), serviceRuntime.refetch()]);
-      toast.success("Service domain saved");
-      goToStep(4);
-    } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
   const queueDeployment = async () => {
@@ -236,13 +196,12 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
           <SidePanelDescription>Add the project name and customer. Configure deployment whenever you are ready.</SidePanelDescription>
         </SidePanelHeader>}
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:space-y-6 sm:px-6 sm:py-5">
-      {projectId && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {projectId && <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {steps.map((label, index) => {
           const stepIndex = index + 1;
           const done = (stepIndex === 1 && Boolean(status.data?.sourceRuntime)) ||
             (stepIndex === 2 && (status.data?.credentialsConfigured || Boolean(status.data?.sourceRuntime?.secretSetVersion))) ||
-            (stepIndex === 3 && Boolean(status.data?.gateway)) ||
-            (stepIndex === 4 && active);
+            (stepIndex === 3 && active);
           return <button key={label} type="button" onClick={() => goToStep(stepIndex)} className={`flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${step === stepIndex ? "border-primary bg-primary/5" : "hover:bg-muted/60"}`}>
             {done && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
             <span>{label}</span>
@@ -302,24 +261,13 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
               </Card>}
 
               {step === 3 && <Card>
-                <CardHeader><CardTitle>Domain and gateway</CardTitle><CardDescription>Set the public domain for this service. Nginx handles upstream routing, TLS, and payment gating.</CardDescription></CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2"><Label>Service domain</Label><Input value={gateway.domain} onChange={e => setGateway({ ...gateway, domain: e.target.value })} /></div>
-                  {activePortMappings.length > 1 && <div className="space-y-2 sm:col-span-2"><Label htmlFor="gateway-container-port">Route domain to container port</Label><select id="gateway-container-port" value={gatewayContainerPort ?? ""} onChange={event => setGatewayContainerPort(Number(event.target.value))} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Choose a published port</option>{activePortMappings.map(port => <option key={port.containerPort} value={port.containerPort}>{port.containerPort} → host port {port.hostPort}{gatewayUnboundPorts.includes(port.containerPort) ? " · unbound" : " · has domain"}</option>)}</select><p className="text-xs text-muted-foreground">Each domain routes to one container port. A single published port is selected automatically.</p></div>}
-                  {gatewayBindings.length > 0 && <div className="space-y-2 sm:col-span-2"><p className="text-sm font-medium">Current domain bindings</p><div className="space-y-2">{gatewayBindings.map(binding => <div key={binding.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"><span>{binding.domain}{binding.containerPort != null ? ` · port ${binding.containerPort}` : " · port not assigned"}</span><Badge variant={binding.status === "bound" ? "default" : "secondary"}>{binding.status.replace(/_/g, " ")}</Badge></div>)}</div></div>}
-                  {setup.gateway && <div className="sm:col-span-2"><Badge variant="secondary">Domain saved · {setup.gateway.status}</Badge></div>}
-                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={() => goToStep(2)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={() => goToStep(4)}>Skip for now</Button><Button disabled={saveGateway.isPending || !gateway.domain.trim()} onClick={() => void saveGatewayStep()}>{saveGateway.isPending ? "Saving…" : "Save gateway"}</Button></div></div>
-                </CardContent>
-              </Card>}
-
-              {step === 4 && <Card>
-                <CardHeader><CardTitle>Deploy</CardTitle><CardDescription>Manual deploys and redeploys fetch the configured source or image again. GitHub-sourced services clone the selected ref, build, push, and deploy; prebuilt images are pulled from the registry. If matching-push auto-deploy is enabled, GitHub webhooks queue the same process automatically.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Deploy</CardTitle><CardDescription>Manual deploys and redeploys fetch the configured source or image again. GitHub-sourced services clone the selected ref, build, push, and deploy; prebuilt images are pulled from the registry. Configure domain bindings separately in service settings after deployment.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div><div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Service domain</p><p className="mt-1 font-medium">{setup.gateway?.domain ?? "Not configured"}</p></div></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div>
                   <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
                   {queuedDeploymentId && deploymentInProgress && <p className="text-sm text-muted-foreground">{currentDeployment === "ready" ? <>Container is ready; gateway cutover is pending. Deployment <code>{queuedDeploymentId}</code> remains in progress.</> : <>Deployment <code>{queuedDeploymentId}</code> is in progress. This page updates as the worker advances it.</>}</p>}
                   {active && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">An active deployment is recorded. Review its runtime and version references on the project overview.</div>}
-                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(3)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || deploymentInProgress || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : deploymentInProgress ? "Deployment in progress" : "Deploy"}</Button></div></div>
+                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(2)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || deploymentInProgress || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : deploymentInProgress ? "Deployment in progress" : "Deploy"}</Button></div></div>
                 </CardContent>
               </Card>}
             </>

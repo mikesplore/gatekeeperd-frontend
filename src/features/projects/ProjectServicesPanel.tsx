@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAdoptableContainers, useAdoptProjectContainer, useContainer, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata } from "@/hooks/useProjects";
+import { useAdoptableContainers, useAdoptProjectContainer, useContainer, useCreateServiceDomain, useDeleteServiceDomain, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceDomainBindings, useServiceEnvironmentMetadata, useSetPrimaryServiceDomain, useSharedEnvironmentMetadata, useUpdateServiceDomain } from "@/hooks/useProjects";
 import type { Project, ServiceType } from "@/types/project";
 import type { DashboardSite } from "@/types/sites";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
@@ -107,6 +107,44 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
       </div>
       {Object.keys(draft).length > 0 && <div className="space-y-2 rounded-md border p-3"><p className="text-sm font-medium">Pending shared values</p>{Object.keys(draft).sort().map(key => <div key={key} className="flex items-center justify-between gap-2 font-mono text-xs"><span>{key}</span><Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>Remove</Button></div>)}</div>}
       <div className="flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Saving replaces the full shared set. Reenter existing values you want to retain.</p><Button disabled={saving || !Object.keys(draft).length} onClick={onSave}><Save className="h-4 w-4" />{saving ? "Saving…" : "Save shared & deploy"}</Button></div>
+    </CardContent>
+  </Card>;
+}
+
+function ServiceDomainBindings({ projectId, serviceId }: { projectId: string; serviceId: string }) {
+  const bindingsQuery = useServiceDomainBindings(projectId, serviceId);
+  const create = useCreateServiceDomain(projectId, serviceId);
+  const update = useUpdateServiceDomain(projectId, serviceId);
+  const remove = useDeleteServiceDomain(projectId, serviceId);
+  const primary = useSetPrimaryServiceDomain(projectId, serviceId);
+  const [domain, setDomain] = useState("");
+  const [port, setPort] = useState("");
+  const [editing, setEditing] = useState<{ id: string; domain: string; port: string } | null>(null);
+  const availablePorts = bindingsQuery.data?.publishedPorts ?? [];
+  const add = async () => {
+    if (!domain.trim()) return toast.error("Enter a domain name.");
+    try {
+      await create.mutateAsync({ domain: domain.trim(), ...(port ? { containerPort: Number(port) } : {}) });
+      setDomain(""); setPort(""); toast.success("Domain binding saved");
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+  };
+  const saveEdit = async () => {
+    if (!editing || !editing.domain.trim()) return;
+    try {
+      await update.mutateAsync({ bindingId: editing.id, domain: editing.domain.trim(), ...(editing.port ? { containerPort: Number(editing.port) } : {}) });
+      setEditing(null); toast.success("Domain binding updated");
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+  };
+  return <Card>
+    <CardHeader><CardTitle className="text-base">Domain bindings</CardTitle><p className="text-xs text-muted-foreground">Manage public domains independently from deployments. Deploy the service first to select among multiple published ports.</p></CardHeader>
+    <CardContent className="space-y-3">
+      {bindingsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading domain bindings…</p>}
+      {bindingsQuery.data?.bindings.map(binding => <div key={binding.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"><span><span className="font-medium">{binding.domain}</span><span className="ml-2 text-muted-foreground">{binding.containerPort == null ? "port pending" : `port ${binding.containerPort}`}</span>{binding.primary && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">primary</span>}</span><span className="flex flex-wrap gap-1"><Button size="sm" variant="ghost" onClick={() => setEditing({ id: binding.id, domain: binding.domain, port: binding.containerPort?.toString() ?? "" })}><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Button>{!binding.primary && binding.status === "bound" && <Button size="sm" variant="ghost" onClick={async () => { try { await primary.mutateAsync(binding.id); toast.success("Primary domain updated"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>Set primary</Button>}<Button size="sm" variant="ghost" className="text-destructive" onClick={async () => { if (!window.confirm(`Remove ${binding.domain}?`)) return; try { await remove.mutateAsync(binding.id); toast.success("Domain binding removed"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Trash2 className="mr-1 h-3.5 w-3.5" />Remove</Button></span></div>)}
+      {!bindingsQuery.isLoading && !bindingsQuery.data?.bindings.length && <p className="text-sm text-muted-foreground">No domain bindings configured.</p>}
+      <div className="grid gap-2 border-t pt-3 sm:grid-cols-[1fr_180px_auto]"><Input placeholder="app.example.com" value={domain} onChange={event => setDomain(event.target.value)} /><select className="h-10 rounded-md border bg-background px-3 text-sm" value={port} onChange={event => setPort(event.target.value)}><option value="">Automatic / pending port</option>{availablePorts.map(value => <option key={value} value={value}>Container port {value}</option>)}</select><Button disabled={create.isPending || !domain.trim()} onClick={() => void add()}><Plus className="mr-1 h-4 w-4" />Add domain</Button></div>
+      <Dialog open={Boolean(editing)} onOpenChange={open => { if (!open) setEditing(null); }}>
+        <DialogContent><DialogHeader><DialogTitle>Edit domain binding</DialogTitle><DialogDescription>Change the domain or its published container port.</DialogDescription></DialogHeader>{editing && <div className="space-y-3"><div className="space-y-1"><Label>Domain</Label><Input value={editing.domain} onChange={event => setEditing({ ...editing, domain: event.target.value })} /></div><div className="space-y-1"><Label>Container port</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={editing.port} onChange={event => setEditing({ ...editing, port: event.target.value })}><option value="">Automatic / pending port</option>{availablePorts.map(value => <option key={value} value={value}>{value}</option>)}</select></div></div>}<DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button><Button disabled={update.isPending} onClick={() => void saveEdit()}>{update.isPending ? "Saving…" : "Save binding"}</Button></DialogFooter></DialogContent>
+      </Dialog>
     </CardContent>
   </Card>;
 }
@@ -313,6 +351,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
         <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}><Settings2 className="h-4 w-4" />Configure service</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem>{serviceCount > 1 && !service.isDefault && <DropdownMenuItem disabled={serviceActionPending} onSelect={() => void makeDefault()}><Settings2 className="mr-2 h-4 w-4" />Set as default</DropdownMenuItem>}<DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
       </CardContent>
     </Card>
+    <ServiceDomainBindings projectId={project.id} serviceId={service.id} />
     {(!hasRuntimeConfiguration || latestFailed || gatewayNeedsRepair || (!gateway && latestDeployment?.status.toLowerCase() === "active")) && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Next steps for {service.name}</AlertTitle><AlertDescription className="space-y-2"><p>{!hasRuntimeConfiguration ? "Configure source and runtime before deploying this service." : latestFailed ? `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}` : gatewayNeedsRepair ? "The service is deployed, but its gateway route is not active. Repair the gateway before sending traffic." : "The service is deployed, but no gateway is configured yet. Configure the site before sending traffic."}</p><div className="flex flex-wrap gap-2">{!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}>Configure runtime</Button> : latestFailed ? <Button size="sm" variant="outline" disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Deployment retry queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Retry deployment"}</Button> : gatewayNeedsRepair ? <Button size="sm" variant="outline" disabled={repairGateway.isPending} onClick={async () => { try { await repairGateway.mutateAsync(); toast.success("Gateway repair queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairGateway.isPending ? "Repairing…" : "Repair gateway"}</Button> : <Button size="sm" variant="outline" onClick={() => setSetupOpen(true)}>Configure gateway</Button>}</div></AlertDescription></Alert>}
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div><Button size="sm" onClick={async () => { try { await deploy.mutateAsync(); toast.success("Service deployment queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }} disabled={deploy.isPending || !hasRuntimeConfiguration}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queuing…" : "Deploy"}</Button></CardHeader>

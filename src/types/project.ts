@@ -46,6 +46,13 @@ export interface ServiceDomainBinding {
   containerPort: number | null;
   domain: string;
   status: "pending" | "bound" | "port_unavailable" | string;
+  primary?: boolean;
+}
+export interface ServiceDomainBindingsResponse {
+  serviceId: string;
+  publishedPorts: number[];
+  bindings: ServiceDomainBinding[];
+  unboundPorts: number[];
 }
 
 export interface ProjectAdjustment { id: string; projectId: string; type: "ADDITIONAL_CHARGE" | "DISCOUNT"; amount: number; reason: string; actor: string; createdAt: string }
