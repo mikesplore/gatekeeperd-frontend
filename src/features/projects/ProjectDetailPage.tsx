@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { ChevronDown, Copy, Link2, Pencil, RefreshCw, Trash2, RotateCcw, Rocket, Upload, Info, Plus, Square } from "lucide-react";
+import { Link2, Pencil, Trash2, Rocket, Upload, Info, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject, useProjectDeploymentHistory, useProjectSecretRotation, useProjectServices } from "@/hooks/useProjects";
+import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject, useProjectSecretRotation, useProjectServices } from "@/hooks/useProjects";
 import { useProjectPayments } from "@/hooks/usePayments";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
@@ -27,7 +27,6 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { useRepairDeploymentUpstream } from "@/hooks/useDeployments";
 
 function parseSecretEnv(text: string): [string, string][] {
   const entries: [string, string][] = [];
@@ -77,13 +76,10 @@ export function ProjectDetailPage() {
   const [searchParams] = useSearchParams();
   const { data, isLoading, isError, error, refetch: refetchProjectDetail } = useProjectDetail(slug);
   const overview = useProjectOverview(slug);
-  const history = useProjectDeploymentHistory(slug);
   const rotateSecrets = useProjectSecretRotation(data?.project.id ?? "", slug);
   const [secretRows, setSecretRows] = useState<{ name: string; value: string }[]>([{ name: "", value: "" }]);
   const invoiceQuery = useProjectInvoice(slug);
   const servicesQuery = useProjectServices(data?.project.id ?? "");
-  const defaultServiceId = servicesQuery.data?.find(service => service.isDefault)?.id ?? servicesQuery.data?.[0]?.id ?? "";
-  const repairUpstream = useRepairDeploymentUpstream(defaultServiceId);
   const [editOpen, setEditOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupStep, setSetupStep] = useState(1);
@@ -121,7 +117,7 @@ export function ProjectDetailPage() {
   };
 
   const requestedTab = searchParams.get("tab");
-  const defaultTab = requestedTab === "payments" || requestedTab === "settings" || requestedTab === "deployment" ? requestedTab : "overview";
+  const defaultTab = requestedTab === "payments" || requestedTab === "settings" ? requestedTab : "overview";
 
   const reversalAlert = useMemo(() => {
     if (!data) return null;
@@ -172,7 +168,6 @@ export function ProjectDetailPage() {
             <div className="overflow-x-auto -mx-1 px-1">
               <TabsList className="w-full sm:w-auto">
                 <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
-                <TabsTrigger value="deployment" className="flex-1 sm:flex-none">Deployment</TabsTrigger>
                 <TabsTrigger value="settings" className="flex-1 sm:flex-none">Settings</TabsTrigger>
                 <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>
                 <TabsTrigger value="audit" className="flex-1 sm:flex-none">Audit Log</TabsTrigger>
@@ -187,43 +182,6 @@ export function ProjectDetailPage() {
               <ProjectServicesPanel project={project} view="overview" />
             </TabsContent>
 
-            <TabsContent value="deployment" className="space-y-4">
-              {overview.data?.currentDeployment.status === "active" && history.data?.items[0]?.status.toLowerCase() === "failed" && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Running on the active build; latest deployment attempt failed</AlertTitle><AlertDescription>The active build {overview.data.currentDeployment.imageName}:{overview.data.currentDeployment.imageTag} is still serving traffic. The latest attempt failed on {new Date(history.data.items[0].createdAt).toLocaleString()}. Open that attempt’s Details row to see the failure reason.</AlertDescription></Alert>}
-              {history.data?.items[0]?.cutoverState === "repair_required" && <Alert variant="destructive"><AlertTitle>Gateway repair required</AlertTitle><AlertDescription className="space-y-2"><p>{history.data.items[0].cutoverError ?? "The deployment route could not be restored automatically."}</p><Button size="sm" variant="outline" disabled={!defaultServiceId || repairUpstream.isPending} onClick={async () => { try { await repairUpstream.mutateAsync(); toast.success("Gateway upstream repaired"); await Promise.all([history.refetch(), overview.refetch(), refetchProjectDetail()]); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairUpstream.isPending ? "Repairing…" : "Repair gateway upstream"}</Button></AlertDescription></Alert>}
-              <Card>
-                <CardHeader><CardTitle>Current deployment</CardTitle><p className="text-sm text-muted-foreground">The active build currently serving this project.</p></CardHeader>
-                <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                  <InfoRow label="Status" value={<span className={`inline-flex rounded px-2 py-1 text-xs font-medium ${deploymentStatusClass(overview.data?.currentDeployment.status ?? "unknown")}`}>{formatStatus(overview.data?.currentDeployment.status ?? "unknown")}</span>} />
-                  <InfoRow label="Image" value={overview.data?.currentDeployment.imageName ? `${overview.data.currentDeployment.imageName}:${overview.data.currentDeployment.imageTag}` : "No active deployment"} />
-                  <InfoRow label="Runtime health" value={formatStatus(overview.data?.currentDeployment.runtimeHealth ?? "unknown")} />
-                  <InfoRow label="Active since" value={overview.data?.currentDeployment.activeAt ? new Date(overview.data.currentDeployment.activeAt).toLocaleString() : "Not active"} />
-                  <InfoRow label="Digest" value={overview.data?.currentDeployment.imageDigest ? <div className="flex min-w-0 items-center gap-1"><code className="min-w-0 truncate text-xs" title={overview.data.currentDeployment.imageDigest}>{formatDigest(overview.data.currentDeployment.imageDigest)}</code><Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Copy full image digest" title="Copy full digest" onClick={async () => { try { await navigator.clipboard.writeText(overview.data!.currentDeployment.imageDigest!); toast.success("Digest copied"); } catch { toast.error("Could not copy digest"); } }}><Copy className="h-3.5 w-3.5" /></Button></div> : "Not available"} />
-                  <InfoRow label="Commit" value={overview.data?.currentDeployment.commitSha ?? "Not available"} />
-                  <InfoRow label="Upstream" value={overview.data?.currentDeployment.runtimeUpstreamHost && overview.data.currentDeployment.runtimeUpstreamPort ? `${overview.data.currentDeployment.runtimeUpstreamHost}:${overview.data.currentDeployment.runtimeUpstreamPort}` : "Not resolved"} />
-                  <InfoRow label="Public binding" value={overview.data?.currentDeployment.publicExposure ? <span className="font-medium text-amber-600 dark:text-amber-400">Exposed on a public host address until this deployment is retired</span> : "Loopback only"} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader><CardTitle>Assigned port mappings</CardTitle><p className="text-sm text-muted-foreground">Host ports published for this runtime and the container ports they reach.</p></CardHeader>
-                <CardContent>
-                  {overview.data?.currentDeployment.portMappings?.length ? <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs text-muted-foreground"><th className="px-2 py-2 font-medium">Container port</th><th className="px-2 py-2 font-medium">Assigned host port</th><th className="px-2 py-2 font-medium">Host binding</th><th className="px-2 py-2 font-medium">Gateway</th></tr></thead><tbody>{overview.data.currentDeployment.portMappings.map(mapping => <tr className="border-b last:border-0" key={`${mapping.containerPort}:${mapping.hostPort}`}><td className="px-2 py-2 font-mono">{mapping.containerPort}</td><td className="px-2 py-2 font-mono">{mapping.hostPort}</td><td className="px-2 py-2">{mapping.hostIp ?? "Not recorded"}{mapping.hostIp === "0.0.0.0" || mapping.hostIp === "::" || mapping.hostIp === "[::]" ? <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">Public</span> : mapping.hostIp === "127.0.0.1" ? <span className="ml-2 text-xs text-muted-foreground">Loopback</span> : null}</td><td className="px-2 py-2">{mapping.hostPort === overview.data.currentDeployment.runtimeUpstreamPort ? <span className="font-medium text-emerald-600 dark:text-emerald-400">Active upstream</span> : "—"}</td></tr>)}</tbody></table></div> : <p className="text-sm text-muted-foreground">No published port mappings are recorded for the active deployment.</p>}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex-col items-start justify-between gap-2 space-y-0 py-3 text-left sm:flex-row sm:items-center"><div><CardTitle>Deployment history</CardTitle><p className="text-xs text-muted-foreground">Recent deployment attempts and their status.</p></div><Button variant="outline" size="sm" className="gap-2" onClick={() => history.refetch()}><RefreshCw className="h-3.5 w-3.5" />Refresh history</Button></CardHeader>
-                <CardContent className="space-y-2 pt-0">
-                  {history.isLoading ? <Skeleton className="h-14 w-full" /> : history.isError ? <Alert variant="destructive"><AlertTitle>History unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(history.error)}</AlertDescription></Alert> : history.data?.items.length ? history.data.items.map(item => <div key={item.id} className="rounded-lg border px-3 py-2.5">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5"><span className="max-w-full break-all text-sm font-medium">{item.imageName}:{item.imageTag}</span><span className={`shrink-0 rounded px-2 py-1 text-xs font-medium ${deploymentStatusClass(item.status)}`}>{formatStatus(item.status)}</span><span className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</span></div>
-                        <details className="group text-xs text-muted-foreground"><summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded text-foreground/80 hover:text-foreground"><ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />Details</summary><div className="mt-2 grid gap-x-6 gap-y-1.5 rounded-md bg-muted/30 p-2 sm:grid-cols-2"><p>{item.trigger} · {item.environment}</p><p>Commit: {item.sourceCommit ?? "not recorded"}</p><p>Digest: {item.imageDigest ? formatDigest(item.imageDigest) : "not recorded"}</p><p>Readiness: {formatStatus(item.healthCheckResult)}{item.failureReason ? ` · ${item.failureReason}` : ""}</p><p>Credential: {item.credentialSetId ? `${item.credentialSetId} v${item.credentialSetVersion}` : "not recorded"}</p><p>Secrets: {item.secretSetId ? `${item.secretSetId} v${item.secretSetVersion}` : "not recorded"}</p></div></details>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap gap-2">{item.actions.includes("redeploy") && <Button size="sm" variant={item.status.toLowerCase() === "failed" ? "default" : "outline"} onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/redeploy`); toast.success(item.status.toLowerCase() === "failed" ? "Retry queued" : "Redeployment queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><Rocket className="h-4 w-4" />{item.status.toLowerCase() === "failed" ? "Retry" : "Redeploy"}</Button>}{item.actions.includes("cancel") && <Button size="sm" variant="destructive" onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/cancel?environment=${encodeURIComponent(item.environment)}`); toast.success("Deployment cancelled"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><Square className="h-4 w-4" />Cancel</Button>}{item.actions.includes("rollback") && <Button size="sm" variant="outline" onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(slug)}/deployments/${item.id}/rollback`); toast.success("Auditable rollback queued"); await history.refetch(); } catch (e) { toast.error(getApiErrorMessage(e)); } }}><RotateCcw className="h-4 w-4" />Rollback</Button>}</div>
-                    </div>
-                  </div>) : <p className="py-8 text-center text-sm text-muted-foreground">No canonical deployments recorded.</p>}
-                </CardContent>
-              </Card>
-            </TabsContent>
             <TabsContent value="settings">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-4 rounded-lg border bg-card p-4">
                 <div><p className="mt-1 text-sm text-muted-foreground">Configure project details, deployments, provider connections, and shared or service environment variables.</p></div>
@@ -377,33 +335,4 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
       <p className="text-sm font-medium text-foreground break-all">{value}</p>
     </div>
   );
-}
-
-function formatStatus(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function formatDigest(value: string) {
-  const digest = value.split("@").at(-1) ?? value;
-  const separator = digest.indexOf(":");
-  if (separator < 0) return digest.length > 16 ? `${digest.slice(0, 10)}…${digest.slice(-4)}` : digest;
-  const algorithm = digest.slice(0, separator);
-  const hash = digest.slice(separator + 1);
-  return hash.length > 12 ? `${algorithm}:${hash.slice(0, 6)}…${hash.slice(-4)}` : digest;
-}
-
-function deploymentStatusClass(value: string) {
-  const status = value.toLowerCase().replace(/_/g, "-");
-  if (["active", "success", "succeeded", "successful", "ready", "healthy"].includes(status)) {
-    return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400";
-  }
-  if (["failed", "failure", "error", "unhealthy", "rejected"].includes(status)) {
-    return "bg-red-500/10 text-red-700 dark:text-red-400";
-  }
-  if (["queued", "pending", "building", "starting", "health-checking", "deploying", "running"].includes(status)) {
-    return "bg-amber-500/10 text-amber-700 dark:text-amber-400";
-  }
-  return "bg-muted text-muted-foreground";
 }

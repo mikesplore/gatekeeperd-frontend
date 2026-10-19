@@ -222,17 +222,6 @@ export function useDeleteServiceDomain(projectId: string, serviceId: string) {
   });
 }
 
-export function useSetPrimaryServiceDomain(projectId: string, serviceId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (bindingId: string) => api.post(`/admin/projects/${projectId}/services/${serviceId}/domains/${bindingId}/primary`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["service-domains", projectId, serviceId] });
-      qc.invalidateQueries({ queryKey: ["project-overview"] });
-    },
-  });
-}
-
 export function useDeleteProjectSetupGateway(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
