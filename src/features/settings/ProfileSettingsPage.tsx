@@ -87,6 +87,11 @@ export function ProfileSettingsPage() {
   const versionCheck = useMutation({
     mutationFn: async () => (await api.get<VersionStatus>("/version")).data,
   });
+  const deploymentTrigger = useMutation({
+    mutationFn: async () => (await api.post<{ started: boolean; message: string }>("/admin/system/deploy")).data,
+    onSuccess: (result) => toast.success(result.message),
+    onError: (error) => toast.error(getApiErrorMessage(error)),
+  });
   useEffect(() => {
     if (account.data?.displayName !== undefined)
       setDisplayName(account.data.displayName);
@@ -200,6 +205,13 @@ export function ProfileSettingsPage() {
               >
                 <RefreshCw className={versionCheck.isPending ? "animate-spin" : ""} />
                 {versionCheck.isPending ? "Checking…" : "Check deployment"}
+              </Button>
+              <Button
+                disabled={deploymentTrigger.isPending}
+                onClick={() => deploymentTrigger.mutate()}
+              >
+                <RefreshCw className={deploymentTrigger.isPending ? "animate-spin" : ""} />
+                {deploymentTrigger.isPending ? "Starting…" : "Deploy latest now"}
               </Button>
               {versionCheck.data && (
                 <span className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${versionCheck.data.status === "up_to_date" ? "border-emerald-500/30 text-emerald-600" : versionCheck.data.status === "update_available" || versionCheck.data.status === "deployment_failed" ? "border-amber-500/30 text-amber-600" : "text-muted-foreground"}`}>
