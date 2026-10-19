@@ -15,7 +15,6 @@ import { PaymentsPage } from "@/features/payments/PaymentsPage";
 import { PaymentEventsPage } from "@/features/payments/PaymentEventsPage";
 import { CertificatesPage } from "@/features/nginx/CertificatesPage";
 import { OperationsPage } from "@/features/operations/OperationsPage";
-import { DeploymentsPage } from "@/features/deployments/DeploymentsPage";
 import { ProfileSettingsPage } from "@/features/settings/ProfileSettingsPage";
 import { AdminUsersPage } from "@/features/settings/AdminUsersPage";
 import { DockerResourcesPage } from "@/features/infrastructure/DockerResourcesPage";
@@ -72,7 +71,6 @@ export const router = createBrowserRouter([
           { path: "logs", element: <LogsPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "notifications", element: <NotificationsPage /> },
-          { path: "deployments", element: <DeploymentsPage /> },
           { path: "settings/profile", element: <ProfileSettingsPage /> },
           { path: "credentials", element: <InfrastructureCredentialsPage /> },
           { path: "settings/users", element: <AdminUsersPage /> },

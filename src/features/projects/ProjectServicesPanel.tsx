@@ -13,7 +13,7 @@ import type { Project, ServiceType } from "@/types/project";
 import type { DashboardSite } from "@/types/sites";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
 import { api, getApiErrorMessage } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
 import { useDeployProjectSetup } from "@/hooks/useProjects";
@@ -159,6 +159,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   draft: Record<string, string>; setDraft: (draft: Record<string, string>) => void;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const environment = useServiceEnvironmentMetadata(project.id, service.id);
   const history = useQueryServiceHistory(project.slug, service.id);
   const setupStatus = useProjectSetupStatus(project.id, service.id, false);
@@ -193,6 +194,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deploymentDeleteTarget, setDeploymentDeleteTarget] = useState<{ id: string; label: string } | null>(null);
   const [serviceName, setServiceName] = useState(service.name);
   const [serviceType, setServiceType] = useState<ServiceType>(service.serviceType);
   const [serviceActionPending, setServiceActionPending] = useState(false);
@@ -244,6 +246,15 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
     } catch (error) { toast.error(getApiErrorMessage(error)); }
     finally { setServiceActionPending(false); setDeleteOpen(false); }
   };
+  const deleteDeployment = useMutation({
+    mutationFn: (deploymentId: string) => api.delete(`/admin/projects/${encodeURIComponent(project.slug)}/deployments/${encodeURIComponent(deploymentId)}`),
+    onSuccess: async () => {
+      setDeploymentDeleteTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ["project-service-history", project.slug, service.id] });
+      toast.success("Deployment deleted");
+    },
+    onError: error => toast.error(getApiErrorMessage(error)),
+  });
   const visibleKeys = [...new Set([...serviceKeys, ...Object.keys(draft)])].filter(key => !removedKeys.includes(key)).sort();
   const setToSave = async () => {
     try {
@@ -364,7 +375,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
       <TabsContent value="deployments" className="space-y-4">
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div><Button size="sm" onClick={async () => { try { await deploy.mutateAsync(); toast.success("Service deployment queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }} disabled={deploy.isPending || !hasRuntimeConfiguration}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queuing…" : "Deploy"}</Button></CardHeader>
-      <CardContent className="space-y-2">{history.data?.items.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"><div className="min-w-0"><p className="truncate font-medium">{item.imageName}:{item.imageTag}</p><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</p>{item.failureReason && <p className="mt-1 text-xs text-destructive">{item.failureReason}</p>}</div><span className={`rounded px-2 py-1 text-xs font-medium ${item.status.toLowerCase() === "failed" ? "bg-red-500/10 text-red-700" : item.status.toLowerCase() === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted"}`}>{formatStatus(item.status)}</span></div>)}{!history.isLoading && !history.data?.items.length && <p className="text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}</CardContent>
+      <CardContent className="space-y-2">{history.data?.items.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"><div className="min-w-0"><p className="truncate font-medium">{item.imageName}:{item.imageTag}</p><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</p>{item.failureReason && <p className="mt-1 text-xs text-destructive">{item.failureReason}</p>}</div><div className="flex items-center gap-2"><span className={`rounded px-2 py-1 text-xs font-medium ${item.status.toLowerCase() === "failed" ? "bg-red-500/10 text-red-700" : item.status.toLowerCase() === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted"}`}>{formatStatus(item.status)}</span><Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive" title="Delete deployment" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}` })}><Trash2 className="h-4 w-4" /></Button></div></div>)}{!history.isLoading && !history.data?.items.length && <p className="text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}</CardContent>
     </Card>
       </TabsContent>
       <TabsContent value="settings" className="space-y-4">
@@ -399,6 +410,9 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
     </Dialog>
     <AlertDialog open={deleteOpen} onOpenChange={open => { if (!serviceActionPending) setDeleteOpen(open); }}>
       <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {service.name}?</AlertDialogTitle><AlertDialogDescription>This removes the service from {project.name}. Services with deployment, environment, or domain history cannot be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={serviceActionPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={serviceActionPending} onClick={event => { event.preventDefault(); void deleteService(); }}>{serviceActionPending ? "Deleting…" : "Delete service"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+    </AlertDialog>
+    <AlertDialog open={deploymentDeleteTarget !== null} onOpenChange={open => { if (!deleteDeployment.isPending && !open) setDeploymentDeleteTarget(null); }}>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this deployment?</AlertDialogTitle><AlertDialogDescription>This removes the terminal deployment record for {deploymentDeleteTarget?.label ?? "this deployment"}. Active or in-progress deployments cannot be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleteDeployment.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deleteDeployment.isPending || !deploymentDeleteTarget} onClick={event => { event.preventDefault(); if (deploymentDeleteTarget) void deleteDeployment.mutateAsync(deploymentDeleteTarget.id); }}>{deleteDeployment.isPending ? "Deleting…" : "Delete deployment"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
     </AlertDialog>
     <ProjectSetupWizardPage open={setupOpen} onOpenChange={setSetupOpen} projectId={project.id} serviceId={service.id} initialStep={1} />
   </>;

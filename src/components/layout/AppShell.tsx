@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Rocket, Settings, Network, Database, UsersRound, ShieldCheck, UserCog, ChevronDown, ScrollText } from "lucide-react";
+import { Activity, Bell, CreditCard, Box, Container, FileClock, LayoutDashboard, LogOut, Menu, Moon, Sun, Server, Settings, Network, Database, UsersRound, ShieldCheck, UserCog, ChevronDown, ScrollText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router-dom";
@@ -36,7 +36,6 @@ const navGroups = [
   {
     label: "Delivery",
     items: [
-      { to: "/app/deployments", label: "Deployments", icon: Rocket },
       { to: "/app/credentials", label: "Credentials", icon: ShieldCheck },
       { to: "/app/nginx", label: "Nginx", icon: Server },
       { to: "/app/nginx/certificates", label: "Certificates", icon: ShieldCheck },
