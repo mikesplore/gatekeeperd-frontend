@@ -33,11 +33,11 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     <DataTable data={containers} getRowKey={(container) => container.id} hidePagination
       filters={[{ label: "State", options: [...new Set(containers.map((container) => container.state))].map((value) => ({ label: value, value })), getValue: (container) => container.state }]}
       columns={[
-        { key: "name", header: "Name", searchable: true, searchValue: (container) => container.name, render: (container) => <Link className="font-medium text-primary hover:underline" to={`/app/containers/${encodeURIComponent(container.name)}`}>{container.name}</Link> },
-        { key: "image", header: "Image", searchable: true, searchValue: (container) => container.image, render: (container) => <span className="max-w-[200px] truncate text-muted-foreground">{container.image}</span> },
-        { key: "status", header: "Status", render: (container) => container.status },
+        { key: "name", header: "Name", searchable: true, searchValue: (container) => container.name, render: (container) => <Link className="block max-w-[14rem] truncate font-medium text-primary hover:underline" to={`/app/containers/${encodeURIComponent(container.name)}`} title={container.name}>{container.name}</Link> },
+        { key: "image", header: "Image", searchable: true, searchValue: (container) => container.image, render: (container) => <span className="block max-w-[16rem] truncate text-muted-foreground" title={container.image}>{container.image}</span> },
+        { key: "status", header: "Status", render: (container) => <span className="text-xs">{container.status}</span> },
         { key: "state", header: "State", render: (container) => <ContainerStateBadge state={container.state} /> },
-        { key: "ports", header: "Ports", render: (container) => <span className="font-mono text-xs">{container.ports || "Not set"}</span> },
+        { key: "ports", header: "Ports", render: (container) => <span className="block max-w-[16rem] truncate font-mono text-xs" title={container.ports}>{container.ports || "Not set"}</span> },
         { key: "actions", header: "Actions", render: (container) => <ContainerActionsMenu container={container} /> },
       ]}
     />

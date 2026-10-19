@@ -63,11 +63,11 @@ export function PaymentWebhookEventsTab() {
           columns={[
             { key: "provider", header: "Provider", render: event => <Badge variant="outline" className="capitalize">{event.provider === "mpesa" ? "M-Pesa" : event.provider}</Badge> },
             { key: "event", header: "Event", render: event => <span className="font-medium">{event.eventType}</span> },
-            { key: "reference", header: "Reference", render: event => <span className="break-all font-mono text-xs">{event.paystackReference ?? "Not matched"}</span> },
+            { key: "reference", header: "Reference", render: event => <span className="block max-w-[14rem] truncate font-mono text-xs" title={event.paystackReference ?? "Not matched"}>{event.paystackReference ?? "Not matched"}</span> },
             { key: "status", header: "Status", render: event => <Badge variant={event.processingStatus === "failed" ? "destructive" : event.processingStatus === "processed" ? "default" : "secondary"}>{event.processingStatus}</Badge> },
-            { key: "attempts", header: "Attempts", render: event => event.processingAttempts },
-            { key: "received", header: "Received", render: event => new Date(event.receivedAt).toLocaleString() },
-            { key: "error", header: "Processing error", render: event => event.processingError ? <span className="text-xs text-destructive">{event.processingError}</span> : "—" },
+            { key: "attempts", header: "Attempts", render: event => <span className="tabular-nums">{event.processingAttempts}</span> },
+            { key: "received", header: "Received", render: event => <span className="whitespace-nowrap text-xs text-muted-foreground">{new Date(event.receivedAt).toLocaleString()}</span> },
+            { key: "error", header: "Processing error", render: event => event.processingError ? <span className="block max-w-[18rem] truncate text-xs text-destructive" title={event.processingError}>{event.processingError}</span> : "—" },
             { key: "actions", header: "", render: event => event.provider === "paystack" && event.processingStatus === "failed" ? <Button size="sm" variant="outline" disabled={replay.isPending} onClick={() => replay.mutate(event.id)}><RotateCw className="mr-2 h-4 w-4" />Replay</Button> : null },
           ]}
         />

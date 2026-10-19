@@ -109,7 +109,7 @@ export function DeploymentsPage() {
       searchValue: item => `${item.imageName}:${item.imageTag}`,
       sortable: true,
       sortValue: item => `${item.imageName}:${item.imageTag}`,
-      render: item => <code className="block max-w-64 truncate text-xs text-foreground/90" title={`${item.imageName}:${item.imageTag}`}>{item.imageName}:{item.imageTag}</code>,
+      render: item => <code className="block max-w-56 truncate text-xs text-foreground/90" title={`${item.imageName}:${item.imageTag}`}>{item.imageName}:{item.imageTag}</code>,
     },
     {
       key: "status",
@@ -137,7 +137,7 @@ export function DeploymentsPage() {
     {
       key: "actions",
       header: "Actions",
-      render: item => <div className="flex items-center gap-3">{item.canRedeploy && <Button size="sm" variant={item.status.toLowerCase() === "failed" ? "default" : "outline"} onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/redeploy`); toast.success(item.status.toLowerCase() === "failed" ? "Retry queued" : "Redeployment queued"); await queryClient.invalidateQueries({ queryKey: ["deployment-history"] }); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Rocket className="h-4 w-4" />{item.status.toLowerCase() === "failed" ? "Retry" : "Redeploy"}</Button>}{item.canCancel && <Button size="sm" variant="destructive" onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/cancel?environment=${encodeURIComponent(item.environment)}`); toast.success("Deployment cancelled"); await queryClient.invalidateQueries({ queryKey: ["deployment-history"] }); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Square className="h-4 w-4" />Cancel</Button>}<DeploymentDetails item={item} /></div>,
+      render: item => <div className="flex flex-wrap items-center gap-2">{item.canRedeploy && <Button size="sm" variant={item.status.toLowerCase() === "failed" ? "default" : "outline"} onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/redeploy`); toast.success(item.status.toLowerCase() === "failed" ? "Retry queued" : "Redeployment queued"); await queryClient.invalidateQueries({ queryKey: ["deployment-history"] }); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Rocket className="h-4 w-4" />{item.status.toLowerCase() === "failed" ? "Retry" : "Redeploy"}</Button>}{item.canCancel && <Button size="sm" variant="destructive" onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/cancel?environment=${encodeURIComponent(item.environment)}`); toast.success("Deployment cancelled"); await queryClient.invalidateQueries({ queryKey: ["deployment-history"] }); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Square className="h-4 w-4" />Cancel</Button>}<DeploymentDetails item={item} /></div>,
     },
   ];
   const statusOptions = [...new Set((history.data?.items ?? []).map(item => item.status))]
@@ -146,12 +146,12 @@ export function DeploymentsPage() {
 
   return <div className="space-y-6">
     <Card>
-      <CardHeader className="flex-row items-start justify-between gap-4">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="font-medium">Runtime reconciliation</p>
           <p className="text-sm text-foreground/70">Compare active deployment records with Docker and managed nginx routes.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => reconciliation.refetch()} disabled={reconciliation.isFetching}>
+        <Button variant="outline" size="sm" onClick={() => reconciliation.refetch()} disabled={reconciliation.isFetching} className="self-start sm:self-auto">
           <RefreshCw className={`h-4 w-4 ${reconciliation.isFetching ? "animate-spin" : ""}`} />Refresh
         </Button>
       </CardHeader>
