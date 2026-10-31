@@ -37,6 +37,8 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
   const [sharedNewValue, setSharedNewValue] = useState("");
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceType, setNewServiceType] = useState<ServiceType>("frontend");
+  const [creatingService, setCreatingService] = useState(false);
+  const [createServiceOpen, setCreateServiceOpen] = useState(false);
   const [serviceDrafts, setServiceDrafts] = useState<Record<string, Record<string, string>>>({});
 
   const relevantSites = useMemo(() => (sitesQuery.data?.sites ?? []).filter(site => site.projectId === project.id), [sitesQuery.data?.sites, project.id]);
@@ -70,14 +72,31 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
 
     {view === "overview" && <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><CardTitle>Services</CardTitle><p className="mt-1 text-sm text-muted-foreground">Each service owns its deployment, access block, runtime health, and domains.</p></div>
-        <div className="flex flex-wrap gap-2"><Input aria-label="New service name" placeholder="e.g. frontend" value={newServiceName} onChange={event => setNewServiceName(event.target.value)} /><Select value={newServiceType} onValueChange={value => setNewServiceType(value as ServiceType)}><SelectTrigger className="w-[140px]" aria-label="New service type"><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select><Button disabled={!newServiceName.trim() || servicesQuery.isFetching} onClick={async () => { try { await api.post(`/admin/projects/${project.id}/services`, { name: newServiceName.trim(), serviceType: newServiceType }); setNewServiceName(""); await servicesQuery.refetch(); toast.success("Service created"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Plus className="h-4 w-4" />Add</Button></div>
+        <div><CardTitle>Services</CardTitle><p className="mt-1 text-sm text-muted-foreground">Each service has its own deployment, access, runtime health, and domains.</p></div>
+        <Button onClick={() => setCreateServiceOpen(true)}><Plus className="h-4 w-4" />Create service</Button>
       </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
         {servicesQuery.isLoading && <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>}
         {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
         {!servicesQuery.isLoading && !servicesQuery.isError && servicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No services are configured for this project.</p>}
         {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
+        </div>
+        <Dialog open={createServiceOpen} onOpenChange={open => { if (!creatingService) setCreateServiceOpen(open); }}>
+          <DialogContent className="fixed inset-y-0 right-0 left-auto top-0 flex h-full w-full max-w-md translate-x-0 translate-y-0 flex-col gap-6 overflow-y-auto rounded-none border-l p-6 shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Create a service</DialogTitle>
+              <DialogDescription>Name the part of your project you want to manage. You’ll configure its runtime and domains after creating it.</DialogDescription>
+            </DialogHeader>
+            <form className="flex flex-1 flex-col gap-6" onSubmit={async event => { event.preventDefault(); if (!newServiceName.trim() || creatingService) return; setCreatingService(true); try { await api.post(`/admin/projects/${project.id}/services`, { name: newServiceName.trim(), serviceType: newServiceType }); setNewServiceName(""); await servicesQuery.refetch(); setCreateServiceOpen(false); toast.success("Service created. Manage it to configure its runtime and domains."); } catch (error) { toast.error(getApiErrorMessage(error)); } finally { setCreatingService(false); } }}>
+              <div className="space-y-5">
+                <div className="space-y-2"><Label htmlFor={`new-service-name-${project.id}`}>Service name</Label><Input id={`new-service-name-${project.id}`} placeholder="e.g. Customer portal" value={newServiceName} onChange={event => setNewServiceName(event.target.value)} autoFocus /></div>
+                <div className="space-y-2"><Label htmlFor={`new-service-type-${project.id}`}>Service type</Label><Select value={newServiceType} onValueChange={value => setNewServiceType(value as ServiceType)}><SelectTrigger id={`new-service-type-${project.id}`}><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select><p className="text-xs text-muted-foreground">Choose the category that best describes this service.</p></div>
+              </div>
+              <DialogFooter className="mt-auto border-t pt-4 sm:justify-between"><Button type="button" variant="outline" disabled={creatingService} onClick={() => setCreateServiceOpen(false)}>Cancel</Button><Button type="submit" disabled={!newServiceName.trim() || creatingService || servicesQuery.isFetching}>{creatingService ? "Creating…" : "Create service"}</Button></DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>}
     {view === "detail" && <>
