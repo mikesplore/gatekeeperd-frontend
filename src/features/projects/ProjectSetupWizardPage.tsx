@@ -25,7 +25,7 @@ import {
 import { getApiErrorMessage } from "@/lib/api";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
-const steps = ["Source & runtime", "Credentials", "Deploy"];
+const steps = ["Source", "Credentials", "Deploy"];
 const inProgressDeploymentStatuses = new Set(["queued", "building", "starting", "health-checking", "ready"]);
 
 function parseEnv(text: string): Record<string, string> {
@@ -59,9 +59,10 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
+  const [attachContainerOpen, setAttachContainerOpen] = useState(false);
   const status = useProjectSetupStatus(projectId, serviceId);
   const providerCredentials = useProviderCredentialMetadata();
-  const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1);
+  const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1 && attachContainerOpen);
   const adoptContainer = useAdoptProjectContainer(projectId);
   const dockerNetworkContext = useContainerWizardContext();
   const loadedConfiguration = useRef("");
@@ -220,29 +221,31 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
           {(setup) => (
             <>
               {step === 1 && <>
-              <Card>
-                <CardHeader><CardTitle>Attach a running container</CardTitle><CardDescription>Make an existing Docker container this project’s active deployment without restarting it. This updates desired source/runtime settings to match the container; any environment values are saved as encrypted project secrets.</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
+              <details className="rounded-lg border" onToggle={event => setAttachContainerOpen(event.currentTarget.open)}>
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4"><span><span className="block text-sm font-medium">Already running a container?</span><span className="mt-1 block text-sm text-muted-foreground">Attach an existing container instead of deploying a new image.</span></span><Badge variant="outline">Optional</Badge></summary>
+                <div className="space-y-4 border-t p-4">
                   {adoptableContainers.isLoading ? <p className="text-sm text-muted-foreground">Loading running containers…</p> : adoptableContainers.isError ? <p className="text-sm text-destructive">Could not load Docker containers. Check that Gatekeeperd can access Docker.</p> : (adoptableContainers.data ?? []).filter(container => container.ports.length > 0).length === 0 ? <p className="text-sm text-muted-foreground">No running containers with a published TCP port are available to attach.</p> : <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-2"><Label>Running container</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={adoptContainerId} onChange={event => { const nextId = event.target.value; setAdoptContainerId(nextId); setAdoptContainerPort(String(adoptableContainers.data?.find(container => container.id === nextId)?.ports[0]?.containerPort ?? "")); }}><option value="">Select a container</option>{(adoptableContainers.data ?? []).filter(container => container.ports.length > 0).map(container => <option key={container.id} value={container.id}>{container.name} · {container.image}</option>)}</select></div>
                     <div className="space-y-2"><Label>Published application port</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={adoptContainerPort} onChange={event => setAdoptContainerPort(event.target.value)} disabled={!selectedAdoptableContainer}><option value="">Select a port</option>{selectedAdoptableContainer?.ports.map(port => <option key={port.containerPort} value={port.containerPort}>{port.containerPort} → host {port.hostPort}</option>)}</select></div>
                     {selectedAdoptableContainer && <p className="text-xs text-muted-foreground sm:col-span-2">Network: {selectedAdoptableContainer.networks.join(", ") || "bridge"}. {selectedAdoptableContainer.environmentVariableCount} environment variables will be encrypted into a new project secret version. The previous runtime, if any, will keep running.</p>}
                   </div>}
                   <div className="flex justify-end"><Button variant="outline" disabled={!adoptContainerId || !adoptContainerPort || adoptContainer.isPending} onClick={() => void attachRunningContainer()}>{adoptContainer.isPending ? "Attaching…" : "Attach container"}</Button></div>
-                </CardContent>
-              </Card>
+                </div>
+              </details>
               <Card>
-                <CardHeader><CardTitle>Source and runtime</CardTitle><CardDescription>Save desired settings now. You can leave the project without a deployment and return later.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Choose a source image</CardTitle><CardDescription>Enter a repository to build from GitHub, or leave it blank to deploy a prebuilt image.</CardDescription></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label>GitHub repository (optional)</Label><Input value={runtime.repository ?? ""} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /><p className="text-xs text-muted-foreground">If set, GitHub source takes priority: deployments clone this ref, build, and push the configured image name/tag. Leave it blank to pull the configured prebuilt image directly.</p></div>
-                  <div className="space-y-2"><Label>Git ref</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} /><p className="text-xs text-muted-foreground">Use a branch name or tag. GitHub pushes matching this ref can trigger deployment.</p></div>
+                  <div className="space-y-2"><Label>GitHub repository <span className="font-normal text-muted-foreground">(optional)</span></Label><Input value={runtime.repository ?? ""} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /></div>
+                  <div className="space-y-2"><Label>Branch or tag</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} placeholder="main" /></div>
                   <div className="space-y-2"><Label>Registry</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
                   <div className="space-y-2"><Label>Image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
-                  <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select></div>
-                  <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
-                  <label className="flex items-start gap-3 rounded-md border p-3 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={runtime.autoDeploy ?? false} onChange={event => setRuntime({ ...runtime, autoDeploy: event.target.checked })} /><span><span className="block text-sm font-medium">Deploy on matching GitHub pushes</span><span className="block text-xs text-muted-foreground">When enabled, pushes to the configured branch or tag queue a fresh deployment for this service.</span></span></label>
-                  <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={5} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Use this for ordinary app settings. Put passwords, API keys, and other sensitive values in Credentials.</p></div>
+                  <details className="rounded-md border sm:col-span-2"><summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">Optional runtime settings</summary><div className="grid gap-4 border-t p-3 sm:grid-cols-2">
+                    <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select></div>
+                    <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
+                    <label className="flex items-start gap-3 rounded-md border p-3 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={runtime.autoDeploy ?? false} onChange={event => setRuntime({ ...runtime, autoDeploy: event.target.checked })} /><span><span className="block text-sm font-medium">Deploy on matching GitHub pushes</span><span className="block text-xs text-muted-foreground">Queue a deployment when the configured branch or tag changes.</span></span></label>
+                    <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={4} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Keep secrets for the Credentials step.</p></div>
+                  </div></details>
                   <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card></>}

@@ -235,11 +235,18 @@ export function useDeployProjectSetup(projectId: string, serviceId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => (await api.post<{ deploymentId: string; status: string }>(`/admin/project-setup/projects/${projectId}/deploy`, null, { params: { serviceId } })).data,
-    onSuccess: () => {
-      invalidateSetup(qc, projectId);
-      qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
-      qc.invalidateQueries({ queryKey: ["service-runtime", projectId] });
-      qc.invalidateQueries({ queryKey: ["deployments"] });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["project-setup", projectId] }),
+        qc.invalidateQueries({ queryKey: ["projects"] }),
+        qc.invalidateQueries({ queryKey: ["project-environment", projectId] }),
+        qc.invalidateQueries({ queryKey: ["service-runtime", projectId] }),
+        qc.invalidateQueries({ queryKey: ["project-service-history"] }),
+        qc.invalidateQueries({ queryKey: ["project-deployment-history"] }),
+        qc.invalidateQueries({ queryKey: ["project-overview"] }),
+        qc.invalidateQueries({ queryKey: ["project-services"] }),
+        qc.invalidateQueries({ queryKey: ["deployments"] }),
+      ]);
     },
   });
 }
