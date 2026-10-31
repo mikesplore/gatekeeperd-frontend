@@ -110,6 +110,7 @@ export interface ProjectDeploymentHistoryItem {
   credentialSetId?: string | null; credentialSetVersion?: number | null;
   secretSetId?: string | null; secretSetVersion?: number | null; configurationId: string; actions: string[];
   cutoverState?: string | null; cutoverError?: string | null;
+  runtimeContainerName?: string | null; runtimePresent?: boolean | null; runtimeState?: string | null; restartCount?: number | null;
 }
 
 export interface ProviderCredentialMetadata {
