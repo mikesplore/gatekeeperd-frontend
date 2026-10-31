@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, Suspense, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
@@ -46,7 +46,9 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <ThemeBootstrap>
         <SessionBootstrap>
-          <RouterProvider router={router} />
+          <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading page…</div>}>
+            <RouterProvider router={router} />
+          </Suspense>
           <Toaster
             richColors
             closeButton

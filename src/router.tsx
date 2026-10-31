@@ -1,35 +1,40 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { lazy } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { LandingPage } from "@/features/landing/LandingPage";
-import { LoginPage } from "@/features/auth/LoginPage";
-import { ForgotPasswordPage, ResetPasswordPage } from "@/features/auth/PasswordResetPage";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
-import { ContainersPage } from "@/features/containers/ContainersPage";
-import { ContainerDetailPage } from "@/features/containers/ContainerDetailPage";
-import { DashboardOverviewPage } from "@/features/dashboard/DashboardOverviewPage";
-import { NotFoundPage } from "@/features/NotFoundPage";
-import { ProjectDetailPage } from "@/features/projects/ProjectDetailPage";
-import { ServiceDetailPage } from "@/features/projects/ServiceDetailPage";
-import { ProjectsListPage } from "@/features/projects/ProjectsListPage";
-import { PaymentsPage } from "@/features/payments/PaymentsPage";
-import { PaymentEventsPage } from "@/features/payments/PaymentEventsPage";
-import { CertificatesPage } from "@/features/nginx/CertificatesPage";
-import { OperationsPage } from "@/features/operations/OperationsPage";
-import { ProfileSettingsPage } from "@/features/settings/ProfileSettingsPage";
-import { AdminUsersPage } from "@/features/settings/AdminUsersPage";
-import { DockerResourcesPage } from "@/features/infrastructure/DockerResourcesPage";
-import { NetworkDetailPage } from "@/features/infrastructure/NetworkDetailPage";
-import { VolumeDetailPage } from "@/features/infrastructure/VolumeDetailPage";
-import { AuditPage } from "@/features/audit/AuditPage";
-import { NotificationsPage } from "@/features/notifications/NotificationsPage";
-import { DeadConfigsPage } from "@/features/dashboard/DeadConfigsPage";
-import { SitesDashboardPage } from "@/features/dashboard/SitesDashboardPage";
-import { SiteDetailPage } from "@/features/dashboard/SiteDetailPage";
-import { CustomerDetailPage, CustomersPage } from "@/features/dashboard/CustomersPage";
-import { SiteAdvancedConfigPage } from "@/features/nginx/SiteAdvancedConfigPage";
-import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
-import { InfrastructureCredentialsPage } from "@/features/settings/InfrastructureCredentialsPage";
-import { LogsPage } from "@/features/logs/LogsPage";
+
+const LandingPage = lazy(() => import("@/features/landing/LandingPage").then((module) => ({ default: module.LandingPage })));
+const LoginPage = lazy(() => import("@/features/auth/LoginPage").then((module) => ({ default: module.LoginPage })));
+const ForgotPasswordPage = lazy(() => import("@/features/auth/PasswordResetPage").then((module) => ({ default: module.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("@/features/auth/PasswordResetPage").then((module) => ({ default: module.ResetPasswordPage })));
+const ContainersPage = lazy(() => import("@/features/containers/ContainersPage").then((module) => ({ default: module.ContainersPage })));
+const ContainerDetailPage = lazy(() => import("@/features/containers/ContainerDetailPage").then((module) => ({ default: module.ContainerDetailPage })));
+const DashboardOverviewPage = lazy(() => import("@/features/dashboard/DashboardOverviewPage").then((module) => ({ default: module.DashboardOverviewPage })));
+const NotFoundPage = lazy(() => import("@/features/NotFoundPage").then((module) => ({ default: module.NotFoundPage })));
+const ProjectDetailPage = lazy(() => import("@/features/projects/ProjectDetailPage").then((module) => ({ default: module.ProjectDetailPage })));
+const ServiceDetailPage = lazy(() => import("@/features/projects/ServiceDetailPage").then((module) => ({ default: module.ServiceDetailPage })));
+const ProjectsListPage = lazy(() => import("@/features/projects/ProjectsListPage").then((module) => ({ default: module.ProjectsListPage })));
+const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then((module) => ({ default: module.PaymentsPage })));
+const PaymentEventsPage = lazy(() => import("@/features/payments/PaymentEventsPage").then((module) => ({ default: module.PaymentEventsPage })));
+const CertificatesPage = lazy(() => import("@/features/nginx/CertificatesPage").then((module) => ({ default: module.CertificatesPage })));
+const OperationsPage = lazy(() => import("@/features/operations/OperationsPage").then((module) => ({ default: module.OperationsPage })));
+const ProfileSettingsPage = lazy(() => import("@/features/settings/ProfileSettingsPage").then((module) => ({ default: module.ProfileSettingsPage })));
+const AdminUsersPage = lazy(() => import("@/features/settings/AdminUsersPage").then((module) => ({ default: module.AdminUsersPage })));
+const NetworkDetailPage = lazy(() => import("@/features/infrastructure/NetworkDetailPage").then((module) => ({ default: module.NetworkDetailPage })));
+const VolumeDetailPage = lazy(() => import("@/features/infrastructure/VolumeDetailPage").then((module) => ({ default: module.VolumeDetailPage })));
+const AuditPage = lazy(() => import("@/features/audit/AuditPage").then((module) => ({ default: module.AuditPage })));
+const NotificationsPage = lazy(() => import("@/features/notifications/NotificationsPage").then((module) => ({ default: module.NotificationsPage })));
+const DeadConfigsPage = lazy(() => import("@/features/dashboard/DeadConfigsPage").then((module) => ({ default: module.DeadConfigsPage })));
+const SitesDashboardPage = lazy(() => import("@/features/dashboard/SitesDashboardPage").then((module) => ({ default: module.SitesDashboardPage })));
+const SiteDetailPage = lazy(() => import("@/features/dashboard/SiteDetailPage").then((module) => ({ default: module.SiteDetailPage })));
+const CustomerDetailPage = lazy(() => import("@/features/dashboard/CustomersPage").then((module) => ({ default: module.CustomerDetailPage })));
+const CustomersPage = lazy(() => import("@/features/dashboard/CustomersPage").then((module) => ({ default: module.CustomersPage })));
+const SiteAdvancedConfigPage = lazy(() => import("@/features/nginx/SiteAdvancedConfigPage").then((module) => ({ default: module.SiteAdvancedConfigPage })));
+const ProjectSetupWizardPage = lazy(() => import("@/features/projects/ProjectSetupWizardPage").then((module) => ({ default: module.ProjectSetupWizardPage })));
+const InfrastructureCredentialsPage = lazy(() => import("@/features/settings/InfrastructureCredentialsPage").then((module) => ({ default: module.InfrastructureCredentialsPage })));
+const LogsPage = lazy(() => import("@/features/logs/LogsPage").then((module) => ({ default: module.LogsPage })));
+const NetworkResourcesPage = lazy(() => import("@/features/infrastructure/DockerResourcesPage").then(({ DockerResourcesPage }) => ({ default: () => <DockerResourcesPage kind="networks" /> })));
+const VolumeResourcesPage = lazy(() => import("@/features/infrastructure/DockerResourcesPage").then(({ DockerResourcesPage }) => ({ default: () => <DockerResourcesPage kind="volumes" /> })));
 
 export const router = createBrowserRouter([
   {
@@ -74,9 +79,9 @@ export const router = createBrowserRouter([
           { path: "settings/profile", element: <ProfileSettingsPage /> },
           { path: "credentials", element: <InfrastructureCredentialsPage /> },
           { path: "settings/users", element: <AdminUsersPage /> },
-          { path: "networks", element: <DockerResourcesPage kind="networks" /> },
+          { path: "networks", element: <NetworkResourcesPage /> },
           { path: "networks/:name", element: <NetworkDetailPage /> },
-          { path: "volumes", element: <DockerResourcesPage kind="volumes" /> },
+          { path: "volumes", element: <VolumeResourcesPage /> },
           { path: "volumes/:name", element: <VolumeDetailPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
