@@ -495,8 +495,13 @@ export function useInitializePayment(slug: string) {
 
 export function useInitiateMpesaPayment() {
   return useMutation({
-    mutationFn: ({ slug, phone, amount }: { slug: string; phone: string; amount: number }) =>
-      api.post<{ provider: string; reference: string; status: string }>(`/mpesa/pay?project=${encodeURIComponent(slug)}&phone=${encodeURIComponent(phone)}&amount=${encodeURIComponent(amount)}`),
+    mutationFn: ({ slug, phone, amount, serviceId }: { slug: string; phone: string; amount: number; serviceId: string }) =>
+      api.post<{ provider: string; reference: string; status: string }>("/mpesa/pay", {
+        projectSlug: slug,
+        phoneNumber: phone,
+        amount: String(amount),
+        serviceId,
+      }),
   });
 }
 
