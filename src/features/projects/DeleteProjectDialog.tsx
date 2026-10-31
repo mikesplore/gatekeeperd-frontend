@@ -56,7 +56,7 @@ export function DeleteProjectDialog({
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <Button
             variant="destructive"
-            disabled={deleteProject.isPending}
+            loading={deleteProject.isPending} disabled={deleteProject.isPending}
             onClick={handleDelete}
           >
             {deleteProject.isPending ? "Archiving…" : "Archive project"}

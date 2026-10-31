@@ -68,7 +68,7 @@ export function PaymentWebhookEventsTab() {
             { key: "attempts", header: "Attempts", render: event => <span className="tabular-nums">{event.processingAttempts}</span> },
             { key: "received", header: "Received", render: event => <span className="whitespace-nowrap text-xs text-muted-foreground">{new Date(event.receivedAt).toLocaleString()}</span> },
             { key: "error", header: "Processing error", render: event => event.processingError ? <span className="block max-w-[18rem] truncate text-xs text-destructive" title={event.processingError}>{event.processingError}</span> : "—" },
-            { key: "actions", header: "", render: event => event.provider === "paystack" && event.processingStatus === "failed" ? <Button size="sm" variant="outline" disabled={replay.isPending} onClick={() => replay.mutate(event.id)}><RotateCw className="mr-2 h-4 w-4" />Replay</Button> : null },
+            { key: "actions", header: "", render: event => event.provider === "paystack" && event.processingStatus === "failed" ? <Button size="sm" variant="outline" loading={replay.isPending} disabled={replay.isPending} onClick={() => replay.mutate(event.id)}><RotateCw className="mr-2 h-4 w-4" />Replay</Button> : null },
           ]}
         />
       </CardContent>

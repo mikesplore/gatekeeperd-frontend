@@ -3,6 +3,7 @@ export type GatewayStatus = "pending" | "success" | "failed" | "abandoned" | "re
 export interface Payment {
   id: string;
   projectId: string;
+  serviceId?: string | null;
   provider: "paystack" | "mpesa" | string;
   providerReference: string;
   paystackReference: string;
@@ -18,6 +19,7 @@ export interface Payment {
 export interface PaymentRecord {
   id: string;
   projectId: string;
+  serviceId?: string | null;
   projectName: string;
   projectSlug: string;
   provider: "paystack" | "mpesa" | string;
@@ -58,6 +60,11 @@ export interface PaymentLinkResponse {
 }
 
 export interface ProjectInvoiceStatus {
+  invoice: { id: number; number: string; status: string; amount: string; currency: string; paid: string; balance: string; download_url?: string };
+  payments: { id: number; provider: string; provider_reference: string; amount: string; currency: string; paid_at: string; receipt_number: string; receipt_url: string }[];
+}
+
+export interface ServiceInvoiceStatus {
   invoice: { id: number; number: string; status: string; amount: string; currency: string; paid: string; balance: string; download_url?: string };
   payments: { id: number; provider: string; provider_reference: string; amount: string; currency: string; paid_at: string; receipt_number: string; receipt_url: string }[];
 }

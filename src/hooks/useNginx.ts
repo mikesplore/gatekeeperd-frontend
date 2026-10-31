@@ -87,18 +87,18 @@ export function useNginxWizardContext(slug: string, serviceId: string) {
   });
 }
 
-export function useValidateNginxEnable(slug: string) {
+export function useValidateNginxEnable() {
   return useMutation({
     mutationFn: (payload: EnableNginxPayload) =>
-      api.post<EnableNginxResponse>(`/admin/nginx/wizard/validate/${slug}`, payload),
+      api.post<EnableNginxResponse>("/admin/nginx/wizard/validate", payload),
   });
 }
 
 export function useEnableNginx() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ slug, payload }: { slug: string; payload?: EnableNginxPayload }) =>
-      api.post<EnableNginxResponse>(`/admin/nginx/enable/${slug}`, payload),
+    mutationFn: ({ payload }: { slug: string; payload: EnableNginxPayload }) =>
+      api.post<EnableNginxResponse>("/admin/nginx/enable", payload),
     onSuccess: (_data, { slug }) => {
       qc.invalidateQueries({ queryKey: ["nginx", "status", slug] });
       qc.invalidateQueries({ queryKey: ["dashboard", "sites"] });

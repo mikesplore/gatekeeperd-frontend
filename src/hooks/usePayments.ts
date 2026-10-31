@@ -5,6 +5,7 @@ import type {
   OverdueProject,
   PaymentsListResponse,
   RevenueReport,
+  ServiceInvoiceStatus,
 } from "@/types/payment";
 export interface CaptureCashPaymentPayload {
   amount: number;
@@ -12,16 +13,19 @@ export interface CaptureCashPaymentPayload {
   paidAt?: string;
   receiptNumber?: string;
   notes?: string;
+  serviceId: string;
 }
 
-export function useCaptureCashPayment(projectSlug: string) {
+export function useCaptureCashPayment(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: CaptureCashPaymentPayload) =>
-      (await api.post(`/admin/projects/${projectSlug}/payments/cash`, payload)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["project", projectSlug] });
+    mutationFn: async ({ serviceId, ...payload }: CaptureCashPaymentPayload) =>
+      (await api.post(`/admin/services/${serviceId}/payments/cash`, payload)).data,
+    onSuccess: (_data, { serviceId }) => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["service-payments", projectId, serviceId] });
+      queryClient.invalidateQueries({ queryKey: ["service-invoice", projectId, serviceId] });
       queryClient.invalidateQueries({ queryKey: ["revenue"] });
     },
   });
@@ -43,11 +47,27 @@ export function useAllPayments(filters: {
   });
 }
 
-export function useProjectPayments(projectSlug: string, limit = 25, offset = 0) {
+export function useProjectPayments(projectId: string, limit = 25, offset = 0) {
   return useQuery({
-    queryKey: ["project-payments", projectSlug, limit, offset],
-    queryFn: async () => (await api.get<PaymentsListResponse>(`/admin/projects/${encodeURIComponent(projectSlug)}/payments`, { params: { limit, offset } })).data,
-    enabled: !!projectSlug,
+    queryKey: ["project-payments", projectId, limit, offset],
+    queryFn: async () => (await api.get<PaymentsListResponse>(`/admin/projects/${projectId}/payments`, { params: { limit, offset } })).data,
+    enabled: !!projectId,
+  });
+}
+
+export function useServicePayments(projectId: string, serviceId: string, limit = 25, offset = 0) {
+  return useQuery({
+    queryKey: ["service-payments", projectId, serviceId, limit, offset],
+    queryFn: async () => (await api.get<{ payments: import("@/types/payment").Payment[]; total: number; limit: number; offset: number; hasMore?: boolean }>(`/admin/projects/${projectId}/services/${serviceId}/payments`, { params: { limit, offset } })).data,
+    enabled: Boolean(projectId && serviceId),
+  });
+}
+
+export function useServiceInvoice(projectId: string, serviceId: string) {
+  return useQuery({
+    queryKey: ["service-invoice", projectId, serviceId],
+    queryFn: async () => (await api.get<ServiceInvoiceStatus>(`/admin/projects/${projectId}/services/${serviceId}/invoice`)).data,
+    enabled: Boolean(projectId && serviceId),
   });
 }
 

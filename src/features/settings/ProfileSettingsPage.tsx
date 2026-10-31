@@ -182,7 +182,7 @@ export function ProfileSettingsPage() {
               </div>
             </div>
             <Button
-              disabled={profile.isPending}
+              loading={profile.isPending} disabled={profile.isPending}
               onClick={() =>
                 run(() => profile.mutateAsync(), "Profile updated")
               }
@@ -200,17 +200,17 @@ export function ProfileSettingsPage() {
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 variant="outline"
-                disabled={versionCheck.isPending}
+                loading={versionCheck.isPending} loadingText="Checking…" disabled={versionCheck.isPending}
                 onClick={() => versionCheck.mutate()}
               >
-                <RefreshCw className={versionCheck.isPending ? "animate-spin" : ""} />
+                <RefreshCw />
                 {versionCheck.isPending ? "Checking…" : "Check deployment"}
               </Button>
               <Button
-                disabled={deploymentTrigger.isPending}
+                loading={deploymentTrigger.isPending} loadingText="Starting…" disabled={deploymentTrigger.isPending}
                 onClick={() => deploymentTrigger.mutate()}
               >
-                <RefreshCw className={deploymentTrigger.isPending ? "animate-spin" : ""} />
+                <RefreshCw />
                 {deploymentTrigger.isPending ? "Starting…" : "Deploy latest now"}
               </Button>
               {versionCheck.data && (
@@ -275,7 +275,7 @@ export function ProfileSettingsPage() {
                     },
                   )
                 }
-              >
+               loading={password.isPending}>
                 {password.isPending ? "Changing…" : "Change password"}
               </Button>
             </CardContent>
@@ -310,6 +310,7 @@ export function ProfileSettingsPage() {
                     </div>
                     <Button
                       variant="outline"
+                      loading={disable2fa.isPending}
                       disabled={
                         disable2fa.isPending || !disablePassword || !disableCode
                       }
@@ -326,7 +327,7 @@ export function ProfileSettingsPage() {
                     >
                       Disable 2FA
                     </Button>
-                    <Button variant="ghost" disabled={regenerate2fa.isPending || !disablePassword || !disableCode} onClick={async () => { try { setRegeneratedCodes((await regenerate2fa.mutateAsync()).recoveryCodes); toast.success("Recovery codes regenerated"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>
+                    <Button variant="ghost" disabled={regenerate2fa.isPending || !disablePassword || !disableCode} onClick={async () => { try { setRegeneratedCodes((await regenerate2fa.mutateAsync()).recoveryCodes); toast.success("Recovery codes regenerated"); } catch (error) { toast.error(getApiErrorMessage(error)); } }} loading={regenerate2fa.isPending}>
                       {regenerate2fa.isPending ? "Regenerating…" : "Regenerate recovery codes"}
                     </Button>
                     {regeneratedCodes && <div className="max-w-md rounded-md border p-3"><p className="text-sm font-medium">New recovery codes</p><p className="text-xs text-muted-foreground">Previous codes are no longer valid. Save these now.</p><div className="mt-2 grid grid-cols-2 gap-1 font-mono text-xs">{regeneratedCodes.map(code => <span key={code}>{code}</span>)}</div></div>}
@@ -341,7 +342,7 @@ export function ProfileSettingsPage() {
                       toast.error(getApiErrorMessage(error));
                     }
                   }}
-                  disabled={setup2fa.isPending}
+                  loading={setup2fa.isPending} disabled={setup2fa.isPending}
                 >
                   {setup2fa.isPending ? "Preparing…" : "Enable 2FA"}
                 </Button>
@@ -386,7 +387,7 @@ export function ProfileSettingsPage() {
                       maxLength={6}
                     />
                     <Button
-                      disabled={enable2fa.isPending || setupCode.length !== 6}
+                      loading={enable2fa.isPending} disabled={enable2fa.isPending || setupCode.length !== 6}
                       onClick={() =>
                         run(
                           () => enable2fa.mutateAsync(),

@@ -1,61 +1,75 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Copy, Link2 } from "lucide-react";
+import { Copy, ExternalLink, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
+import { CreateServiceInvoiceDialog } from "@/features/payments/CreateServiceInvoiceDialog";
 import { useInitializePayment, useInitiateMpesaPayment } from "@/hooks/useProjects";
-import { useCaptureCashPayment } from "@/hooks/usePayments";
+import { useCaptureCashPayment, useServiceInvoice } from "@/hooks/usePayments";
+import { useProjectServices } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import type { Project } from "@/types/project";
 
 type PaymentMethod = "paystack" | "mpesa" | "cash";
 
-export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentChanged }: { project: Project; open: boolean; onOpenChange: (open: boolean) => void; onPaymentChanged?: () => Promise<unknown> | void }) {
+export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentChanged, initialServiceId = "" }: { project: Project; open: boolean; onOpenChange: (open: boolean) => void; onPaymentChanged?: () => Promise<unknown> | void; initialServiceId?: string }) {
   const [method, setMethod] = useState<PaymentMethod | "">("");
+  const [serviceId, setServiceId] = useState("");
   const [email, setEmail] = useState(project.customerEmail ?? "");
   const [phone, setPhone] = useState("");
-  const [amount, setAmount] = useState((project.remainingBalance ?? project.amountDue ?? 0).toString());
+  const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 16));
   const [receiptNumber, setReceiptNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
-  const balance = project.remainingBalance ?? project.amountDue ?? 0;
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const services = useProjectServices(project.id);
+  const selectedService = services.data?.find(service => service.id === serviceId);
+  const serviceInvoice = useServiceInvoice(project.id, serviceId);
+  const serviceBalance = Number(serviceInvoice.data?.invoice.balance ?? 0);
+  const balance = serviceBalance;
   const numericAmount = Number(amount);
   const amountValid = Number.isFinite(numericAmount) && numericAmount > 0 && numericAmount <= balance;
   const initializePaystack = useInitializePayment(project.slug);
   const initiateMpesa = useInitiateMpesaPayment();
-  const captureCash = useCaptureCashPayment(project.slug);
+  const captureCash = useCaptureCashPayment(project.id);
 
   useEffect(() => {
     if (!open) return;
     setMethod("");
+    setServiceId(initialServiceId);
     setEmail(project.customerEmail ?? "");
     setPhone("");
-    setAmount((project.remainingBalance ?? project.amountDue ?? 0).toString());
+    setAmount("");
     setPaidAt(new Date().toISOString().slice(0, 16));
     setReceiptNumber("");
     setNotes("");
     setPaymentLink(null);
-  }, [open, project.customerEmail, project.remainingBalance, project.amountDue]);
+  }, [open, project.customerEmail, project.remainingBalance, project.amountDue, initialServiceId]);
+
+  useEffect(() => {
+    if (selectedService && serviceInvoice.data) setAmount(serviceBalance.toString());
+  }, [selectedService, serviceInvoice.data, serviceBalance]);
 
   const close = () => onOpenChange(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!method) { toast.error("Select a payment method"); return; }
+    if (!serviceId) { toast.error("Select a service to pay for"); return; }
     if (!amountValid) { toast.error("Enter an amount within the remaining balance"); return; }
     try {
       if (method === "paystack") {
-        const response = await initializePaystack.mutateAsync({ email: email.trim() || undefined, amount: numericAmount });
+        const response = await initializePaystack.mutateAsync({ email: email.trim() || undefined, amount: numericAmount, serviceId });
         setPaymentLink(response.data.payment_link);
         toast.success("Paystack payment link created");
         await onPaymentChanged?.();
       } else if (method === "mpesa") {
         if (!phone.trim()) { toast.error("Enter the customer's M-Pesa phone number"); return; }
-        await initiateMpesa.mutateAsync({ slug: project.slug, phone: phone.trim(), amount: numericAmount });
+        await initiateMpesa.mutateAsync({ slug: project.slug, phone: phone.trim(), amount: numericAmount, serviceId });
         toast.success("M-Pesa prompt sent to the customer");
         await onPaymentChanged?.();
         close();
@@ -66,6 +80,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
           paidAt: paidAt || undefined,
           receiptNumber: receiptNumber.trim() || undefined,
           notes: notes.trim() || undefined,
+          serviceId,
         });
         toast.success("Cash payment recorded");
         await onPaymentChanged?.();
@@ -83,13 +98,28 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
   const pending = initializePaystack.isPending || initiateMpesa.isPending || captureCash.isPending;
 
   return (
-    <SidePanel open={open} onOpenChange={onOpenChange}>
+    <>
+      <SidePanel open={open} onOpenChange={onOpenChange}>
       <SidePanelContent>
         <SidePanelHeader className="border-b px-6 py-5 pr-14">
           <SidePanelTitle className="text-base">Capture payment</SidePanelTitle>
           <SidePanelDescription className="text-xs">Choose how to collect or record a payment for {project.name}.</SidePanelDescription>
         </SidePanelHeader>
         <form onSubmit={submit} className="space-y-4 px-6 py-6 text-sm [&_label]:text-xs [&_input]:h-8">
+          <div className="space-y-2">
+            <Label htmlFor="capture-service">Service</Label>
+            <Select value={serviceId} onValueChange={value => { setServiceId(value); setAmount(""); setPaymentLink(null); }}>
+              <SelectTrigger id="capture-service"><SelectValue placeholder="Select service" /></SelectTrigger>
+              <SelectContent>
+                {(services.data ?? []).map(service => <SelectItem key={service.id} value={service.id}>{service.name} service</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {selectedService && serviceInvoice.isError && <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+              <span>This service has no available invoice. Create its service invoice first.</span>
+              <Button type="button" size="sm" variant="outline" onClick={() => setCreateInvoiceOpen(true)}>Create invoice</Button>
+            </div>}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="capture-method">Payment method</Label>
             <Select value={method} onValueChange={(value) => { setMethod(value as PaymentMethod); setPaymentLink(null); }}>
@@ -110,7 +140,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
           {method && <div className="space-y-2">
             <Label htmlFor="capture-amount">Amount ({project.currency})</Label>
             <Input id="capture-amount" type="number" min="0.01" max={balance} step="0.01" value={amount} onChange={event => setAmount(event.target.value)} required />
-            <p className="text-xs text-muted-foreground">Remaining balance: {project.currency} {balance.toLocaleString()}.</p>
+            <p className="text-xs text-muted-foreground">Remaining {selectedService?.name ?? "service"} balance: {project.currency} {balance.toLocaleString()}.</p>
           </div>}
 
           {method === "cash" && <>
@@ -121,16 +151,26 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
             <div className="space-y-2"><Label htmlFor="cash-notes">Notes</Label><textarea id="cash-notes" value={notes} onChange={event => setNotes(event.target.value)} rows={3} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Optional payment notes" /></div>
           </>}
 
-          {paymentLink && <div className="space-y-2 rounded-md border bg-muted/30 p-3"><Label>Paystack payment link</Label><div className="flex gap-2"><Input readOnly value={paymentLink} className="font-mono text-xs" /><Button type="button" variant="outline" size="icon" aria-label="Copy Paystack payment link" onClick={copyLink}><Copy className="h-4 w-4" /></Button></div></div>}
+          {paymentLink && <div className="space-y-2 rounded-md border bg-muted/30 p-3"><Label>Paystack payment link</Label><div className="flex gap-2"><Input readOnly value={paymentLink} className="font-mono text-xs" /><Button type="button" variant="outline" size="icon" aria-label="Copy Paystack payment link" onClick={copyLink}><Copy className="h-4 w-4" /></Button><Button type="button" variant="outline" size="icon" aria-label="Open Paystack payment link" asChild><a href={paymentLink} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a></Button></div></div>}
 
           <SidePanelFooter className="sticky bottom-0 -mx-6 -mb-6 mt-6 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={close}>Close</Button>
-            {method && !paymentLink && <Button type="submit" disabled={pending || !amountValid || (method === "mpesa" && (!phone.trim() || !Number.isInteger(numericAmount)))}>
+            {method && !paymentLink && <Button type="submit" loading={pending} disabled={pending || !amountValid || (method === "mpesa" && (!phone.trim() || !Number.isInteger(numericAmount)))}>
               {method === "paystack" ? <><Link2 className="h-4 w-4" />{pending ? "Creating link…" : "Create Paystack link"}</> : method === "mpesa" ? (pending ? "Sending prompt…" : "Send M-Pesa prompt") : (pending ? "Capturing…" : "Capture payment")}
             </Button>}
           </SidePanelFooter>
         </form>
       </SidePanelContent>
-    </SidePanel>
+      </SidePanel>
+      <CreateServiceInvoiceDialog
+        projectId={project.id}
+        projectName={project.name}
+        currency={project.currency}
+        initialServiceId={serviceId}
+        open={createInvoiceOpen}
+        onOpenChange={setCreateInvoiceOpen}
+        onCreated={() => serviceInvoice.refetch()}
+      />
+    </>
   );
 }

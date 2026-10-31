@@ -38,7 +38,7 @@ export function ServiceAdjustmentDialog({ projectId, currency, open, onOpenChang
         <div className="space-y-2"><Label htmlFor="service-adjustment-amount">Amount ({currency})</Label><Input id="service-adjustment-amount" type="number" min="0.01" step="0.01" value={amount} onChange={event => setAmount(event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="service-adjustment-reason">Reason</Label><Textarea id="service-adjustment-reason" maxLength={500} value={reason} onChange={event => setReason(event.target.value)} placeholder="Describe this charge or discount" /></div>
       </div>
-      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button disabled={saving || !serviceId || Number(amount) <= 0 || !reason.trim()} onClick={submit}>{saving ? "Saving…" : "Add adjustment"}</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button loading={saving} disabled={saving || !serviceId || Number(amount) <= 0 || !reason.trim()} onClick={submit}>{saving ? "Saving…" : "Add adjustment"}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }

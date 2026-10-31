@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type AdminUser = { id: string; email: string; role: string; twoFactorEnabled: boolean; createdAt: string; active?: boolean };
 
@@ -27,6 +28,7 @@ export function AdminUsersPage() {
   };
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("admin");
@@ -36,12 +38,12 @@ export function AdminUsersPage() {
   const refresh = () => void client.invalidateQueries({ queryKey: ["admin-users"] });
   const create = useMutation({ mutationFn: async () => (await api.post<AdminUser>("/admin/users", { email, password, role })).data, onSuccess: () => { setEmail(""); setPassword(""); setRole("admin"); setCreateOpen(false); refresh(); toast.success("Admin user created"); }, onError: error => toast.error(getApiErrorMessage(error)) });
   const update = useMutation({ mutationFn: async ({ id, changes }: { id: string; changes: Record<string, unknown> }) => api.patch(`/admin/users/${id}`, changes), onSuccess: () => { refresh(); toast.success("User updated"); }, onError: error => toast.error(getApiErrorMessage(error)) });
-  const remove = useMutation({ mutationFn: async (id: string) => api.delete(`/admin/users/${id}`), onSuccess: () => { refresh(); toast.success("User deleted"); }, onError: error => toast.error(getApiErrorMessage(error)) });
+  const remove = useMutation({ mutationFn: async (id: string) => api.delete(`/admin/users/${id}`), onSuccess: () => { refresh(); setDeleteTarget(null); toast.success("User deleted"); }, onError: error => toast.error(getApiErrorMessage(error)) });
   const edit = (user: AdminUser) => { setEditing(user); setEditEmail(user.email); setEditRole(user.role); };
   const columns: DataTableColumn<AdminUser>[] = [
     { key: "email", header: "Email", searchable: true, searchValue: user => `${user.email} ${user.role}`, render: user => <div className="min-w-0"><p className="font-medium">{user.email}</p><p className="text-xs text-muted-foreground">{user.role} · {user.twoFactorEnabled ? "2FA enabled" : "2FA disabled"} · {user.active === false ? "Suspended" : "Active"}</p></div> },
     { key: "createdAt", header: "Created", sortable: true, sortValue: user => new Date(user.createdAt).getTime(), render: user => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={user.createdAt}>{new Date(user.createdAt).toLocaleDateString()}</time> },
-    { key: "actions", header: "Actions", render: user => <div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => edit(user)}>Edit</Button><Button size="sm" variant="outline" onClick={() => update.mutate({ id: user.id, changes: { active: user.active === false } })}>{user.active === false ? "Reactivate" : "Suspend"}</Button><Button size="sm" variant="destructive" onClick={() => { if (window.confirm(`Delete ${user.email}?`)) remove.mutate(user.id); }}>Delete</Button></div> },
+    { key: "actions", header: "Actions", render: user => <div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => edit(user)}>Edit</Button><Button size="sm" variant="outline" loading={update.isPending && update.variables?.id === user.id} disabled={update.isPending} onClick={() => update.mutate({ id: user.id, changes: { active: user.active === false } })}>{user.active === false ? "Reactivate" : "Suspend"}</Button><Button size="sm" variant="destructive" loading={remove.isPending && remove.variables === user.id} disabled={remove.isPending} onClick={() => setDeleteTarget(user)}>{remove.isPending && remove.variables === user.id ? "Deleting…" : "Delete"}</Button></div> },
   ];
 
   return <div className="space-y-6">
@@ -64,7 +66,7 @@ export function AdminUsersPage() {
           <div className="space-y-2"><Label htmlFor="new-user-password">Password</Label><Input id="new-user-password" required minLength={8} type="password" value={password} onChange={event => setPassword(event.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="new-user-role">Role</Label><select id="new-user-role" className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={role} onChange={event => setRole(event.target.value)}><option value="admin">Admin</option><option value="operator">Operator</option><option value="viewer">Viewer</option></select></div>
           <p className="text-xs text-muted-foreground">Two-factor authentication is disabled initially.</p>
-          <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button><Button type="submit" disabled={create.isPending}>{create.isPending ? "Creating…" : "Create user"}</Button></SidePanelFooter>
+          <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button><Button type="submit" loading={create.isPending} disabled={create.isPending}>{create.isPending ? "Creating…" : "Create user"}</Button></SidePanelFooter>
         </form>
       </SidePanelContent>
     </SidePanel>
@@ -75,9 +77,13 @@ export function AdminUsersPage() {
         <form className="grid content-start gap-4 px-6 py-5" onSubmit={event => { event.preventDefault(); if (editing) update.mutate({ id: editing.id, changes: { email: editEmail, role: editRole } }); }}>
           <div className="space-y-2"><Label htmlFor="edit-user-email">Email</Label><Input id="edit-user-email" required type="email" value={editEmail} onChange={event => setEditEmail(event.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="edit-user-role">Role</Label><select id="edit-user-role" className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={editRole} onChange={event => setEditRole(event.target.value)}><option value="admin">Admin</option><option value="operator">Operator</option><option value="viewer">Viewer</option></select></div>
-          <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => setEditing(null)}>Cancel</Button><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save changes"}</Button></SidePanelFooter>
+          <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => setEditing(null)}>Cancel</Button><Button type="submit" loading={update.isPending} disabled={update.isPending}>{update.isPending ? "Saving…" : "Save changes"}</Button></SidePanelFooter>
         </form>
       </SidePanelContent>
     </SidePanel>
+
+    <AlertDialog open={deleteTarget !== null} onOpenChange={open => { if (!open && !remove.isPending) setDeleteTarget(null); }}>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete admin user?</AlertDialogTitle><AlertDialogDescription>This permanently deletes {deleteTarget?.email} and prevents that account from signing in.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" loading={remove.isPending} disabled={remove.isPending} onClick={event => { event.preventDefault(); if (deleteTarget) remove.mutate(deleteTarget.id); }}>Delete user</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+    </AlertDialog>
   </div>;
 }

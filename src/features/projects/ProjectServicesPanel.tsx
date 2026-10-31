@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useServiceInvoice, useServicePayments } from "@/hooks/usePayments";
+import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
+import { CapturePaymentDrawer } from "@/features/payments/CapturePaymentDrawer";
+import { CreateServiceInvoiceDialog } from "@/features/payments/CreateServiceInvoiceDialog";
 
 type HistoryResponse = { projectId: string; environment: string; items: ProjectDeploymentHistoryItem[] };
 export function ProjectServicesPanel({ project, view = "overview", serviceId }: { project: Project; view?: "overview" | "settings" | "detail"; serviceId?: string }) {
@@ -93,7 +97,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
                 <div className="space-y-2"><Label htmlFor={`new-service-name-${project.id}`}>Service name</Label><Input id={`new-service-name-${project.id}`} placeholder="e.g. Customer portal" value={newServiceName} onChange={event => setNewServiceName(event.target.value)} autoFocus /></div>
                 <div className="space-y-2"><Label htmlFor={`new-service-type-${project.id}`}>Service type</Label><Select value={newServiceType} onValueChange={value => setNewServiceType(value as ServiceType)}><SelectTrigger id={`new-service-type-${project.id}`}><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select><p className="text-xs text-muted-foreground">Choose the category that best describes this service.</p></div>
               </div>
-              <DialogFooter className="mt-auto flex w-full items-center justify-between border-t pt-4 sm:justify-between"><Button type="button" variant="outline" disabled={creatingService} onClick={() => setCreateServiceOpen(false)}>Cancel</Button><Button type="submit" disabled={!newServiceName.trim() || creatingService || servicesQuery.isFetching}>{creatingService ? "Creating…" : "Create service"}</Button></DialogFooter>
+              <DialogFooter className="mt-auto flex w-full items-center justify-between border-t pt-4 sm:justify-between"><Button type="button" variant="outline" disabled={creatingService} onClick={() => setCreateServiceOpen(false)}>Cancel</Button><Button type="submit" loading={creatingService} disabled={!newServiceName.trim() || creatingService || servicesQuery.isFetching}>{creatingService ? "Creating…" : "Create service"}</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
@@ -126,7 +130,7 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
         <Button className="self-end" variant="outline" onClick={onAdd}><Plus className="h-4 w-4" />Add / replace</Button>
       </div>
       {Object.keys(draft).length > 0 && <div className="space-y-2 rounded-md border p-3"><p className="text-sm font-medium">Pending shared values</p>{Object.keys(draft).sort().map(key => <div key={key} className="flex items-center justify-between gap-2 font-mono text-xs"><span>{key}</span><Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>Remove</Button></div>)}</div>}
-      <div className="flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Saving replaces the full shared set. Reenter existing values you want to retain.</p><Button disabled={saving || !Object.keys(draft).length} onClick={onSave}><Save className="h-4 w-4" />{saving ? "Saving…" : "Save shared & deploy"}</Button></div>
+      <div className="flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Saving replaces the full shared set. Reenter existing values you want to retain.</p><Button loading={saving} disabled={saving || !Object.keys(draft).length} onClick={onSave}><Save className="h-4 w-4" />{saving ? "Saving…" : "Save shared & deploy"}</Button></div>
     </CardContent>
   </Card>;
 }
@@ -139,6 +143,7 @@ function ServiceDomainBindings({ projectId, serviceId }: { projectId: string; se
   const [domain, setDomain] = useState("");
   const [port, setPort] = useState("");
   const [editing, setEditing] = useState<{ id: string; domain: string; port: string } | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; domain: string } | null>(null);
   const availablePorts = bindingsQuery.data?.publishedPorts ?? [];
   const add = async () => {
     if (!domain.trim()) return toast.error("Enter a domain name.");
@@ -154,16 +159,27 @@ function ServiceDomainBindings({ projectId, serviceId }: { projectId: string; se
       setEditing(null); toast.success("Domain binding updated");
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    try {
+      await remove.mutateAsync(removeTarget.id);
+      toast.success("Domain binding removed");
+      setRemoveTarget(null);
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+  };
   return <Card>
     <CardHeader><CardTitle className="text-base">Domain bindings</CardTitle><p className="text-xs text-muted-foreground">Manage public domains independently from deployments. Deploy the service first to select among multiple published ports.</p></CardHeader>
     <CardContent className="space-y-3">
       {bindingsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading domain bindings…</p>}
-      {bindingsQuery.data?.bindings.map(binding => <div key={binding.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"><span><span className="font-medium">{binding.domain}</span><span className="ml-2 text-muted-foreground">{binding.containerPort == null ? "port pending" : `port ${binding.containerPort}`}</span></span><span className="flex flex-wrap gap-1"><Button size="sm" variant="ghost" onClick={() => setEditing({ id: binding.id, domain: binding.domain, port: binding.containerPort?.toString() ?? "" })}><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Button><Button size="sm" variant="ghost" className="text-destructive" onClick={async () => { if (!window.confirm(`Remove ${binding.domain}?`)) return; try { await remove.mutateAsync(binding.id); toast.success("Domain binding removed"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Trash2 className="mr-1 h-3.5 w-3.5" />Remove</Button></span></div>)}
+      {bindingsQuery.data?.bindings.map(binding => <div key={binding.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"><span><span className="font-medium">{binding.domain}</span><span className="ml-2 text-muted-foreground">{binding.containerPort == null ? "port pending" : `port ${binding.containerPort}`}</span></span><span className="flex flex-wrap gap-1"><Button size="sm" variant="ghost" onClick={() => setEditing({ id: binding.id, domain: binding.domain, port: binding.containerPort?.toString() ?? "" })}><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Button><Button size="sm" variant="ghost" className="text-destructive" loading={remove.isPending && remove.variables === binding.id} disabled={remove.isPending} onClick={() => setRemoveTarget({ id: binding.id, domain: binding.domain })}><Trash2 className="mr-1 h-3.5 w-3.5" />Remove</Button></span></div>)}
       {!bindingsQuery.isLoading && !bindingsQuery.data?.bindings.length && <p className="text-sm text-muted-foreground">No domain bindings configured.</p>}
-      <div className="grid gap-2 border-t pt-3 sm:grid-cols-[1fr_180px_auto]"><Input placeholder="app.example.com" value={domain} onChange={event => setDomain(event.target.value)} /><select className="h-10 rounded-md border bg-background px-3 text-sm" value={port} onChange={event => setPort(event.target.value)}><option value="">Automatic / pending port</option>{availablePorts.map(value => <option key={value} value={value}>Container port {value}</option>)}</select><Button disabled={create.isPending || !domain.trim()} onClick={() => void add()}><Plus className="mr-1 h-4 w-4" />Add domain</Button></div>
+      <div className="grid gap-2 border-t pt-3 sm:grid-cols-[1fr_180px_auto]"><Input placeholder="app.example.com" value={domain} onChange={event => setDomain(event.target.value)} /><select className="h-10 rounded-md border bg-background px-3 text-sm" value={port} onChange={event => setPort(event.target.value)}><option value="">Automatic / pending port</option>{availablePorts.map(value => <option key={value} value={value}>Container port {value}</option>)}</select><Button loading={create.isPending} disabled={create.isPending || !domain.trim()} onClick={() => void add()}><Plus className="mr-1 h-4 w-4" />Add domain</Button></div>
       <Dialog open={Boolean(editing)} onOpenChange={open => { if (!open) setEditing(null); }}>
-        <DialogContent><DialogHeader><DialogTitle>Edit domain binding</DialogTitle><DialogDescription>Change the domain or its published container port.</DialogDescription></DialogHeader>{editing && <div className="space-y-3"><div className="space-y-1"><Label>Domain</Label><Input value={editing.domain} onChange={event => setEditing({ ...editing, domain: event.target.value })} /></div><div className="space-y-1"><Label>Container port</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={editing.port} onChange={event => setEditing({ ...editing, port: event.target.value })}><option value="">Automatic / pending port</option>{availablePorts.map(value => <option key={value} value={value}>{value}</option>)}</select></div></div>}<DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button><Button disabled={update.isPending} onClick={() => void saveEdit()}>{update.isPending ? "Saving…" : "Save binding"}</Button></DialogFooter></DialogContent>
+        <DialogContent><DialogHeader><DialogTitle>Edit domain binding</DialogTitle><DialogDescription>Change the domain or its published container port.</DialogDescription></DialogHeader>{editing && <div className="space-y-3"><div className="space-y-1"><Label>Domain</Label><Input value={editing.domain} onChange={event => setEditing({ ...editing, domain: event.target.value })} /></div><div className="space-y-1"><Label>Container port</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={editing.port} onChange={event => setEditing({ ...editing, port: event.target.value })}><option value="">Automatic / pending port</option>{availablePorts.map(value => <option key={value} value={value}>{value}</option>)}</select></div></div>}<DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button><Button loading={update.isPending} disabled={update.isPending} onClick={() => void saveEdit()}>{update.isPending ? "Saving…" : "Save binding"}</Button></DialogFooter></DialogContent>
       </Dialog>
+      <AlertDialog open={removeTarget !== null} onOpenChange={open => { if (!open && !remove.isPending) setRemoveTarget(null); }}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove domain binding?</AlertDialogTitle><AlertDialogDescription>This will release {removeTarget?.domain} from this service.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" loading={remove.isPending} disabled={remove.isPending} onClick={event => { event.preventDefault(); void confirmRemove(); }}>Remove domain</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
     </CardContent>
   </Card>;
 }
@@ -210,23 +226,39 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   const [blockReasonCode, setBlockReasonCode] = useState("");
   const [blocking, setBlocking] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
-  const [setupInitialStep, setSetupInitialStep] = useState(1);
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deploymentDeleteTarget, setDeploymentDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deploymentDeleteTarget, setDeploymentDeleteTarget] = useState<{ id: string; label: string; status: string; referenced: boolean } | null>(null);
+  const [deploymentRollbackTarget, setDeploymentRollbackTarget] = useState<ProjectDeploymentHistoryItem | null>(null);
   const [serviceName, setServiceName] = useState(service.name);
   const [serviceType, setServiceType] = useState<ServiceType>(service.serviceType);
   const [serviceActionPending, setServiceActionPending] = useState(false);
+  const [capturePaymentOpen, setCapturePaymentOpen] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [invoiceDownloadPending, setInvoiceDownloadPending] = useState(false);
+  const [paymentPage, setPaymentPage] = useState(0);
+  const serviceInvoice = useServiceInvoice(project.id, service.id);
+  const servicePayments = useServicePayments(project.id, service.id, 25, paymentPage * 25);
+  const downloadInvoice = async () => {
+    setInvoiceDownloadPending(true);
+    try {
+      const response = await api.get(`/admin/projects/${project.id}/services/${service.id}/invoice/download`, { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoice-${service.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "service"}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+    finally { setInvoiceDownloadPending(false); }
+  };
   const latestDeployment = history.data?.items[0];
   const active = history.data?.items.find(item => item.status === "active");
   const hasRuntimeConfiguration = Boolean(setupStatus.data?.sourceRuntime);
   const gateway = setupStatus.data?.gateway;
-  const openDeploymentSetup = (step = hasRuntimeConfiguration ? 3 : 1) => {
-    setSetupInitialStep(step);
-    setSetupOpen(true);
-  };
-  const latestFailed = latestDeployment?.status.toLowerCase() === "failed";
+  const openDeploymentSetup = () => setSetupOpen(true);
+  const latestFailed = latestDeployment?.status.toLowerCase() === "failed" && !active;
   const gatewayNeedsRepair = Boolean(gateway && gateway.status !== "active" && latestDeployment?.status.toLowerCase() === "active");
   const currentValues = environment.data?.effectiveValues ?? {};
   const serviceKeys = Object.keys(currentValues);
@@ -265,10 +297,11 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
     try {
       await api.delete(`/admin/projects/${project.id}/services/${service.id}`);
       await refreshServices();
+      setDeleteOpen(false);
       toast.success("Service deleted");
       navigate(`/app/projects/${encodeURIComponent(project.slug)}?tab=overview`, { replace: true });
     } catch (error) { toast.error(getApiErrorMessage(error)); }
-    finally { setServiceActionPending(false); setDeleteOpen(false); }
+    finally { setServiceActionPending(false); }
   };
   const deleteDeployment = useMutation({
     mutationFn: (deploymentId: string) => api.delete(`/admin/projects/${encodeURIComponent(project.slug)}/deployments/${encodeURIComponent(deploymentId)}`),
@@ -276,6 +309,15 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
       setDeploymentDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["project-service-history", project.slug, service.id] });
       toast.success("Deployment deleted");
+    },
+    onError: error => toast.error(getApiErrorMessage(error)),
+  });
+  const rollbackDeployment = useMutation({
+    mutationFn: (deploymentId: string) => api.post(`/admin/projects/${encodeURIComponent(project.slug)}/deployments/${encodeURIComponent(deploymentId)}/rollback`),
+    onSuccess: async () => {
+      setDeploymentRollbackTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ["project-service-history", project.slug, service.id] });
+      toast.success("Rollback deployment queued");
     },
     onError: error => toast.error(getApiErrorMessage(error)),
   });
@@ -353,7 +395,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
       </div>
       <AlertDialogFooter>
         <AlertDialogCancel disabled={blocking}>Cancel</AlertDialogCancel>
-        <Button variant="destructive" disabled={!blockReasonCode || blocking} onClick={() => { setBlocking(true); void toggleBlock().finally(() => setBlocking(false)); }}>{blocking ? "Blocking…" : "Block service"}</Button>
+        <Button variant="destructive" loading={blocking} disabled={!blockReasonCode || blocking} onClick={() => { setBlocking(true); void toggleBlock().finally(() => setBlocking(false)); }}>{blocking ? "Blocking…" : "Block service"}</Button>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>;
@@ -363,7 +405,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="text-base font-semibold transition-colors hover:text-primary">{service.name}</Link><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(service.serviceType)}</span>{service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>{formatStatus(service.accessStatus)}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(serviceHealth)}</span></div>
-          <p className="truncate text-sm text-muted-foreground">{sites.length ? sites.map(site => site.domain).join(", ") : "No domain attached"}</p>
+          <p className="truncate text-sm text-muted-foreground">{sites.length ? sites.map(site => site.domain).join(", ") : "Gateway not configured yet"}</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">{serviceCount > 1 && !service.isDefault && <Button size="sm" variant="outline" disabled={serviceActionPending} onClick={() => void makeDefault()}>{serviceActionPending ? "Saving…" : "Set as default"}</Button>}<Button asChild size="sm" variant="outline"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Manage service</Link></Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button></div>
       </CardContent>
@@ -381,9 +423,9 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>Status: {formatStatus(service.accessStatus)}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">Health: {formatStatus(serviceHealth)}</span>
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">{sites.length ? sites.map(site => <a className="inline-flex items-center gap-1.5 transition-colors hover:text-primary" key={site.slug} href={`${site.tlsMode === "http_only" ? "http" : "https"}://${site.domain}`} target="_blank" rel="noreferrer"><Globe className="h-3.5 w-3.5" />{site.domain}</a>) : <span>No domain attached</span>}</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">{sites.length ? sites.map(site => <a className="inline-flex items-center gap-1.5 transition-colors hover:text-primary" key={site.slug} href={`${site.tlsMode === "http_only" ? "http" : "https"}://${site.domain}`} target="_blank" rel="noreferrer"><Globe className="h-3.5 w-3.5" />{site.domain}</a>) : <span>Gateway not configured yet</span>}</div>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => openDeploymentSetup()}><Rocket className="h-4 w-4" />Deploy</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem>{serviceCount > 1 && !service.isDefault && <DropdownMenuItem disabled={serviceActionPending} onSelect={() => void makeDefault()}><Settings2 className="mr-2 h-4 w-4" />Set as default</DropdownMenuItem>}<DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+        <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" onClick={() => openDeploymentSetup()}><Rocket className="h-4 w-4" />Make a new deployment</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" loading={serviceActionPending} aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem>{serviceCount > 1 && !service.isDefault && <DropdownMenuItem disabled={serviceActionPending} onSelect={() => void makeDefault()}><Settings2 className="mr-2 h-4 w-4" />Set as default</DropdownMenuItem>}<DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
       </CardContent>
     </Card>
     <Tabs defaultValue="overview" className="space-y-4">
@@ -391,16 +433,44 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="deployments">Deployments</TabsTrigger>
         <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsTrigger value="payments">Payments</TabsTrigger>
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
       <ServiceDomainBindings projectId={project.id} serviceId={service.id} />
-    {(!hasRuntimeConfiguration || latestFailed || gatewayNeedsRepair || (!gateway && latestDeployment?.status.toLowerCase() === "active")) && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Next steps for {service.name}</AlertTitle><AlertDescription className="space-y-2"><p>{!hasRuntimeConfiguration ? "Set up a source and image before deploying this service." : latestFailed ? `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}` : gatewayNeedsRepair ? "The service is deployed, but its gateway route is not active. Repair the gateway before sending traffic." : "The service is deployed, but no gateway is configured yet. Add or manage its site in Nginx before sending traffic."}</p><div className="flex flex-wrap gap-2">{!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => openDeploymentSetup(1)}>Set up deployment</Button> : latestFailed ? <Button size="sm" variant="outline" disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Deployment retry queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Retry deployment"}</Button> : gatewayNeedsRepair ? <Button size="sm" variant="outline" disabled={repairGateway.isPending} onClick={async () => { try { await repairGateway.mutateAsync(); toast.success("Gateway repair queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairGateway.isPending ? "Repairing…" : "Repair gateway"}</Button> : <Button size="sm" variant="outline" asChild><Link to="/app/nginx">Configure gateway</Link></Button>}</div></AlertDescription></Alert>}
+    {(!hasRuntimeConfiguration || latestFailed || gatewayNeedsRepair || (!gateway && latestDeployment?.status.toLowerCase() === "active")) && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Next steps for {service.name}</AlertTitle><AlertDescription className="space-y-2"><p>{!hasRuntimeConfiguration ? "Set up a source and image before deploying this service." : latestFailed ? `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}` : gatewayNeedsRepair ? "The service is deployed, but its gateway route is not active. Repair the gateway before sending traffic." : "The service is deployed, but no gateway is configured yet. Add or manage its site in Nginx before sending traffic."}</p><div className="flex flex-wrap gap-2">{!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => openDeploymentSetup()}>Set up deployment</Button> : latestFailed ? <Button size="sm" variant="outline" loading={deploy.isPending} disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Deployment retry queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Retry deployment"}</Button> : gatewayNeedsRepair ? <Button size="sm" variant="outline" loading={repairGateway.isPending} disabled={repairGateway.isPending} onClick={async () => { try { await repairGateway.mutateAsync(); toast.success("Gateway repair queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairGateway.isPending ? "Repairing…" : "Repair gateway"}</Button> : <Button size="sm" variant="outline" asChild><Link to="/app/nginx">Configure gateway</Link></Button>}</div></AlertDescription></Alert>}
       </TabsContent>
       <TabsContent value="deployments" className="space-y-4">
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div><Button size="sm" onClick={async () => { try { await deploy.mutateAsync(); toast.success("Service deployment queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }} disabled={deploy.isPending || !hasRuntimeConfiguration}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queuing…" : "Deploy"}</Button></CardHeader>
-      <CardContent className="space-y-2">{history.data?.items.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"><div className="min-w-0"><p className="truncate font-medium">{item.imageName}:{item.imageTag}</p><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</p>{item.runtimeContainerName && <p className={`mt-1 text-xs ${item.runtimeState && item.runtimeState !== "running" ? "text-destructive" : "text-muted-foreground"}`}>Container: {item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>}{item.failureReason && <p className="mt-1 text-xs text-destructive">{item.failureReason}</p>}</div><div className="flex items-center gap-2"><span className={`rounded px-2 py-1 text-xs font-medium ${item.status.toLowerCase() === "failed" ? "bg-red-500/10 text-red-700" : item.status.toLowerCase() === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted"}`}>{formatStatus(item.status)}</span><Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive" title="Delete deployment" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}` })}><Trash2 className="h-4 w-4" /></Button></div></div>)}{!history.isLoading && !history.data?.items.length && <p className="text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}</CardContent>
+      <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div><Button size="sm" onClick={openDeploymentSetup} disabled={!hasRuntimeConfiguration}><Rocket className="mr-2 h-4 w-4" />Make a new deployment</Button></CardHeader>
+      <CardContent className="space-y-2">{history.data?.items.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"><div className="min-w-0"><p className="truncate font-medium">{item.imageName}:{item.imageTag}</p><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</p>{item.runtimeContainerName && item.status.toLowerCase() === "superseded" ? <p className="mt-1 text-xs text-muted-foreground">Previous container removed after cutover</p> : item.runtimeContainerName && <p className={`mt-1 text-xs ${item.runtimeState && item.runtimeState !== "running" && item.runtimeState !== "missing" ? "text-destructive" : "text-muted-foreground"}`}>Container: {item.runtimeState === "missing" ? "no longer present" : item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>}{item.failureReason && <p className="mt-1 text-xs text-destructive">{item.failureReason}</p>}</div><div className="flex items-center gap-2"><span className={`rounded px-2 py-1 text-xs font-medium ${item.status.toLowerCase() === "failed" ? "bg-red-500/10 text-red-700" : item.status.toLowerCase() === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted"}`}>{formatStatus(item.status)}</span>{item.actions.includes("rollback") && <Button size="sm" variant="outline" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}>Rollback</Button>}{item.actions.includes("delete") ? <Button size="sm" variant="outline" className="text-muted-foreground hover:text-destructive" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" />Delete</Button> : item.actions.includes("referenced") && <Button size="sm" variant="outline" disabled title="Another deployment references this version"><Trash2 className="h-4 w-4" />Delete</Button>}</div></div>)}{!history.isLoading && !history.data?.items.length && <p className="text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}</CardContent>
     </Card>
+      </TabsContent>
+      <TabsContent value="payments" className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><CardTitle className="text-base">Service billing</CardTitle><p className="mt-1 text-xs text-muted-foreground">This invoice and payment history belong only to {service.name}.</p></div>
+          <div className="flex flex-wrap gap-2">
+            {!serviceInvoice.data && <Button size="sm" variant="outline" onClick={() => setCreateInvoiceOpen(true)}>Create invoice</Button>}
+            <Button size="sm" disabled={!serviceInvoice.data} onClick={() => setCapturePaymentOpen(true)}>Capture payment</Button>
+          </div>
+        </div>
+        {serviceInvoice.isLoading && <Skeleton className="h-24 w-full" />}
+        {serviceInvoice.isError && <Alert><AlertTitle>No service invoice</AlertTitle><AlertDescription className="space-y-3"><p>Create an invoice before collecting payment for this service.</p><Button size="sm" onClick={() => setCreateInvoiceOpen(true)}>Create &amp; sync invoice</Button></AlertDescription></Alert>}
+        {serviceInvoice.data && <Card><CardContent className="space-y-4 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">Invoice summary</p><Button size="sm" variant="outline" loading={invoiceDownloadPending} loadingText="Downloading…" onClick={() => void downloadInvoice()}><Download className="h-4 w-4" />Download invoice</Button></div>
+          <div className="grid gap-4 sm:grid-cols-3">
+          <InfoItem label="Invoice" value={serviceInvoice.data.invoice.number} />
+          <InfoItem label="Billed" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.amount).toLocaleString()}`} />
+          <InfoItem label="Paid" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.paid).toLocaleString()}`} />
+          <InfoItem label="Balance" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.balance).toLocaleString()}`} />
+          <InfoItem label="Status" value={serviceInvoice.data.invoice.status} />
+          </div>
+        </CardContent></Card>}
+        <Card><CardContent className="p-4">
+          <PaymentsHistoryTable payments={(servicePayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((servicePayments.data?.payments ?? []).filter(payment => payment.gatewayStatus === "success").map(payment => [payment.providerReference, `/admin/projects/${project.id}/services/${service.id}/payments/${payment.id}/receipt`]))} onPaymentChanged={() => servicePayments.refetch()} />
+          <PaymentPager page={paymentPage} total={servicePayments.data?.total ?? 0} count={servicePayments.data?.payments.length ?? 0} fetching={servicePayments.isFetching} onPageChange={setPaymentPage} />
+        </CardContent></Card>
+        <CapturePaymentDrawer project={project} initialServiceId={service.id} open={capturePaymentOpen} onOpenChange={setCapturePaymentOpen} onPaymentChanged={async () => { await Promise.all([servicePayments.refetch(), serviceInvoice.refetch()]); }} />
+        <CreateServiceInvoiceDialog projectId={project.id} projectName={project.name} currency={project.currency} initialServiceId={service.id} open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen} onCreated={async () => { await Promise.all([serviceInvoice.refetch(), servicePayments.refetch()]); }} />
       </TabsContent>
       <TabsContent value="settings" className="space-y-4">
     <Card>
@@ -410,7 +480,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
         <div><p className="text-xs font-medium uppercase text-muted-foreground">Health</p><p className="text-sm">{activeContainer.isLoading ? "Loading…" : activeInspection.data?.status === "ready" || active?.healthCheckResult === "passed" ? "Passed readiness" : activeContainer.data?.health ?? (activeContainer.data?.state === "running" ? "No health check" : activeContainer.data?.state ?? "Not available")}</p></div>
         <div><p className="text-xs font-medium uppercase text-muted-foreground">Port</p><p className="text-sm font-mono">{activeInspection.isLoading ? "Loading…" : publishedPortText || "Not published"}</p></div>
         {activeInspection.data?.publicExposure && <div className="sm:col-span-3 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">This adopted container is bound to a public host address. The warning clears when this deployment is retired.</div>}
-        <div className="sm:col-span-3 flex flex-wrap items-center gap-2 border-t pt-3"><Select value={containerToAttach} onValueChange={setContainerToAttach}><SelectTrigger className="min-w-[220px] flex-1" aria-label="Container to attach"><SelectValue placeholder={adoptable.isLoading ? "Loading containers…" : "Attach an existing container"} /></SelectTrigger><SelectContent>{(adoptable.data ?? []).map(container => <SelectItem key={container.id} value={container.id}>{container.name} · {container.image}</SelectItem>)}</SelectContent></Select><Button size="sm" variant="outline" disabled={!containerToAttach || adopt.isPending} onClick={async () => { const selected = adoptable.data?.find(item => item.id === containerToAttach); const port = selected?.ports[0]?.containerPort; if (!selected || !port) return toast.error("Select a container with a published port."); try { await adopt.mutateAsync({ containerId: selected.id, containerPort: port, serviceId: service.id }); setContainerToAttach(""); toast.success(`${selected.name} attached to ${service.name}`); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{adopt.isPending ? "Attaching…" : "Attach container"}</Button></div>
+        <div className="sm:col-span-3 flex flex-wrap items-center gap-2 border-t pt-3"><Select value={containerToAttach} onValueChange={setContainerToAttach}><SelectTrigger className="min-w-[220px] flex-1" aria-label="Container to attach"><SelectValue placeholder={adoptable.isLoading ? "Loading containers…" : "Attach an existing container"} /></SelectTrigger><SelectContent>{(adoptable.data ?? []).map(container => <SelectItem key={container.id} value={container.id}>{container.name} · {container.image}</SelectItem>)}</SelectContent></Select><Button size="sm" variant="outline" disabled={!containerToAttach || adopt.isPending} onClick={async () => { const selected = adoptable.data?.find(item => item.id === containerToAttach); const port = selected?.ports[0]?.containerPort; if (!selected || !port) return toast.error("Select a container with a published port."); try { await adopt.mutateAsync({ containerId: selected.id, containerPort: port, serviceId: service.id }); setContainerToAttach(""); toast.success(`${selected.name} attached to ${service.name}`); } catch (error) { toast.error(getApiErrorMessage(error)); } }} loading={adopt.isPending}>{adopt.isPending ? "Attaching…" : "Attach container"}</Button></div>
       </CardContent>
     </Card>
     <Card className="overflow-hidden">
@@ -422,7 +492,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
             return <div key={key} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Label className="self-center font-mono text-xs">{key}</Label><Input aria-label={`Value for ${key}`} type={environmentVisible ? "text" : "password"} readOnly={!environmentEditing} value={draft[key] ?? currentValues[key] ?? ""} onChange={event => { setDraft({ ...draft, [key]: event.target.value }); setEnvironmentDirty(true); }} /><Button disabled={!environmentEditing} size="sm" variant="ghost" onClick={() => { setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key))); setRemovedKeys(current => [...new Set([...current, key])]); setEnvironmentDirty(true); }}>Delete</Button></div>;
           })}
           {environmentEditing && <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]"><Input aria-label={`${service.name} variable name`} placeholder="Name" value={newKey} onPaste={event => handleVariablePaste("name", event)} onChange={event => setNewKey(event.target.value)} /><Input aria-label={`${service.name} variable value`} type={environmentVisible ? "text" : "password"} placeholder="Value" value={newValue} onPaste={event => handleVariablePaste("value", event)} onChange={event => setNewValue(event.target.value)} /><Button size="sm" variant="outline" onClick={() => { const key = newKey.trim(); if (!isVariableName(key)) return toast.error("Use a valid environment variable name."); setDraft({ ...draft, [key]: newValue }); setRemovedKeys(current => current.filter(item => item !== key)); setEnvironmentDirty(true); setNewKey(""); setNewValue(""); }}><Plus className="h-4 w-4" />Add variable</Button></div>}
-          {environmentEditing && <div className="flex justify-end"><Button size="sm" disabled={save.isPending || setupStatus.isLoading || setupStatus.isError || !environmentDirty} onClick={setToSave}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : setupStatus.isLoading ? "Checking runtime…" : setupStatus.isError ? "Runtime status unavailable" : hasRuntimeConfiguration ? "Save & deploy" : "Save variables"}</Button></div>}
+          {environmentEditing && <div className="flex justify-end"><Button size="sm" disabled={save.isPending || setupStatus.isLoading || setupStatus.isError || !environmentDirty} onClick={setToSave} loading={save.isPending}><Rocket className="h-4 w-4" />{save.isPending ? "Saving…" : setupStatus.isLoading ? "Checking runtime…" : setupStatus.isError ? "Runtime status unavailable" : hasRuntimeConfiguration ? "Save & deploy" : "Save variables"}</Button></div>}
         </div>
       </CardContent>
     </Card>
@@ -430,15 +500,18 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
     </Tabs>
     {blockDialog}
     <Dialog open={editOpen} onOpenChange={open => { if (!serviceActionPending) setEditOpen(open); }}>
-      <DialogContent><DialogHeader><DialogTitle>Edit service</DialogTitle><DialogDescription>Manage the service identity and runtime role within {project.name}.</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor={`service-name-${service.id}`}>Service name</Label><Input id={`service-name-${service.id}`} value={serviceName} onChange={event => setServiceName(event.target.value)} autoFocus /></div><div className="space-y-2"><Label>Service type</Label><Select value={serviceType} onValueChange={value => setServiceType(value as ServiceType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select></div><DialogFooter><Button variant="outline" disabled={serviceActionPending} onClick={() => setEditOpen(false)}>Cancel</Button><Button disabled={serviceActionPending || !serviceName.trim() || (serviceName.trim() === service.name && serviceType === service.serviceType)} onClick={() => void saveServiceName()}>{serviceActionPending ? "Saving…" : "Save service"}</Button></DialogFooter></DialogContent>
+      <DialogContent><DialogHeader><DialogTitle>Edit service</DialogTitle><DialogDescription>Manage the service identity and runtime role within {project.name}.</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor={`service-name-${service.id}`}>Service name</Label><Input id={`service-name-${service.id}`} value={serviceName} onChange={event => setServiceName(event.target.value)} autoFocus /></div><div className="space-y-2"><Label>Service type</Label><Select value={serviceType} onValueChange={value => setServiceType(value as ServiceType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><ServiceTypeOptions /></SelectContent></Select></div><DialogFooter><Button variant="outline" disabled={serviceActionPending} onClick={() => setEditOpen(false)}>Cancel</Button><Button loading={serviceActionPending} loadingText="Saving…" disabled={serviceActionPending || !serviceName.trim() || (serviceName.trim() === service.name && serviceType === service.serviceType)} onClick={() => void saveServiceName()}>{serviceActionPending ? "Saving…" : "Save service"}</Button></DialogFooter></DialogContent>
     </Dialog>
     <AlertDialog open={deleteOpen} onOpenChange={open => { if (!serviceActionPending) setDeleteOpen(open); }}>
-      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {service.name}?</AlertDialogTitle><AlertDialogDescription asChild><div className="space-y-2 text-sm text-muted-foreground"><p>This action cannot be undone. It will:</p><ul className="list-disc space-y-1 pl-5"><li>Remove this service’s Nginx sites and release its domains.</li><li>Remove deployment and environment links.</li><li>Keep deployment and environment history, payments, payment events, audit logs, and notifications.</li></ul></div></AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={serviceActionPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={serviceActionPending} onClick={event => { event.preventDefault(); void deleteService(); }}>{serviceActionPending ? "Deleting…" : "Delete service"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {service.name}?</AlertDialogTitle><AlertDialogDescription asChild><div className="space-y-2 text-sm text-muted-foreground"><p>This action cannot be undone. It will:</p><ul className="list-disc space-y-1 pl-5"><li>Remove this service’s Nginx sites and release its domains.</li><li>Stop and remove its deployment containers.</li><li>Remove deployment and environment links.</li><li>Keep deployment and environment history, payments, payment events, audit logs, and notifications.</li></ul></div></AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={serviceActionPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" loading={serviceActionPending} disabled={serviceActionPending} onClick={event => { event.preventDefault(); void deleteService(); }}>{serviceActionPending ? "Deleting…" : "Delete service"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
     </AlertDialog>
     <AlertDialog open={deploymentDeleteTarget !== null} onOpenChange={open => { if (!deleteDeployment.isPending && !open) setDeploymentDeleteTarget(null); }}>
-      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this deployment?</AlertDialogTitle><AlertDialogDescription>This removes the terminal deployment record and its execution details. If its container still exists and is not used by an active or repair-required route, that container will also be force-removed. Audit logs, payments, payment events, and notifications are retained. Active, in-progress, referenced, or repair-required deployments cannot be deleted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleteDeployment.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deleteDeployment.isPending || !deploymentDeleteTarget} onClick={event => { event.preventDefault(); if (deploymentDeleteTarget) void deleteDeployment.mutateAsync(deploymentDeleteTarget.id); }}>{deleteDeployment.isPending ? "Deleting…" : "Delete deployment"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this deployment?</AlertDialogTitle><AlertDialogDescription asChild><div className="space-y-2 text-sm text-muted-foreground"><p>{deploymentDeleteTarget?.status.toLowerCase() === "superseded" ? "This deployment has been replaced and no longer serves traffic. Deleting it will:" : "Deleting this deployment will:"}</p><ul className="list-disc space-y-1 pl-5">{deploymentDeleteTarget?.status.toLowerCase() === "superseded" ? <><li>Remove its history and execution details.</li><li>Its old container was normally removed during cutover. If it still exists and is not in use, it will be removed.</li></> : <li>Remove the container if it still exists and is no longer in use.</li>}{deploymentDeleteTarget?.referenced && <li>Clear links to this version. It will no longer be available as a rollback target.</li>}<li>Keep audit logs, payments, payment events, and notifications.</li></ul></div></AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleteDeployment.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" loading={deleteDeployment.isPending} disabled={deleteDeployment.isPending || !deploymentDeleteTarget} onClick={event => { event.preventDefault(); if (deploymentDeleteTarget) void deleteDeployment.mutateAsync(deploymentDeleteTarget.id); }}>{deleteDeployment.isPending ? "Deleting…" : "Delete deployment"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
     </AlertDialog>
-    <ProjectSetupWizardPage open={setupOpen} onOpenChange={setSetupOpen} projectId={project.id} serviceId={service.id} initialStep={setupInitialStep} />
+    <AlertDialog open={deploymentRollbackTarget !== null} onOpenChange={open => { if (!rollbackDeployment.isPending && !open) setDeploymentRollbackTarget(null); }}>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Roll back to this deployment?</AlertDialogTitle><AlertDialogDescription>This queues a new deployment using {deploymentRollbackTarget?.imageName}:{deploymentRollbackTarget?.imageTag}. The current active deployment stays in place until the rollback passes readiness checks.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={rollbackDeployment.isPending}>Cancel</AlertDialogCancel><AlertDialogAction loading={rollbackDeployment.isPending} disabled={rollbackDeployment.isPending || !deploymentRollbackTarget} onClick={event => { event.preventDefault(); if (deploymentRollbackTarget) void rollbackDeployment.mutateAsync(deploymentRollbackTarget.id); }}>{rollbackDeployment.isPending ? "Queuing…" : "Queue rollback"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+    </AlertDialog>
+    <ProjectSetupWizardPage open={setupOpen} onOpenChange={setSetupOpen} projectId={project.id} serviceId={service.id} initialStep={1} />
   </>;
 }
 
@@ -467,6 +540,15 @@ function ServiceTypeOptions() {
     ["cache", "Cache"],
     ["custom", "Custom container"],
   ].map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</>;
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-xs font-medium uppercase text-muted-foreground">{label}</p><p className="mt-1 text-sm font-semibold">{value}</p></div>;
+}
+
+function PaymentPager({ page, total, count, fetching, onPageChange }: { page: number; total: number; count: number; fetching: boolean; onPageChange: (page: number) => void }) {
+  if (total === 0) return null;
+  return <div className="mt-4 flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{page * 25 + 1}-{page * 25 + count} of {total}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page === 0 || fetching} onClick={() => onPageChange(page - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={(page + 1) * 25 >= total || fetching} onClick={() => onPageChange(page + 1)}>Next</Button></div></div>;
 }
 
 function validateDraft(draft: Record<string, string>) {

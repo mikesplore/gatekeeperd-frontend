@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronLeft, Rocket, Save } from "lucide-react";
+import { ChevronLeft, Rocket, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,16 +16,14 @@ import {
   useProjectSetupStatus,
   useAdoptableContainers,
   useAdoptProjectContainer,
-  useSaveProjectSetupCredentials,
   useSaveProjectSetupRuntime,
   useContainerWizardContext,
-  useProviderCredentialMetadata,
   type ProjectSetupRuntimeInput,
 } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 
-const steps = ["Source", "Credentials", "Deploy"];
+const steps = ["Source", "Deploy"];
 const inProgressDeploymentStatuses = new Set(["queued", "building", "starting", "health-checking", "ready"]);
 
 function parseEnv(text: string): Record<string, string> {
@@ -50,18 +48,16 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const projectId = providedProjectId ?? routeProjectId;
-  const requestedStep = Number(searchParams.get("step") ?? String(initialStep));
-  const [step, setStep] = useState(projectId ? Math.max(1, Math.min(3, requestedStep)) : 0);
+  const requestedStep = open !== undefined ? initialStep : Number(searchParams.get("step") ?? String(initialStep));
+  const [step, setStep] = useState(projectId ? Math.max(1, Math.min(2, requestedStep)) : 0);
   const [projectForm, setProjectForm] = useState({ name: "", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
   const [envText, setEnvText] = useState("");
-  const [registryCredentialId, setRegistryCredentialId] = useState("");
   const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
   const [attachContainerOpen, setAttachContainerOpen] = useState(false);
   const status = useProjectSetupStatus(projectId, serviceId);
-  const providerCredentials = useProviderCredentialMetadata();
   const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1 && attachContainerOpen);
   const adoptContainer = useAdoptProjectContainer(projectId);
   const dockerNetworkContext = useContainerWizardContext();
@@ -70,14 +66,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const customers = useDashboardCustomers(100);
   const createProject = useCreateProjectSetup();
   const saveRuntime = useSaveProjectSetupRuntime(projectId);
-  const saveCredentials = useSaveProjectSetupCredentials(projectId);
   const deploy = useDeployProjectSetup(projectId, serviceId);
   const customerList = customers.data?.customers ?? [];
-  const configuredRegistry = status.data?.sourceRuntime?.registry ?? runtime.registry;
-  const registryCredentials = (providerCredentials.data ?? []).filter(item => item.provider === "docker" && item.type === "registry" && item.current && item.scope === configuredRegistry);
-  const currentDeployment = status.data?.latestDeploymentStatus ?? status.data?.activeDeploymentStatus ?? "none";
-  const active = status.data?.activeDeploymentStatus === "active";
-  const deploymentInProgress = inProgressDeploymentStatuses.has(currentDeployment) || Boolean(queuedDeploymentId);
 
   useEffect(() => {
     if (!queuedDeploymentId || !status.data?.latestDeploymentId) return;
@@ -87,29 +77,44 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   }, [queuedDeploymentId, status.data?.latestDeploymentId, status.data?.latestDeploymentStatus]);
 
   useEffect(() => {
-    if (!savedRuntime || loadedConfiguration.current === `${projectId}:${savedRuntime.id}`) return;
+    if (open === false) return;
+    if (!savedRuntime) {
+      loadedConfiguration.current = "";
+      setRuntime(initialRuntime);
+      setEnvText("");
+      return;
+    }
+    if (loadedConfiguration.current === `${projectId}:${savedRuntime.id}`) return;
     loadedConfiguration.current = `${projectId}:${savedRuntime.id}`;
     const saved = savedRuntime;
     setRuntime({
       repository: saved.repository ?? "", gitRef: saved.gitRef, registry: saved.registry,
-      registryCredentialId: saved.registryCredentialId ?? null,
       imageName: saved.imageName, imageTag: saved.imageTag,
       network: saved.network, restartPolicy: saved.restartPolicy,
       environment: saved.environment, env: saved.env,
       autoDeploy: saved.autoDeploy ?? false,
     });
     setEnvText(Object.entries(saved.env).map(([key, value]) => `${key}=${value}`).join("\n"));
-    setRegistryCredentialId(saved.registryCredentialId ?? "");
-  }, [projectId, savedRuntime]);
+  }, [open, projectId, savedRuntime]);
 
   useEffect(() => {
-    if (projectId) setStep(Math.max(1, Math.min(3, requestedStep)));
+    if (open === false) {
+      loadedConfiguration.current = "";
+      return;
+    }
+    setStep(projectId ? Math.max(1, Math.min(2, initialStep)) : 0);
+    setQueuedDeploymentId("");
+    setAttachContainerOpen(false);
+    setAdoptContainerId("");
+    setAdoptContainerPort("");
+  }, [open, projectId, initialStep]);
+
+  useEffect(() => {
+    if (projectId) setStep(Math.max(1, Math.min(2, requestedStep)));
   }, [projectId, requestedStep]);
 
-  const deploymentBadge = useMemo(() => active ? "default" : currentDeployment === "failed" ? "destructive" : "secondary", [active, currentDeployment]);
-
   const goToStep = (next: number) => {
-    const bounded = Math.max(projectId ? 1 : 0, Math.min(3, next));
+    const bounded = Math.max(projectId ? 1 : 0, Math.min(2, next));
     setStep(bounded);
   };
 
@@ -118,7 +123,6 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setProjectForm({ name: "", customerId: "" });
     setRuntime(initialRuntime);
     setEnvText("");
-    setRegistryCredentialId("");
     setQueuedDeploymentId("");
     setAdoptContainerId("");
     setAdoptContainerPort("");
@@ -137,21 +141,9 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const saveSource = async () => {
     try {
       const env = parseEnv(envText);
-      await saveRuntime.mutateAsync({ ...runtime, containerPort: undefined, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, registryCredentialId: registryCredentialId || null, repository: runtime.repository?.trim() || null, env, serviceId });
+      await saveRuntime.mutateAsync({ ...runtime, containerPort: undefined, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, repository: runtime.repository?.trim() || null, env, serviceId });
       toast.success("Source and runtime settings saved");
       goToStep(2);
-    } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
-  };
-
-  const saveCredentialStep = async () => {
-    try {
-      await saveCredentials.mutateAsync({
-        registry: configuredRegistry,
-        registryCredentialId: registryCredentialId || null,
-        serviceId,
-      });
-      toast.success("Service registry credential saved");
-      goToStep(3);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
   };
 
@@ -160,6 +152,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
       const queued = await deploy.mutateAsync();
       setQueuedDeploymentId(queued.deploymentId);
       toast.success("Deployment queued");
+      if (onOpenChange) handleOpenChange(false);
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
@@ -200,13 +193,9 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
       {projectId && <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {steps.map((label, index) => {
           const stepIndex = index + 1;
-          const done = (stepIndex === 1 && Boolean(status.data?.sourceRuntime)) ||
-            (stepIndex === 2 && (status.data?.credentialsConfigured || Boolean(status.data?.sourceRuntime?.secretSetVersion))) ||
-            (stepIndex === 3 && active);
-          return <button key={label} type="button" onClick={() => goToStep(stepIndex)} className={`flex min-h-10 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${step === stepIndex ? "border-primary bg-primary/5" : "hover:bg-muted/60"}`}>
-            {done && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
+          return <Button key={label} type="button" variant="outline" onClick={() => goToStep(stepIndex)} className={`flex min-h-10 items-center justify-start gap-2 whitespace-normal px-3 py-2 text-left text-sm font-medium ${step === stepIndex ? "border-primary bg-primary/5" : "hover:bg-muted/60"}`}>
             <span>{label}</span>
-          </button>;
+          </Button>;
         })}
       </div>}
 
@@ -214,7 +203,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
         <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><Label htmlFor="setup-name">Project name</Label><Input id="setup-name" value={projectForm.name} onChange={e => setProjectForm({ ...projectForm, name: e.target.value })} placeholder="Acme Portal" /></div>
             <div className="space-y-2 sm:col-span-2"><Label htmlFor="setup-customer">Customer</Label>{customerList.length ? <select id="setup-customer" required className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={projectForm.customerId} onChange={e => setProjectForm({ ...projectForm, customerId: e.target.value })}><option value="">Select a customer</option>{customerList.map(customer => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select> : <p className="text-sm text-muted-foreground">Create a customer before creating a project. <Link to="/app/customers" className="text-primary underline">Go to customers</Link></p>}</div>
-            <div className="flex justify-end sm:col-span-2"><Button disabled={createProject.isPending || !projectForm.name.trim() || !projectForm.customerId} onClick={() => void create()}>{createProject.isPending ? "Creating…" : "Create project"}</Button></div>
+            <div className="flex justify-end sm:col-span-2"><Button disabled={createProject.isPending || !projectForm.name.trim() || !projectForm.customerId} onClick={() => void create()} loading={createProject.isPending}>{createProject.isPending ? "Creating…" : "Create project"}</Button></div>
         </div>
       ) : (
         <QueryState isLoading={status.isLoading} isError={status.isError} error={status.error} data={status.data}>
@@ -229,7 +218,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                     <div className="space-y-2"><Label>Published application port</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={adoptContainerPort} onChange={event => setAdoptContainerPort(event.target.value)} disabled={!selectedAdoptableContainer}><option value="">Select a port</option>{selectedAdoptableContainer?.ports.map(port => <option key={port.containerPort} value={port.containerPort}>{port.containerPort} → host {port.hostPort}</option>)}</select></div>
                     {selectedAdoptableContainer && <p className="text-xs text-muted-foreground sm:col-span-2">Network: {selectedAdoptableContainer.networks.join(", ") || "bridge"}. {selectedAdoptableContainer.environmentVariableCount} environment variables will be encrypted into a new project secret version. The previous runtime, if any, will keep running.</p>}
                   </div>}
-                  <div className="flex justify-end"><Button variant="outline" disabled={!adoptContainerId || !adoptContainerPort || adoptContainer.isPending} onClick={() => void attachRunningContainer()}>{adoptContainer.isPending ? "Attaching…" : "Attach container"}</Button></div>
+                  <div className="flex justify-end"><Button variant="outline" disabled={!adoptContainerId || !adoptContainerPort || adoptContainer.isPending} onClick={() => void attachRunningContainer()} loading={adoptContainer.isPending}>{adoptContainer.isPending ? "Attaching…" : "Attach container"}</Button></div>
                 </div>
               </details>
               <Card>
@@ -244,33 +233,17 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                     <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select></div>
                     <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
                     <label className="flex items-start gap-3 rounded-md border p-3 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={runtime.autoDeploy ?? false} onChange={event => setRuntime({ ...runtime, autoDeploy: event.target.checked })} /><span><span className="block text-sm font-medium">Deploy on matching GitHub pushes</span><span className="block text-xs text-muted-foreground">Queue a deployment when the configured branch or tag changes.</span></span></label>
-                    <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={4} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Keep secrets for the Credentials step.</p></div>
+                    <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={4} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Manage secrets in the service environment settings after saving.</p></div>
                   </div></details>
-                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName} onClick={() => void saveSource()}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
+                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName} onClick={() => void saveSource()} loading={saveRuntime.isPending}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card></>}
 
               {step === 2 && <Card>
-                <CardHeader><CardTitle>Container registry access</CardTitle><CardDescription>Choose a connected provider account for private image pulls. Registry credentials authenticate Gatekeeperd with Docker Hub; they are never passed to your app container.</CardDescription></CardHeader>
-                <CardContent className="space-y-5">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2"><Label>Registry host</Label><Input value={configuredRegistry} readOnly /></div>
-                    <div className="space-y-2"><Label htmlFor="service-registry-credential">Provider connection</Label><select id="service-registry-credential" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={registryCredentialId} onChange={event => setRegistryCredentialId(event.target.value)}><option value="">No credentials (public images)</option>{registryCredentials.map(credential => <option key={credential.id} value={credential.id}>{credential.displayName} · v{credential.version}</option>)}</select></div>
-                  </div>
-                  {registryCredentialId && <p className="text-xs text-muted-foreground">This service uses the selected connection for registry pulls. The chosen credential version is pinned to each deployment.</p>}
-                  {!registryCredentials.length && <div className="rounded-md border border-dashed p-4"><p className="text-sm text-muted-foreground">No Docker Hub connection is available for {configuredRegistry}.</p><Button variant="outline" size="sm" className="mt-3" asChild><Link to="/app/credentials">Connect Docker Hub</Link></Button></div>}
-                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(1)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" asChild><Link to="/app/credentials">Manage connections</Link></Button><Button disabled={saveRuntime.isPending || saveCredentials.isPending} onClick={() => void saveCredentialStep()}>{saveCredentials.isPending ? "Saving…" : "Save service credential"}</Button><Button variant="outline" onClick={() => goToStep(3)}>Continue</Button></div></div>
-                </CardContent>
-              </Card>}
-
-              {step === 3 && <Card>
-                <CardHeader><CardTitle>Deploy</CardTitle><CardDescription>Manual deploys and redeploys fetch the configured source or image again. GitHub-sourced services clone the selected ref, build, push, and deploy; prebuilt images are pulled from the registry. Configure domain bindings separately in service settings after deployment.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Review and deploy</CardTitle><CardDescription>Gatekeeperd will build the saved GitHub source or pull the configured image, then check it before switching traffic. Registry access uses the centrally managed credentials for this registry.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
                   <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div>
-                  <div className="flex items-center gap-3"><Badge variant={deploymentBadge}>{currentDeployment}</Badge>{setup.activeDeploymentId && <span className="font-mono text-xs">{setup.activeDeploymentId}</span>}</div>
-                  {queuedDeploymentId && deploymentInProgress && <p className="text-sm text-muted-foreground">{currentDeployment === "ready" ? <>Container is ready; gateway cutover is pending. Deployment <code>{queuedDeploymentId}</code> remains in progress.</> : <>Deployment <code>{queuedDeploymentId}</code> is in progress. This page updates as the worker advances it.</>}</p>}
-                  {active && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">An active deployment is recorded. Review its runtime and version references on the project overview.</div>}
-                  <div className="flex justify-between"><Button variant="outline" onClick={() => goToStep(2)}><ChevronLeft className="mr-1 h-4 w-4" />Back</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close setup</Button><Button disabled={deploy.isPending || deploymentInProgress || !setup.sourceRuntime} onClick={() => void queueDeployment()}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : deploymentInProgress ? "Deployment in progress" : "Deploy"}</Button></div></div>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="outline" onClick={() => goToStep(1)}><ChevronLeft className="mr-1 h-4 w-4" />Back to source</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={deploy.isPending || Boolean(queuedDeploymentId) || !setup.sourceRuntime} onClick={() => void queueDeployment()} loading={deploy.isPending}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : "Make deployment"}</Button></div></div>
                 </CardContent>
               </Card>}
             </>

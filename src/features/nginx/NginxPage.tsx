@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Server, Shield, Trash2, ToggleLeft, Plus, CircleHelp, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryState } from "@/components/QueryState";
@@ -43,9 +44,6 @@ import { useForm } from "react-hook-form";
 import type { EnableNginxPayload } from "@/types/nginx";
 
 interface EnableFormData {
-  certificateDomain?: string;
-  sslCertificatePath?: string;
-  sslCertificateKeyPath?: string;
   requireSsl?: boolean;
 }
 
@@ -105,7 +103,9 @@ export function NginxPage() {
   const [selectedSlug, setSelectedSlug] = useState<string>("");
   const [enableDialogOpen, setEnableDialogOpen] = useState(false);
   const [certificateDialogOpen, setCertificateDialogOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<{ action: "disable" | "remove" | "rollback"; version?: string } | null>(null);
   const [selectedProject, setSelectedProject] = useState<string>("");
+  const [selectedBindingId, setSelectedBindingId] = useState("");
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [previewConfig, setPreviewConfig] = useState<string | null>(null);
   const selectedProjectRecord = projects?.find((p) => p.slug === selectedSlug);
@@ -118,8 +118,9 @@ export function NginxPage() {
   const versionsQuery = useNginxVersions(selectedSlug);
   const rollback = useNginxRollback(selectedSlug);
   const { data: wizardContext, refetch: refetchWizardContext } = useNginxWizardContext(selectedSlug, defaultServiceId);
-  const selectedDomain = wizardContext?.domain ?? "";
-  const validateEnable = useValidateNginxEnable(selectedSlug);
+  const selectedBinding = wizardContext?.domainBindings.find(binding => binding.id === selectedBindingId);
+  const selectedDomain = selectedBinding?.domain ?? "";
+  const validateEnable = useValidateNginxEnable();
   const enableNginx = useEnableNginx();
   const disableNginx = useDisableNginx();
   const removeNginx = useRemoveNginx();
@@ -127,7 +128,12 @@ export function NginxPage() {
 
   const { data: certStatus, refetch: refetchCertStatus } = useCertificateStatus(selectedDomain);
 
-  const detectedContainerName = wizardContext?.resolvedUpstreamHost && wizardContext?.configuredPort ? `${wizardContext.resolvedUpstreamHost}:${wizardContext.configuredPort}` : null;
+  useEffect(() => {
+    const bindings = wizardContext?.domainBindings.filter(binding => binding.status === "bound") ?? [];
+    setSelectedBindingId(current => bindings.some(binding => binding.id === current) ? current : bindings[0]?.id ?? "");
+  }, [wizardContext]);
+
+  const detectedContainerName = selectedBinding?.resolvedHostPort ? `127.0.0.1:${selectedBinding.resolvedHostPort}` : null;
   const containerDetectionStatus = wizardContext
     ? wizardContext.runtimeHealth === "running" || wizardContext.runtimeHealth === "exited"
       ? wizardContext.runtimeHealth
@@ -159,12 +165,15 @@ export function NginxPage() {
 
   const handleEnable = async (data: EnableFormData) => {
     if (!selectedSlug) return;
+    if (!selectedBinding || !defaultServiceId) {
+      toast.error("Select an available domain binding before enabling Nginx");
+      return;
+    }
     const payload: EnableNginxPayload = {
-      serviceId: defaultServiceId || undefined,
-      certificateDomain: data.certificateDomain || undefined,
-      sslCertificatePath: data.sslCertificatePath || undefined,
-      sslCertificateKeyPath: data.sslCertificateKeyPath || undefined,
-      requireSsl: data.requireSsl,
+      serviceId: defaultServiceId,
+      domain: selectedBinding.domain,
+      domainBindingId: selectedBinding.id,
+      requireSsl: data.requireSsl !== false,
     };
     try {
       await enableNginx.mutateAsync({ slug: selectedSlug, payload });
@@ -179,13 +188,16 @@ export function NginxPage() {
   };
 
   const handleValidatePreview = async (data: EnableFormData) => {
-    if (!selectedSlug) return;
+    if (!selectedSlug) return false;
+    if (!selectedBinding || !defaultServiceId) {
+      toast.error("Select an available domain binding before validating Nginx");
+      return false;
+    }
     const payload: EnableNginxPayload = {
-      serviceId: defaultServiceId || undefined,
-      certificateDomain: data.certificateDomain || undefined,
-      sslCertificatePath: data.sslCertificatePath || undefined,
-      sslCertificateKeyPath: data.sslCertificateKeyPath || undefined,
-      requireSsl: data.requireSsl,
+      serviceId: defaultServiceId,
+      domain: selectedBinding.domain,
+      domainBindingId: selectedBinding.id,
+      requireSsl: data.requireSsl !== false,
     };
     try {
       const res = await validateEnable.mutateAsync(payload);
@@ -195,26 +207,36 @@ export function NginxPage() {
       } else {
         toast.success("Configuration validated");
       }
+      return true;
     } catch (error) {
       toast.error(getApiErrorMessage(error));
+      return false;
     }
   };
 
-  const handleDisable = async () => {
-    if (!selectedSlug || !confirm("Are you sure you want to disable this nginx site?")) return;
-    try {
-      await disableNginx.mutateAsync(selectedSlug);
-      refetchStatus();
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    }
+  const handleDisable = () => {
+    if (selectedSlug) setConfirmTarget({ action: "disable" });
   };
 
-  const handleRemove = async () => {
-    if (!selectedSlug || !confirm("Are you sure you want to remove this nginx site configuration? This cannot be undone.")) return;
+  const handleRemove = () => {
+    if (selectedSlug) setConfirmTarget({ action: "remove" });
+  };
+
+  const confirmNginxAction = async () => {
+    if (!confirmTarget || !selectedSlug) return;
     try {
-      await removeNginx.mutateAsync(selectedSlug);
-      refetchStatus();
+      if (confirmTarget.action === "disable") {
+        await disableNginx.mutateAsync(selectedSlug);
+        refetchStatus();
+      } else if (confirmTarget.action === "remove") {
+        await removeNginx.mutateAsync(selectedSlug);
+        refetchStatus();
+      } else if (confirmTarget.version) {
+        await rollback.mutateAsync(confirmTarget.version);
+        refetchConfig();
+        refetchStatus();
+      }
+      setConfirmTarget(null);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
@@ -249,6 +271,7 @@ export function NginxPage() {
                 value={selectedSlug}
                 onChange={(e) => {
                   setSelectedSlug(e.target.value);
+                  setSelectedBindingId("");
                   const project = projects?.find((p) => p.slug === e.target.value);
                   setSelectedProject(project?.domain ?? "");
                 }}
@@ -340,10 +363,10 @@ export function NginxPage() {
                       </Button>
                     ) : (
                       <>
-                        <Button variant="outline" onClick={handleDisable} size="sm">
+                        <Button variant="outline" loading={disableNginx.isPending} loadingText="Disabling…" disabled={disableNginx.isPending} onClick={handleDisable} size="sm">
                           Disable
                         </Button>
-                        <Button variant="destructive" onClick={handleRemove} size="sm">
+                        <Button variant="destructive" loading={removeNginx.isPending} loadingText="Removing…" disabled={removeNginx.isPending} onClick={handleRemove} size="sm">
                           <Trash2 className="h-4 w-4 mr-2" />
                           Remove
                         </Button>
@@ -360,7 +383,7 @@ export function NginxPage() {
                     <div className="flex items-center gap-2">
                       {nginxConfig?.drifted && <Badge variant="destructive">Drift detected</Badge>}
                       <Button variant="outline" size="sm" onClick={() => refetchConfig()}>Refresh</Button>
-                      <Button variant="outline" size="sm" onClick={() => diagnostics.mutate()} disabled={diagnostics.isPending}>
+                      <Button variant="outline" size="sm" onClick={() => diagnostics.mutate()} loading={diagnostics.isPending} disabled={diagnostics.isPending}>
                         {diagnostics.isPending ? "Testing…" : "Run nginx -t"}
                       </Button>
                     </div>
@@ -405,7 +428,7 @@ export function NginxPage() {
                       {versionsQuery.data.map((version) => (
                         <div key={version.name} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
                           <div><p className="font-mono text-xs">{version.name}</p><p className="text-xs text-muted-foreground">{new Date(version.createdAt).toLocaleString()} · {version.sizeBytes.toLocaleString()} bytes</p></div>
-                          <Button size="sm" variant="outline" disabled={rollback.isPending} onClick={() => { if (confirm(`Roll back to ${version.name}?`)) rollback.mutate(version.name); }}>Rollback</Button>
+                          <Button size="sm" variant="outline" loading={rollback.isPending} disabled={rollback.isPending} onClick={() => setConfirmTarget({ action: "rollback", version: version.name })}>Rollback</Button>
                         </div>
                       ))}
                     </div>
@@ -476,7 +499,9 @@ export function NginxPage() {
                 setWizardStep(2);
               } else if (wizardStep === 2) {
                 // Validate to get preview before showing review step
-                handleValidatePreview(data).then(() => setWizardStep(3));
+                handleValidatePreview(data).then((validated) => {
+                  if (validated) setWizardStep(3);
+                });
               } else {
                 handleEnable(data);
               }
@@ -496,9 +521,16 @@ export function NginxPage() {
                   <Separator />
                   {wizardContext ? (
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <InfoRow label="Domain" value={wizardContext.domain ?? "Not configured"} />
+                      <div className="space-y-2">
+                        <Label htmlFor="nginx-domain-binding">Domain binding</Label>
+                        <select id="nginx-domain-binding" value={selectedBindingId} onChange={event => setSelectedBindingId(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                          <option value="">Select an available binding</option>
+                          {wizardContext.domainBindings.filter(binding => binding.status === "bound").map(binding => <option key={binding.id} value={binding.id}>{binding.domain} · container port {binding.containerPort}</option>)}
+                        </select>
+                      </div>
+                      <InfoRow label="Domain" value={selectedDomain || "Not configured"} />
                       <InfoRow label="Resolved upstream" value={detectedContainerName ?? "No active runtime"} mono />
-                      <InfoRow label="Detected Port" value={wizardContext.configuredPort ? String(wizardContext.configuredPort) : ""} />
+                      <InfoRow label="Detected Port" value={selectedBinding?.resolvedHostPort ? String(selectedBinding.resolvedHostPort) : ""} />
                       <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Runtime Health</p>
                         <Badge
@@ -516,9 +548,7 @@ export function NginxPage() {
                           {containerDetectionStatus || "unknown"}
                         </Badge>
                       </div>
-                      {wizardContext.resolvedCertificateDomain && (
-                        <InfoRow label="Resolved Certificate" value={wizardContext.resolvedCertificateDomain} />
-                      )}
+                      <InfoRow label="Certificate" value="Resolved automatically on the server" />
                     </div>
                   ) : (
                     <Skeleton className="h-32 w-full" />
@@ -538,6 +568,7 @@ export function NginxPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <InfoRow label="Resolved upstream" value={detectedContainerName ?? "No active runtime"} mono />
                       <InfoRow label="Runtime health" value={containerDetectionStatus ?? "unknown"} />
+                      <InfoRow label="Container port" value={selectedBinding?.containerPort ? String(selectedBinding.containerPort) : "Not available"} />
                     </div>
                   ) : <Skeleton className="h-16 w-full" />}
                 </section>
@@ -548,85 +579,10 @@ export function NginxPage() {
                 <section className="space-y-4">
                   <div>
                     <h3 className="text-sm font-semibold tracking-wide">SSL Certificate</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Certificate selection is optional. Gatekeeper reuses an installed certificate for the domain when possible.
-                    </p>
+                    <p className="text-xs text-muted-foreground">Gatekeeper resolves an installed certificate for the selected binding on the server.</p>
                   </div>
                   <Separator />
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1">
-                      <Label htmlFor="certificateDomain">Certificate Domain</Label>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" className="text-muted-foreground hover:text-foreground">
-                            <CircleHelp className="h-3.5 w-3.5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Select an installed certificate. Leave blank to auto-reuse one for the project's domain or parent domains.
-                        </TooltipContent>
-                      </Tooltip>
-                      {wizardContext?.resolvedCertificateDomain && (
-                        <span className="text-xs text-emerald-600">
-                          Will auto-use {wizardContext.resolvedCertificateDomain}
-                        </span>
-                      )}
-                    </div>
-                    {wizardContext && wizardContext.installedCertificates.length > 0 ? (
-                      <select
-                        id="certificateDomain"
-                        {...registerEnable("certificateDomain")}
-                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">Auto-select from project domain</option>
-                        {wizardContext.installedCertificates.map((domain) => (
-                          <option key={domain} value={domain}>
-                            {domain}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <Input
-                        id="certificateDomain"
-                        {...registerEnable("certificateDomain")}
-                        placeholder="example.com"
-                      />
-                    )}
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1">
-                        <Label htmlFor="sslCertificatePath">Certificate Path</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button" className="text-muted-foreground hover:text-foreground">
-                              <CircleHelp className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Optional override. Only needed when selecting a certificate explicitly. Requires both the certificate and key paths.
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <Input id="sslCertificatePath" {...registerEnable("sslCertificatePath")} placeholder="/etc/letsencrypt/live/example.com/fullchain.pem" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1">
-                        <Label htmlFor="sslCertificateKeyPath">Private Key Path</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button" className="text-muted-foreground hover:text-foreground">
-                              <CircleHelp className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Optional override. Only needed when selecting a certificate explicitly. Requires both the certificate and key paths.
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <Input id="sslCertificateKeyPath" {...registerEnable("sslCertificateKeyPath")} placeholder="/etc/letsencrypt/live/example.com/privkey.pem" />
-                    </div>
-                  </div>
+                  <p className="rounded-md border p-4 text-sm">Selected domain: <span className="font-medium">{selectedDomain || "Select a domain binding"}</span>. Certificate files are managed by Gatekeeperd.</p>
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -637,9 +593,9 @@ export function NginxPage() {
                     <Label htmlFor="requireSsl">Require SSL</Label>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                        <Button type="button" variant="ghost" size="icon" aria-label="SSL help" className="h-5 w-5 text-muted-foreground hover:text-foreground">
                           <CircleHelp className="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                       </TooltipTrigger>
                       <TooltipContent>Fail if no certificate is found instead of enabling the site without SSL.</TooltipContent>
                     </Tooltip>
@@ -692,7 +648,7 @@ export function NginxPage() {
                   Next
                 </Button>
               ) : (
-                <Button type="submit" disabled={enableNginx.isPending}>
+                <Button type="submit" loading={enableNginx.isPending} disabled={enableNginx.isPending}>
                   {enableNginx.isPending ? "Enabling..." : "Confirm & Enable"}
                 </Button>
               )}
@@ -722,13 +678,17 @@ export function NginxPage() {
               <Button type="button" variant="outline" onClick={() => setCertificateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={installCertificate.isPending}>
+              <Button type="submit" loading={installCertificate.isPending} disabled={installCertificate.isPending}>
                 {installCertificate.isPending ? "Installing..." : "Install"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmTarget !== null} onOpenChange={open => { if (!open && !disableNginx.isPending && !removeNginx.isPending && !rollback.isPending) setConfirmTarget(null); }}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{confirmTarget?.action === "disable" ? "Disable Nginx site?" : confirmTarget?.action === "remove" ? "Remove Nginx site configuration?" : "Roll back Nginx configuration?"}</AlertDialogTitle><AlertDialogDescription>{confirmTarget?.action === "disable" ? "This disables the site and reloads Nginx. The configuration remains available to enable again." : confirmTarget?.action === "remove" ? "This permanently removes the Nginx site configuration. This cannot be undone." : `This restores the saved configuration version ${confirmTarget?.version ?? ""}.`}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={disableNginx.isPending || removeNginx.isPending || rollback.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className={confirmTarget?.action === "remove" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined} loading={disableNginx.isPending || removeNginx.isPending || rollback.isPending} disabled={disableNginx.isPending || removeNginx.isPending || rollback.isPending} onClick={event => { event.preventDefault(); void confirmNginxAction(); }}>{confirmTarget?.action === "disable" ? "Disable site" : confirmTarget?.action === "remove" ? "Remove configuration" : "Roll back"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

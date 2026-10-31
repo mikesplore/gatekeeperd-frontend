@@ -106,7 +106,7 @@ export function BlockUnblockDialog({ project, mode, onClose }: BlockUnblockDialo
           {noteField}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleClose}>Cancel</AlertDialogCancel>
-            <Button variant="destructive" disabled={!reasonCode || pending} onClick={handleConfirm}>
+            <Button variant="destructive" loading={pending} disabled={!reasonCode || pending} onClick={handleConfirm}>
               {pending ? "Blocking…" : "Block project"}
             </Button>
           </AlertDialogFooter>
@@ -125,7 +125,7 @@ export function BlockUnblockDialog({ project, mode, onClose }: BlockUnblockDialo
         {noteField}
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button disabled={!reason.trim() || pending} onClick={handleConfirm}>
+          <Button loading={pending} disabled={!reason.trim() || pending} onClick={handleConfirm}>
             {pending ? "Unblocking…" : "Unblock project"}
           </Button>
         </DialogFooter>

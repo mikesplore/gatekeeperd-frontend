@@ -28,7 +28,6 @@ import type {
   ProjectSetupStatus,
   AdoptableContainer,
   ProjectDeploymentHistoryItem,
-  ProviderCredentialMetadata,
   ServiceAdminView,
   ServiceDomainBinding,
   ServiceDomainBindingsResponse,
@@ -37,7 +36,6 @@ import type {
   ServiceEnvironmentMetadata,
 } from "@/types/project";
 import type { PaymentLinkResponse } from "@/types/payment";
-import type { ProjectInvoiceStatus } from "@/types/payment";
 import type { DashboardSummary } from "@/types/dashboard";
 import type { IntegrationOutboxEvent, NotificationItem } from "@/types/dashboard";
 
@@ -154,7 +152,7 @@ export function useCreateProjectSetup() {
 }
 
 export type ProjectSetupRuntimeInput = {
-  repository: string | null; gitRef: string; registry: string; registryCredentialId?: string | null; imageName: string; imageTag: string; serviceId?: string; containerPort?: number;
+  repository: string | null; gitRef: string; registry: string; imageName: string; imageTag: string; serviceId?: string; containerPort?: number;
   hostPort?: number; network: string; restartPolicy: string; env?: Record<string, string>; environment: string;
   readinessType?: string; readinessTarget?: string; autoDeploy?: boolean;
 };
@@ -167,15 +165,6 @@ export function useSaveProjectSetupRuntime(projectId: string) {
       invalidateSetup(qc, projectId);
       qc.invalidateQueries({ queryKey: ["project-environment", projectId] });
     },
-  });
-}
-
-export function useSaveProjectSetupCredentials(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload: { registry?: string; registryCredentialId?: string | null; username?: string; password?: string; serviceId?: string }) =>
-      (await api.put(`/admin/project-setup/projects/${projectId}/credentials`, payload)).data,
-    onSuccess: () => invalidateSetup(qc, projectId),
   });
 }
 
@@ -368,13 +357,6 @@ export function useProjectSecretRotation(projectId: string, slug: string) {
   });
 }
 
-export function useProviderCredentialMetadata() {
-  return useQuery({
-    queryKey: ["provider-credentials-metadata"],
-    queryFn: async () => (await api.get<ProviderCredentialMetadata[]>("/admin/project-setup/provider-credentials")).data,
-  });
-}
-
 export function useUpdateProject(slug: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -455,30 +437,6 @@ export function useAddProjectAdjustment(slug: string) {
   });
 }
 
-export function useResyncProjectInvoice(slug: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.post(`/admin/projects/${encodeURIComponent(slug)}/invoice/resync`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["project", slug] });
-      qc.invalidateQueries({ queryKey: ["projects"] });
-    },
-  });
-}
-
-export function useCreateProjectInvoice(slug: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (description: string) =>
-      api.post<{ status: string; invoiceId: number | null }>(`/admin/projects/${encodeURIComponent(slug)}/invoice`, { description }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["project", slug, "invoice"] });
-      qc.invalidateQueries({ queryKey: ["project", slug] });
-      qc.invalidateQueries({ queryKey: ["projects"] });
-    },
-  });
-}
-
 export function useProjectHealth(slug: string) {
   return useQuery({
     queryKey: ["project", slug, "health"],
@@ -491,8 +449,8 @@ export function useProjectHealth(slug: string) {
 export function useInitializePayment(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ email, amount }: { email?: string; amount?: number }) =>
-      api.post<PaymentLinkResponse>(`/admin/projects/${slug}/payment/initialize`, {
+    mutationFn: ({ email, amount, serviceId }: { email?: string; amount?: number; serviceId: string }) =>
+      api.post<PaymentLinkResponse>(`/admin/projects/${slug}/services/${serviceId}/payment/initialize`, {
         email: email || undefined,
         amount,
       }),
@@ -509,14 +467,6 @@ export function useInitiateMpesaPayment() {
         amount: String(amount),
         serviceId,
       }),
-  });
-}
-
-export function useProjectInvoice(slug: string) {
-  return useQuery({
-    queryKey: ["project", slug, "invoice"],
-    queryFn: async () => (await api.get<ProjectInvoiceStatus>(`/admin/projects/${slug}/invoice`)).data,
-    enabled: !!slug,
   });
 }
 

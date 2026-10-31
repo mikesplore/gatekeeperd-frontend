@@ -91,7 +91,7 @@ export function CustomersPage() {
                 <div className="space-y-2"><Label htmlFor="customer-phone">Contact phone</Label><Input id="customer-phone" name="phone" placeholder="Phone number" /></div>
                 <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4">
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button type="submit" disabled={create.isPending}>{create.isPending ? "Creating…" : "Create customer"}</Button>
+                  <Button type="submit" loading={create.isPending} disabled={create.isPending}>{create.isPending ? "Creating…" : "Create customer"}</Button>
                 </SidePanelFooter>
               </form>
             </SidePanelContent>

@@ -71,13 +71,15 @@ function MobileCard<T>({ row, columns, limit, onClick }: { row: T; columns: Data
         </dl>
       )}
       {(rest.length > limit) && (
-        <button
+        <Button
           type="button"
-          className="mt-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+          variant="ghost"
+          size="sm"
+          className="mt-2 h-auto px-0 py-1 text-xs text-muted-foreground hover:text-foreground"
           onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         >
           {open ? "Show less" : `Show ${hiddenCount} more`}
-        </button>
+        </Button>
       )}
       {actions.length > 0 && (
         <div className="mt-2 flex justify-end gap-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>
@@ -217,9 +219,9 @@ export function DataTable<T>({
                   {columns.map((c) => (
                     <TableHead key={c.key} className="whitespace-nowrap px-2 py-1.5 text-xs font-medium text-muted-foreground/80">
                       {c.sortable ? (
-                        <button type="button" className="inline-flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => changeSort(c.key)}>
+                        <Button type="button" variant="ghost" className="h-auto px-0 py-0 text-xs font-medium text-muted-foreground/80 hover:text-foreground" onClick={() => changeSort(c.key)}>
                           {c.header}{activeSortBy === c.key && (activeSortDirection === "asc" ? " ↑" : " ↓")}
-                        </button>
+                        </Button>
                       ) : c.header}
                     </TableHead>
                   ))}
@@ -229,7 +231,7 @@ export function DataTable<T>({
                 {rows.map((row) => (
                   <TableRow key={getRowKey(row)} className={onRowClick ? "cursor-pointer transition-colors hover:bg-muted/30" : undefined} onClick={onRowClick ? () => onRowClick(row) : undefined}>
                     {columns.map((c) => (
-                      <TableCell key={c.key} className="align-top px-2 py-1.5 [&_p]:min-w-0 [&_p]:break-words [&_p]:whitespace-normal">{c.render(row)}</TableCell>
+                      <TableCell key={c.key} className="align-middle px-2 py-1.5 [&_p]:min-w-0 [&_p]:break-words [&_p]:whitespace-normal">{c.render(row)}</TableCell>
                     ))}
                   </TableRow>
                 ))}

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useReconcilePayment } from "@/hooks/useProjects";
 import { api } from "@/lib/api";
-import { Loader2 } from "lucide-react";
 import { useState } from "react";
 
 interface PaymentsHistoryTableProps {
@@ -49,12 +48,12 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
     <DataTable data={payments} getRowKey={(payment) => payment.id} pageSize={25} hidePagination
           filters={[{ label: "Provider", options: [...new Set(payments.map((payment) => payment.provider))].map((value) => ({ label: value, value })), getValue: (payment) => payment.provider }, { label: "Status", options: [...new Set(payments.map((payment) => payment.gatewayStatus ?? payment.status))].map((value) => ({ label: value, value })), getValue: (payment) => payment.gatewayStatus ?? payment.status }]}
           columns={[
-            { key: "reference", header: "Provider / reference", searchable: true, searchValue: (payment) => `${payment.provider} ${payment.providerReference}`, render: (payment) => <div className="min-w-0"><Badge variant="outline" className="capitalize">{payment.provider}</Badge><p className="mt-1 max-w-[14rem] truncate font-mono text-xs" title={payment.providerReference}>{payment.providerReference}</p></div> },
+            { key: "reference", header: "Provider / reference", searchable: true, searchValue: (payment) => `${payment.provider} ${payment.providerReference}`, render: (payment) => <div className="flex min-w-0 items-center gap-2"><Badge variant="outline" className="shrink-0 capitalize">{payment.provider}</Badge><span className="block max-w-[14rem] truncate font-mono text-xs" title={payment.providerReference}>{payment.providerReference}</span></div> },
             { key: "amount", header: "Amount", searchable: true, searchValue: (payment) => String(payment.amount), render: (payment) => <span className="whitespace-nowrap">{currency} {payment.amount.toLocaleString()}</span> },
             { key: "status", header: "Status", render: (payment) => <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} /> },
             { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "Not set"}</span> },
             { key: "paidAt", header: "Paid at", render: (payment) => <span className="whitespace-nowrap">{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}</span> },
-            { key: "actions", header: "", render: (payment) => <div className="flex flex-wrap gap-2">{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{receiptLoading === payment.id ? "Downloading…" : "Receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: async (result) => { toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"); await onPaymentChanged?.(); }, onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</div> },
+            { key: "actions", header: "", render: (payment) => <div className="flex flex-wrap gap-2">{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" loading={receiptLoading === payment.id} loadingText="Downloading…" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id ? "Downloading…" : "Receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" loading={reconcile.isPending} disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: async (result) => { toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"); await onPaymentChanged?.(); }, onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</div> },
           ]}
         />
   );

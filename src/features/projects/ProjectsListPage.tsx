@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export function ProjectsListPage() {
   const { data, isLoading, isError, error } = useProjects();
@@ -28,11 +29,14 @@ export function ProjectsListPage() {
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
   const [bulkBlockOpen, setBulkBlockOpen] = useState(false);
+  const [bulkUnblockOpen, setBulkUnblockOpen] = useState(false);
+  const [bulkUnblockReason, setBulkUnblockReason] = useState("");
   const [bulkBlockReasonCode, setBulkBlockReasonCode] = useState("");
   const [bulkBlockNote, setBulkBlockNote] = useState("");
   const qc = useQueryClient();
-  const bulkAction = useMutation({ mutationFn: ({ action, reason, blockReasonCode, blockReasonNote }: { action: "block" | "unblock"; reason: string; blockReasonCode?: string; blockReasonNote?: string }) => api.post<{ slug: string; status: string; message?: string }[]>(`/admin/projects/bulk/${action}`, { slugs: selectedSlugs, reason, blockReasonCode, blockReasonNote }), onSuccess: async (response) => { const failed = response.data.filter(item => item.status === "failed"); await qc.invalidateQueries({ queryKey: ["projects"] }); setSelectedSlugs([]); setBulkBlockOpen(false); setBulkBlockReasonCode(""); setBulkBlockNote(""); toast.success(`${response.data.length - failed.length} project${response.data.length - failed.length === 1 ? "" : "s"} updated${failed.length ? `; ${failed.length} failed` : ""}`); } });
-  const runBulk = async (action: "block" | "unblock") => { if (action === "block") { setBulkBlockReasonCode(""); setBulkBlockNote(""); setBulkBlockOpen(true); return; } const reason = window.prompt(`Reason for unblocking these ${selectedSlugs.length} projects:`)?.trim(); if (!reason) return; try { await bulkAction.mutateAsync({ action, reason }); } catch (error) { toast.error(getApiErrorMessage(error)); } };
+  const bulkAction = useMutation({ mutationFn: ({ action, reason, blockReasonCode, blockReasonNote }: { action: "block" | "unblock"; reason: string; blockReasonCode?: string; blockReasonNote?: string }) => api.post<{ slug: string; status: string; message?: string }[]>(`/admin/projects/bulk/${action}`, { slugs: selectedSlugs, reason, blockReasonCode, blockReasonNote }), onSuccess: async (response) => { const failed = response.data.filter(item => item.status === "failed"); await qc.invalidateQueries({ queryKey: ["projects"] }); setSelectedSlugs([]); setBulkBlockOpen(false); setBulkUnblockOpen(false); setBulkUnblockReason(""); setBulkBlockReasonCode(""); setBulkBlockNote(""); toast.success(`${response.data.length - failed.length} project${response.data.length - failed.length === 1 ? "" : "s"} updated${failed.length ? `; ${failed.length} failed` : ""}`); } });
+  const runBulk = (action: "block" | "unblock") => { if (action === "block") { setBulkBlockReasonCode(""); setBulkBlockNote(""); setBulkBlockOpen(true); return; } setBulkUnblockReason(""); setBulkUnblockOpen(true); };
+  const confirmBulkUnblock = async () => { const reason = bulkUnblockReason.trim(); if (!reason) return; try { await bulkAction.mutateAsync({ action: "unblock", reason }); } catch (error) { toast.error(getApiErrorMessage(error)); } };
   const confirmBulkBlock = async () => { if (!bulkBlockReasonCode) return; try { await bulkAction.mutateAsync({ action: "block", reason: bulkBlockNote.trim() || blockReasonCodeLabel(bulkBlockReasonCode), blockReasonCode: bulkBlockReasonCode, blockReasonNote: bulkBlockNote.trim() || undefined }); } catch (error) { toast.error(getApiErrorMessage(error)); } };
 
   return (
@@ -41,7 +45,7 @@ export function ProjectsListPage() {
         <div>
           <p className="text-muted-foreground">Manage client projects and access control.</p>
         </div>
-        <div className="flex flex-wrap gap-2">{selectedSlugs.length > 0 && <><Button variant="outline" disabled={bulkAction.isPending} onClick={() => void runBulk("block")}><ShieldAlert className="mr-2 h-4 w-4"/>Block {selectedSlugs.length}</Button><Button variant="outline" disabled={bulkAction.isPending} onClick={() => void runBulk("unblock")}><ShieldCheck className="mr-2 h-4 w-4"/>Unblock {selectedSlugs.length}</Button></>}<Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2">{selectedSlugs.length > 0 && <><Button variant="outline" loading={bulkAction.isPending} disabled={bulkAction.isPending} onClick={() => void runBulk("block")}><ShieldAlert className="mr-2 h-4 w-4"/>Block {selectedSlugs.length}</Button><Button variant="outline" loading={bulkAction.isPending} disabled={bulkAction.isPending} onClick={() => void runBulk("unblock")}><ShieldCheck className="mr-2 h-4 w-4"/>Unblock {selectedSlugs.length}</Button></>}<Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           New Project
         </Button></div>
@@ -113,10 +117,14 @@ export function ProjectsListPage() {
           <div className="space-y-2"><Label htmlFor="bulk-block-note">Additional note (optional)</Label><Textarea id="bulk-block-note" value={bulkBlockNote} onChange={event => setBulkBlockNote(event.target.value)} rows={3} placeholder="Add context for this block" /></div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={bulkAction.isPending}>Cancel</AlertDialogCancel>
-            <Button variant="destructive" disabled={!bulkBlockReasonCode || bulkAction.isPending} onClick={() => void confirmBulkBlock()}>{bulkAction.isPending ? "Blocking…" : "Block projects"}</Button>
+            <Button variant="destructive" disabled={!bulkBlockReasonCode || bulkAction.isPending} onClick={() => void confirmBulkBlock()} loading={bulkAction.isPending}>{bulkAction.isPending ? "Blocking…" : "Block projects"}</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={bulkUnblockOpen} onOpenChange={open => { if (!open && !bulkAction.isPending) setBulkUnblockOpen(false); }}>
+        <DialogContent><DialogHeader><DialogTitle>Unblock {selectedSlugs.length} projects?</DialogTitle><DialogDescription>Enter a reason to add to the audit log for this bulk unblock.</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor="bulk-unblock-reason">Reason <span className="text-destructive">*</span></Label><Textarea id="bulk-unblock-reason" value={bulkUnblockReason} onChange={event => setBulkUnblockReason(event.target.value)} rows={3} placeholder="Reason for unblocking these projects" /></div><DialogFooter><Button variant="outline" disabled={bulkAction.isPending} onClick={() => setBulkUnblockOpen(false)}>Cancel</Button><Button loading={bulkAction.isPending} disabled={bulkAction.isPending || !bulkUnblockReason.trim()} onClick={() => void confirmBulkUnblock()}><ShieldCheck className="mr-2 h-4 w-4" />Unblock projects</Button></DialogFooter></DialogContent>
+      </Dialog>
 
       <DeleteProjectDialog
         project={deleteTarget}

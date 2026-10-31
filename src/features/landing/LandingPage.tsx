@@ -1,5 +1,18 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, ShieldCheck, FolderPlus, Zap, Bell } from "lucide-react";
+import {
+  ArrowRight,
+  ShieldCheck,
+  FolderPlus,
+  GitBranch,
+  Rocket,
+  Globe,
+  Zap,
+  Bell,
+  KeyRound,
+  History,
+  Layers,
+  Lock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 import containerShipImg from "@/images/undraw_container-ship_t6yx.svg";
@@ -9,41 +22,73 @@ import onlinePaymentsImg from "@/images/undraw_online-payments_d5ef.svg";
 import relaxationImg from "@/images/undraw_relaxation_jsge.svg";
 import rideTillICanNoMoreImg from "@/images/undraw_jogging_tf9a.svg";
 
-const features = [
+const paymentFeatures = [
   {
-    title: "Automatic payment reminders",
+    title: "Reminders that send themselves",
     description:
-      "Automated emails go out before and after due dates. No manual follow-ups required.",
+      "Emails go out before and after each due date, so you never write a follow-up message by hand.",
     image: onlinePaymentsImg,
     imageAlt: "Online payments illustration",
   },
   {
-    title: "Smart payment blocking",
+    title: "A payment wall with a reason on it",
     description:
-      "Overdue projects are redirected to a secure payment wall until cleared. Zero code changes required.",
+      "When a project is overdue, its sites show a wall that states why access is blocked. Your client's app code does not change.",
     image: firewallImg,
     imageAlt: "Firewall illustration showing blocked access",
   },
   {
-    title: "Instant restoration on payment",
+    title: "Access returns when payment lands",
     description:
-      "Access restores within seconds of payment confirmation. No manual intervention needed.",
+      "Once a payment is confirmed, the gate opens within seconds. Nobody has to flip a switch.",
     image: relaxationImg,
     imageAlt: "Relaxation illustration showing peace of mind",
   },
   {
-    title: "Infrastructure stays untouched",
+    title: "Blocking never touches the app itself",
     description:
-      "Containers run uninterrupted. Only the client gateway is gated, ensuring zero downtime.",
+      "Only the gateway is gated. The container keeps running, so restoring access is instant and nothing needs a restart.",
     image: containerShipImg,
     imageAlt: "Container ship illustration representing infrastructure",
   },
+];
+
+const deployFeatures = [
   {
-    title: "Set it and forget it",
+    icon: FolderPlus,
+    title: "Projects exist before containers do",
     description:
-      "Configure project parameters once. Enforcement and reinstatement run entirely on autopilot",
-    image: heavyLiftingImg,
-    imageAlt: "Heavy lifting illustration showing automation",
+      "Create the project, attach the customer and set billing first. Deploy when the app is ready.",
+  },
+  {
+    icon: GitBranch,
+    title: "Deploy from GitHub",
+    description:
+      "Point a project at a repository and branch. Push to deploy, or run a deployment from the dashboard.",
+  },
+  {
+    icon: History,
+    title: "Every release is on record",
+    description:
+      "See the commit, image, who triggered it, and the configuration it ran with. Roll back to an earlier release when a deploy goes wrong.",
+  },
+  {
+    icon: Layers,
+    title: "Shared and per-environment settings",
+    description:
+      "Keep environment variables scoped to a project and environment, with a clear view of what each deployment loaded.",
+  },
+  {
+    icon: KeyRound,
+    title: "Secrets stay on the server",
+    description:
+      "Secret values are encrypted at rest and masked after saving. Registry and GitHub credentials live apart from app settings.",
+  },
+  {
+    icon: Globe,
+    title: "Domains belong to the project",
+    description:
+      "Replace a container or image and the domain, TLS certificate and nginx site stay exactly where they were.",
   },
 ];
 
@@ -51,20 +96,32 @@ const steps = [
   {
     step: "01",
     icon: FolderPlus,
-    title: "Register a project",
-    description: "Point Gatekeeper at a client's container and set the amount due and due date.",
+    title: "Create a project",
+    description: "Add the client, the amount due and the due date. No container needed yet.",
   },
   {
     step: "02",
-    icon: Bell,
-    title: "Automatic reminders kick in",
-    description: "Gatekeeper sends payment reminders to the client as the due date approaches and when overdue.",
+    icon: Rocket,
+    title: "Configure and deploy",
+    description: "Set the repository, runtime and environment variables, then ship a release.",
   },
   {
     step: "03",
+    icon: Globe,
+    title: "Attach the domain",
+    description: "Gatekeeperd manages the nginx site and certificate in front of your app.",
+  },
+  {
+    step: "04",
+    icon: Bell,
+    title: "Reminders run on schedule",
+    description: "Clients hear from Gatekeeperd as the due date approaches and after it passes.",
+  },
+  {
+    step: "05",
     icon: Zap,
-    title: "Let it enforce itself",
-    description: "Overdue access is gated automatically. Paid access is restored within seconds.",
+    title: "Access follows payment",
+    description: "Overdue projects are gated. Paid projects are restored within seconds.",
   },
 ];
 
@@ -80,7 +137,19 @@ export function LandingPage() {
             <ShieldCheck className="h-6 w-6 text-primary shrink-0" />
             <span>Gatekeeperd</span>
           </div>
-          <nav>
+          <nav className="flex items-center gap-6">
+            <a
+              href="#deployments"
+              className="hidden text-sm text-muted-foreground hover:text-foreground sm:block"
+            >
+              Deployments
+            </a>
+            <a
+              href="#how-it-works"
+              className="hidden text-sm text-muted-foreground hover:text-foreground sm:block"
+            >
+              How it works
+            </a>
             {token ? (
               <Button asChild>
                 <Link to="/app">
@@ -91,7 +160,7 @@ export function LandingPage() {
             ) : (
               <Button asChild>
                 <Link to="/login">
-                  Sign In
+                  Sign in
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -110,44 +179,52 @@ export function LandingPage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div className="text-center lg:text-left">
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-tight">
-                <span className="text-foreground">Never chase a</span>{" "}
-                <span className="text-primary">payment</span>{" "}
-                <span className="text-foreground">again</span>
+                Host your clients' apps. Get paid for them.
               </h1>
               <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-                Automated reminders. Instant access gating. Automatic restoration upon payment. Let policy handle late clients so you don't have to.
+                Gatekeeperd deploys and routes each client project, then gates access by payment
+                status. Reminders, enforcement and restoration run on their own, so you spend your
+                time building.
               </p>
               {!token && (
-                <div className="mt-10 flex justify-center lg:justify-start">
+                <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
                   <Button size="lg" asChild>
                     <Link to="/login">
-                      Get Started
+                      Get started
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <a href="#how-it-works">See how it works</a>
                   </Button>
                 </div>
               )}
             </div>
             <div className="lg:block">
-              <img src={rideTillICanNoMoreImg} alt="" className="w-full h-auto max-h-64 sm:max-h-none object-contain" loading="eager" />
+              <img
+                src={rideTillICanNoMoreImg}
+                alt=""
+                className="w-full h-auto max-h-64 sm:max-h-none object-contain"
+                loading="eager"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
+      {/* Payment enforcement */}
       <section id="features" className="border-b py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Put an end to the payment chase
+              Stop chasing late payments
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Tired of false promises and delayed payments? Gatekeeper enforces your terms so you don't have to argue.
+              Your terms are enforced by policy, so you don't have to argue about them.
             </p>
           </div>
           <div className="mt-16 space-y-24">
-            {features.map((feature, idx) => (
+            {paymentFeatures.map((feature, idx) => (
               <div
                 key={feature.title}
                 className={`flex flex-col gap-8 lg:gap-16 items-center ${
@@ -156,7 +233,9 @@ export function LandingPage() {
               >
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
-                  <p className="text-muted-foreground text-lg leading-relaxed">{feature.description}</p>
+                  <p className="text-muted-foreground text-lg leading-relaxed">
+                    {feature.description}
+                  </p>
                 </div>
                 <div className="flex-1">
                   <img
@@ -172,27 +251,77 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Deployments */}
+      <section id="deployments" className="border-b bg-muted/30 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.4fr]">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Deploy and manage the app too
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
+                A project is the client's application. Containers come and go underneath it, while
+                the customer, billing, domain and history stay put.
+              </p>
+              <img
+                src={heavyLiftingImg}
+                alt="Heavy lifting illustration showing automation"
+                className="mt-8 hidden h-auto max-h-64 w-full object-contain lg:block"
+                loading="lazy"
+              />
+            </div>
+            <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2">
+              {deployFeatures.map((item) => (
+                <div key={item.title}>
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <item.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="mb-1 text-lg font-semibold">{item.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Business state vs runtime */}
+      <section className="border-b py-20">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+          <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Lock className="h-6 w-6 text-primary" />
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Billing and deployments stay separate
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
+            A failed deploy never changes a client's access or billing status, and a blocked client
+            never needs their container stopped. Each side has its own state, so one problem cannot
+            quietly cause another.
+          </p>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section id="how-it-works" className="border-b py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">How it works</h2>
-            <p className="mt-4 text-muted-foreground">Three steps, then it runs on its own.</p>
+            <p className="mt-4 text-muted-foreground">Set a project up once, then let it run.</p>
           </div>
-          <div className="relative mt-16">
-            <div className="absolute top-8 left-1/2 -translate-x-1/2 hidden md:block w-[70%] h-0.5 bg-gradient-to-r from-primary/20 via-primary to-primary/20" />
-            <div className="grid gap-12 md:grid-cols-3">
-              {steps.map((item) => (
-                <div key={item.step} className="relative flex flex-col items-center text-center">
-                  <div className="z-10 mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
-                    <item.icon className="h-7 w-7" />
-                  </div>
-                  <span className="mb-2 text-sm font-semibold text-muted-foreground">STEP {item.step}</span>
-                  <h3 className="mb-2 text-xl font-semibold">{item.title}</h3>
-                  <p className="text-muted-foreground max-w-xs">{item.description}</p>
+          <div className="mt-16 grid gap-12 sm:grid-cols-2 lg:grid-cols-5 lg:gap-6">
+            {steps.map((item) => (
+              <div key={item.step} className="flex flex-col items-center text-center">
+                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
+                  <item.icon className="h-6 w-6" />
                 </div>
-              ))}
-            </div>
+                <span className="mb-2 text-sm font-semibold text-muted-foreground">
+                  Step {item.step}
+                </span>
+                <h3 className="mb-2 text-lg font-semibold">{item.title}</h3>
+                <p className="max-w-xs text-sm text-muted-foreground">{item.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -205,23 +334,24 @@ export function LandingPage() {
               <ShieldCheck className="h-7 w-7 text-primary" />
             </div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Put payment enforcement on autopilot
+              One place for the app and the invoice
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Set project terms once and let Gatekeeper handle reminders and access gating.
+              Deploy client projects, route their domains, and let payment status decide who gets
+              through.
             </p>
             <div className="mt-8 flex items-center justify-center gap-4">
               {token ? (
                 <Button size="lg" asChild>
                   <Link to="/app">
-                    Go to Dashboard
+                    Go to dashboard
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
               ) : (
                 <Button size="lg" asChild>
                   <Link to="/login">
-                    Get Started Free
+                    Get started
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -234,7 +364,10 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="border-t py-8">
         <div className="mx-auto max-w-7xl px-4 text-center text-sm text-muted-foreground sm:px-6 lg:px-8">
-          <p>&copy; {new Date().getFullYear()} Gatekeeper. Built for freelancers who value their time.</p>
+          <p>
+            &copy; {new Date().getFullYear()} Gatekeeperd. Built for freelancers who value their
+            time.
+          </p>
         </div>
       </footer>
     </div>

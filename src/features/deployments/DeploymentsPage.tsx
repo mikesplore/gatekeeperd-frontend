@@ -70,7 +70,7 @@ function DeploymentDetails({ item }: { item: DeploymentHistoryItem }) {
   }, [open]);
 
   return <>
-    <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)} className="cursor-pointer text-xs font-medium text-primary hover:underline">Details</button>
+    <Button ref={trigger} type="button" variant="link" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(value => !value)} className="h-auto cursor-pointer px-0 py-0 text-xs font-medium">Details</Button>
     {open && position && createPortal(
       <div ref={panel} role="dialog" aria-label="Deployment details" tabIndex={-1} style={{ top: position.top, left: position.left }} className="fixed z-[100] grid w-72 gap-1 rounded-md border bg-popover p-3 text-xs text-popover-foreground shadow-lg">
         <p>Commit: {item.sourceCommit ?? "not recorded"}</p>
@@ -86,12 +86,23 @@ function DeploymentDetails({ item }: { item: DeploymentHistoryItem }) {
 
 export function DeploymentsPage() {
   const queryClient = useQueryClient();
+  const [pendingDeploymentAction, setPendingDeploymentAction] = useState<{ id: string; action: "redeploy" | "cancel" } | null>(null);
   const reconciliation = useDeploymentReconciliation();
   const history = useQuery({
     queryKey: ["deployment-history"],
     queryFn: async () => (await api.get<DeploymentHistoryPage>("/admin/deployment-history", { params: { limit: 100, offset: 0 } })).data,
     refetchInterval: 10_000,
   });
+  const runDeploymentAction = async (item: DeploymentHistoryItem, action: "redeploy" | "cancel") => {
+    setPendingDeploymentAction({ id: item.id, action });
+    try {
+      const endpoint = `/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/${action}${action === "cancel" ? `?environment=${encodeURIComponent(item.environment)}` : ""}`;
+      await api.post(endpoint);
+      toast.success(action === "cancel" ? "Deployment cancelled" : item.status.toLowerCase() === "failed" ? "Retry queued" : "Redeployment queued");
+      await queryClient.invalidateQueries({ queryKey: ["deployment-history"] });
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+    finally { setPendingDeploymentAction(null); }
+  };
   const columns: DataTableColumn<DeploymentHistoryItem>[] = [
     {
       key: "project",
@@ -137,7 +148,7 @@ export function DeploymentsPage() {
     {
       key: "actions",
       header: "Actions",
-      render: item => <div className="flex flex-wrap items-center gap-2">{item.canRedeploy && <Button size="sm" variant={item.status.toLowerCase() === "failed" ? "default" : "outline"} onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/redeploy`); toast.success(item.status.toLowerCase() === "failed" ? "Retry queued" : "Redeployment queued"); await queryClient.invalidateQueries({ queryKey: ["deployment-history"] }); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Rocket className="h-4 w-4" />{item.status.toLowerCase() === "failed" ? "Retry" : "Redeploy"}</Button>}{item.canCancel && <Button size="sm" variant="destructive" onClick={async () => { try { await api.post(`/admin/projects/${encodeURIComponent(item.projectSlug)}/deployments/${item.id}/cancel?environment=${encodeURIComponent(item.environment)}`); toast.success("Deployment cancelled"); await queryClient.invalidateQueries({ queryKey: ["deployment-history"] }); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Square className="h-4 w-4" />Cancel</Button>}<DeploymentDetails item={item} /></div>,
+      render: item => <div className="flex flex-wrap items-center gap-2">{item.canRedeploy && <Button size="sm" variant={item.status.toLowerCase() === "failed" ? "default" : "outline"} loading={pendingDeploymentAction?.id === item.id && pendingDeploymentAction.action === "redeploy"} loadingText={item.status.toLowerCase() === "failed" ? "Retrying…" : "Redeploying…"} disabled={pendingDeploymentAction !== null} onClick={() => void runDeploymentAction(item, "redeploy")}><Rocket className="h-4 w-4" />{item.status.toLowerCase() === "failed" ? "Retry" : "Redeploy"}</Button>}{item.canCancel && <Button size="sm" variant="destructive" loading={pendingDeploymentAction?.id === item.id && pendingDeploymentAction.action === "cancel"} loadingText="Cancelling…" disabled={pendingDeploymentAction !== null} onClick={() => void runDeploymentAction(item, "cancel")}><Square className="h-4 w-4" />Cancel</Button>}<DeploymentDetails item={item} /></div>,
     },
   ];
   const statusOptions = [...new Set((history.data?.items ?? []).map(item => item.status))]
@@ -151,8 +162,8 @@ export function DeploymentsPage() {
           <p className="font-medium">Runtime reconciliation</p>
           <p className="text-sm text-foreground/70">Compare active deployment records with Docker and managed nginx routes.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => reconciliation.refetch()} disabled={reconciliation.isFetching} className="self-start sm:self-auto">
-          <RefreshCw className={`h-4 w-4 ${reconciliation.isFetching ? "animate-spin" : ""}`} />Refresh
+        <Button variant="outline" size="sm" onClick={() => reconciliation.refetch()} loading={reconciliation.isFetching} loadingText="Refresh" disabled={reconciliation.isFetching} className="self-start sm:self-auto">
+          <RefreshCw className="h-4 w-4" />Refresh
         </Button>
       </CardHeader>
       <CardContent>

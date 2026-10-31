@@ -72,13 +72,12 @@ export interface UpdateProjectPayload {
 
 export interface ProjectSetupConfiguration {
   id: string; repository: string | null; gitRef: string; registry: string; imageName: string; imageTag: string;
-  registryCredentialId?: string | null; autoDeploy?: boolean; containerPort?: number | null; hostPort?: number | null; network: string; restartPolicy: string; environment: string;
+  autoDeploy?: boolean; containerPort?: number | null; hostPort?: number | null; network: string; restartPolicy: string; environment: string;
   env: Record<string, string>; envKeys: string[]; secretSetId?: string | null; secretSetVersion?: number | null;
 }
 export interface ProjectSetupStatus {
   projectId: string; slug: string; name: string; domain: string; sourceRuntime?: ProjectSetupConfiguration | null;
   serviceId?: string | null;
-  credentialsConfigured: boolean; credentialVersion?: number | null;
   gateway?: { domain: string; status: string; serviceId?: string | null; containerPort?: number | null; bindings?: ServiceDomainBinding[] } | null;
   activeDeploymentId?: string | null; activeDeploymentStatus?: string | null;
   latestDeploymentId?: string | null; latestDeploymentStatus?: string | null;

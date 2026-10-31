@@ -883,11 +883,11 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
             </Button>
           )}
           {wizardStep < 3 ? (
-            <Button type="button" onClick={handleNext} disabled={checkingWizard}>
+            <Button type="button" loading={checkingWizard} loadingText="Checking…" disabled={checkingWizard} onClick={handleNext}>
               {checkingWizard ? "Checking..." : "Next"}
             </Button>
           ) : (
-            <Button type="button" onClick={handleCreate} disabled={createContainer.isPending || checkingWizard}>
+            <Button type="button" onClick={handleCreate} disabled={createContainer.isPending || checkingWizard} loading={createContainer.isPending || checkingWizard} loadingText={checkingWizard ? "Checking…" : "Creating…"}>
               {createContainer.isPending ? "Creating..." : "Confirm & Create"}
             </Button>
           )}

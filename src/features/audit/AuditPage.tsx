@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 
 export function AuditPage() {
   const pageSize = 15;
+  const [exporting, setExporting] = useState(false);
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("page") ?? 0) || 0);
   const search = params.get("q") ?? "";
@@ -42,7 +44,7 @@ export function AuditPage() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-sm">Activity history</CardTitle>
-        <div className="flex gap-1"><Button variant="outline" size="sm" onClick={async () => { try { const response = await api.get<Blob>("/admin/audit/export", { params: { limit: 5000, action: action || undefined }, responseType: "blob" }); const url = URL.createObjectURL(response.data); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "gatekeeper-audit.csv"; anchor.click(); URL.revokeObjectURL(url); } catch (error) { toast.error(getApiErrorMessage(error)); } }}><Download className="mr-2 h-4 w-4"/>Export CSV</Button><Button variant="ghost" size="icon" onClick={() => audit.refetch()} aria-label="Refresh audit history"><RefreshCw className="h-4 w-4" /></Button></div>
+        <div className="flex gap-1"><Button variant="outline" size="sm" loading={exporting} loadingText="Exporting…" onClick={async () => { setExporting(true); try { const response = await api.get<Blob>("/admin/audit/export", { params: { limit: 5000, action: action || undefined }, responseType: "blob" }); const url = URL.createObjectURL(response.data); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "gatekeeper-audit.csv"; anchor.click(); URL.revokeObjectURL(url); } catch (error) { toast.error(getApiErrorMessage(error)); } finally { setExporting(false); } }}><Download className="mr-2 h-4 w-4"/>Export CSV</Button><Button variant="ghost" size="icon" loading={audit.isFetching} onClick={() => void audit.refetch()} aria-label="Refresh audit history"><RefreshCw className="h-4 w-4" /></Button></div>
       </CardHeader>
       <CardContent><QueryState isLoading={audit.isLoading} isError={audit.isError} error={audit.error} data={audit.data}>
         {(result) => <DataTable data={result.entries} columns={columns} filters={filters} getRowKey={entry => entry.id} mode="server" total={result.total} page={page} pageSize={pageSize} onPageChange={nextPage => update("page", String(nextPage))} search={{ value: search, onChange: value => update("q", value) }} searchPlaceholder="Search actor, action, or reason…" filterValues={{ Action: action }} onFilterChange={values => update("action", values.Action ?? "")} sortBy={sort} sortDirection={direction} onSortChange={updateSort} isLoading={audit.isFetching} />}

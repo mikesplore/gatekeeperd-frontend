@@ -104,7 +104,7 @@ export function LoginPage() {
                 {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
               </div>
               {errors.root && <p className="text-sm text-destructive">{errors.root.message}</p>}
-              <Button type="submit" className="w-full" disabled={login.isPending}>
+              <Button type="submit" className="w-full" loading={login.isPending} disabled={login.isPending}>
                 {login.isPending ? "Signing in..." : "Sign in"}
               </Button>
               <Link to="/forgot-password" className="block text-center text-sm text-muted-foreground hover:text-foreground">Forgot password?</Link>

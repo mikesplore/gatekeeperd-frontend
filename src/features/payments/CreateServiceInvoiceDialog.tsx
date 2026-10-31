@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,14 +9,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjectServices } from "@/hooks/useProjects";
 import { api, getApiErrorMessage } from "@/lib/api";
 
-export function CreateServiceInvoiceDialog({ projectId, projectName, currency, open, onOpenChange, onCreated }: {
-  projectId: string; projectName: string; currency: string; open: boolean; onOpenChange: (open: boolean) => void; onCreated?: () => Promise<unknown> | void;
+export function CreateServiceInvoiceDialog({ projectId, projectName, currency, open, onOpenChange, onCreated, initialServiceId = "" }: {
+  projectId: string; projectName: string; currency: string; open: boolean; onOpenChange: (open: boolean) => void; onCreated?: () => Promise<unknown> | void; initialServiceId?: string;
 }) {
   const services = useProjectServices(projectId);
-  const [serviceId, setServiceId] = useState("");
+  const [serviceId, setServiceId] = useState(initialServiceId);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setServiceId(initialServiceId);
+    const service = services.data?.find(item => item.id === initialServiceId);
+    setDescription(service ? `${projectName} — ${service.name}` : "");
+  }, [open, initialServiceId, projectName, services.data]);
 
   const create = async () => {
     const service = services.data?.find(item => item.id === serviceId);
@@ -40,7 +47,7 @@ export function CreateServiceInvoiceDialog({ projectId, projectName, currency, o
         <div className="space-y-2"><Label htmlFor="service-invoice-amount">Amount to bill ({currency})</Label><Input id="service-invoice-amount" type="number" min="0.01" step="0.01" value={amount} onChange={event => setAmount(event.target.value)} placeholder="Enter this service’s amount" /></div>
         <div className="space-y-2"><Label htmlFor="service-invoice-description">Invoice description</Label><Textarea id="service-invoice-description" maxLength={500} value={description} onChange={event => setDescription(event.target.value)} placeholder="What is this service being billed for?" /></div>
       </div>
-      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button disabled={saving || !serviceId || Number(amount) <= 0 || !description.trim()} onClick={() => void create()}>{saving ? "Creating…" : "Create service invoice"}</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button loading={saving} disabled={saving || !serviceId || Number(amount) <= 0 || !description.trim()} onClick={() => void create()}>{saving ? "Creating & syncing…" : "Create & sync invoice"}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }

@@ -62,7 +62,7 @@ export function NotificationsPage() {
     {
       key: "actions",
       header: "",
-      render: item => <div className="flex justify-end"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label={`Actions for ${item.title}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={action.isPending || item.read} onClick={() => action.mutate({ id: item.id, state: "read" })}>{item.read ? "Read" : "Mark read"}</DropdownMenuItem><DropdownMenuItem disabled={action.isPending} onClick={() => action.mutate({ id: item.id, state: "dismissed" })}>Dismiss</DropdownMenuItem><DropdownMenuItem disabled={action.isPending} onClick={() => action.mutate({ id: item.id, state: "archived" })}>Archive</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>,
+      render: item => <div className="flex justify-end"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" loading={action.isPending} aria-label={`Actions for ${item.title}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={action.isPending || item.read} onClick={() => action.mutate({ id: item.id, state: "read" })}>{item.read ? "Read" : "Mark read"}</DropdownMenuItem><DropdownMenuItem disabled={action.isPending} onClick={() => action.mutate({ id: item.id, state: "dismissed" })}>Dismiss</DropdownMenuItem><DropdownMenuItem disabled={action.isPending} onClick={() => action.mutate({ id: item.id, state: "archived" })}>Archive</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>,
     },
   ];
 
@@ -75,8 +75,8 @@ export function NotificationsPage() {
   return <div className="space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-muted-foreground">Recent system, deployment, payment, and integration events.</p>
-      <Button variant="outline" size="sm" onClick={() => { setItems([]); if (offset !== 0) update("offset", ""); void notifications.refetch(); }} disabled={notifications.isFetching}>
-        <RefreshCw className={`mr-2 h-4 w-4 ${notifications.isFetching ? "animate-spin" : ""}`} />Refresh
+      <Button variant="outline" size="sm" onClick={() => { setItems([]); if (offset !== 0) update("offset", ""); void notifications.refetch(); }} loading={notifications.isFetching} loadingText="Refresh" disabled={notifications.isFetching}>
+        <RefreshCw className="mr-2 h-4 w-4" />Refresh
       </Button>
     </div>
     <Card>
@@ -95,7 +95,7 @@ export function NotificationsPage() {
               onFilterChange={values => update("severity", values.Severity ?? "")}
               emptyMessage={items.length > 0 ? "No notifications match the current filters." : "No notifications found."}
             />
-            {result.hasMore && <div className="mt-4 flex justify-center border-t pt-4"><Button variant="outline" disabled={notifications.isFetching} onClick={() => update("offset", String(offset + PAGE_SIZE))}>{notifications.isFetching ? "Loading…" : "Load more"}</Button></div>}
+            {result.hasMore && <div className="mt-4 flex justify-center border-t pt-4"><Button variant="outline" loading={notifications.isFetching} loadingText="Refresh" disabled={notifications.isFetching} onClick={() => update("offset", String(offset + PAGE_SIZE))}>{notifications.isFetching ? "Loading…" : "Load more"}</Button></div>}
           </>}
         </QueryState>
       </CardContent>

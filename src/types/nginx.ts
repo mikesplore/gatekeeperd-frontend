@@ -1,5 +1,10 @@
 import type { ServiceDomainBinding } from "@/types/project";
 
+export interface NginxWizardDomainBinding extends ServiceDomainBinding {
+  resolvedHostPort: number | null;
+  nginxEnabled: boolean;
+}
+
 export interface NginxStatus {
   enabled: boolean;
   configPath: string;
@@ -50,28 +55,17 @@ export interface NginxBackup {
 }
 
 export interface NginxWizardContext {
-  slug: string;
   serviceId: string;
-  domain: string | null;
-  nginxEnabled: boolean;
-  configuredPort: number | null;
-  configuredContainerPort: number | null;
-  publishedPorts: Record<string, number>;
   runtimeHealth: string | null;
-  resolvedUpstreamHost: string | null;
   installedCertificates: string[];
-  resolvedCertificateDomain: string | null;
-  bindings?: ServiceDomainBinding[];
+  domainBindings: NginxWizardDomainBinding[];
 }
 
 export interface EnableNginxPayload {
-  serviceId?: string;
-  domain?: string;
-  containerPort?: number;
-  certificateDomain?: string;
-  sslCertificatePath?: string;
-  sslCertificateKeyPath?: string;
-  requireSsl?: boolean;
+  serviceId: string;
+  domain: string;
+  domainBindingId: string;
+  requireSsl: boolean;
 }
 
 export interface EnableNginxResponse {

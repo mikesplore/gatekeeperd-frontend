@@ -78,7 +78,7 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
       {navGroups.map(group => {
         const groupOpen = openGroups.includes(group.label);
         return <div key={group.label} className="space-y-1">
-        {!collapsed && <button type="button" aria-expanded={groupOpen} onClick={() => setOpenGroups(current => groupOpen ? current.filter(label => label !== group.label) : [...current, group.label])} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"><span>{group.label}</span><ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !groupOpen && "-rotate-90")} /></button>}
+        {!collapsed && <Button type="button" variant="ghost" aria-expanded={groupOpen} onClick={() => setOpenGroups(current => groupOpen ? current.filter(label => label !== group.label) : [...current, group.label])} className="flex h-auto w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"><span>{group.label}</span><ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !groupOpen && "-rotate-90")} /></Button>}
         {(collapsed || groupOpen) && group.items.map(({ to, label, icon: Icon }) => {
         const active = to === "/app"
           ? location.pathname === "/app"

@@ -80,7 +80,7 @@ function ContainerActionsMenu({ container }: { container: ContainerInfo }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" loading={start.isPending || stop.isPending || restart.isPending || deleteContainer.isPending}>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -109,7 +109,7 @@ function ContainerActionsMenu({ container }: { container: ContainerInfo }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               variant="destructive"
-              disabled={stop.isPending}
+              loading={stop.isPending} disabled={stop.isPending}
               onClick={() => {
                 runAction("stop");
                 setConfirmStop(false);
@@ -133,7 +133,7 @@ function ContainerActionsMenu({ container }: { container: ContainerInfo }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               variant="destructive"
-              disabled={deleteContainer.isPending}
+              loading={deleteContainer.isPending} disabled={deleteContainer.isPending}
               onClick={() => {
                 deleteContainer.mutate(container.name, {
                   onSuccess: () => toast.success(`Container ${container.name} deleted`),

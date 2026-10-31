@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useProjectInvoice, useResyncProjectInvoice, useCreateProjectInvoice, useTransferProject, useProjectSecretRotation, useProjectServices } from "@/hooks/useProjects";
+import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useTransferProject, useProjectSecretRotation, useProjectServices } from "@/hooks/useProjects";
 import { useProjectPayments } from "@/hooks/usePayments";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
@@ -25,7 +25,6 @@ import { ProjectServicesPanel } from "@/features/projects/ProjectServicesPanel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 function parseSecretEnv(text: string): [string, string][] {
@@ -67,7 +66,7 @@ function parseSecretEnv(text: string): [string, string][] {
 }
 
 function InfoHint({ children }: { children: string }) {
-  return <Tooltip><TooltipTrigger asChild><button type="button" aria-label="More information" className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="h-4 w-4" /></button></TooltipTrigger><TooltipContent className="max-w-xs leading-relaxed">{children}</TooltipContent></Tooltip>;
+  return <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label="More information" className="h-6 w-6 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent className="max-w-xs leading-relaxed">{children}</TooltipContent></Tooltip>;
 }
 
 export function ProjectDetailPage() {
@@ -78,7 +77,6 @@ export function ProjectDetailPage() {
   const overview = useProjectOverview(slug);
   const rotateSecrets = useProjectSecretRotation(data?.project.id ?? "", slug);
   const [secretRows, setSecretRows] = useState<{ name: string; value: string }[]>([{ name: "", value: "" }]);
-  const invoiceQuery = useProjectInvoice(slug);
   const servicesQuery = useProjectServices(data?.project.id ?? "");
   const [editOpen, setEditOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -90,16 +88,12 @@ export function ProjectDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
-  const [invoiceDownloading, setInvoiceDownloading] = useState(false);
-  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
-  const [invoiceDescription, setInvoiceDescription] = useState("");
   const [paymentPage, setPaymentPage] = useState(0);
-  const projectPayments = useProjectPayments(slug, 25, paymentPage * 25);
+  const projectPayments = useProjectPayments(data?.project.id ?? "", 25, paymentPage * 25);
   const refreshPaymentData = async () => {
     await Promise.all([
       refetchProjectDetail(),
       projectPayments.refetch(),
-      invoiceQuery.refetch(),
       servicesQuery.refetch(),
       overview.refetch(),
     ]);
@@ -108,8 +102,6 @@ export function ProjectDetailPage() {
   const [serviceMode, setServiceMode] = useState("production");
   const transferProject = useTransferProject(slug);
   const addAdjustment = useAddProjectAdjustment(slug);
-  const resyncInvoice = useResyncProjectInvoice(slug);
-  const createInvoice = useCreateProjectInvoice(slug);
 
   const openProjectSetup = (step: number) => {
     setSetupStep(step);
@@ -222,7 +214,7 @@ export function ProjectDetailPage() {
                         </div>
                         <InfoHint>Saving creates a new secret version and queues a deployment. The deployment worker supplies the values to the container when it starts.</InfoHint>
                       </div>
-                      <Button disabled={rotateSecrets.isPending || !secretRows.some(row => row.name.trim())} onClick={async () => { try { const secretEnv: Record<string, string> = {}; const names = new Set<string>(); secretRows.filter(row => row.name.trim()).forEach((row, index) => { const name = row.name.trim(); if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Invalid variable name in row ${index + 1}.`); if (names.has(name)) throw new Error(`Variable name ${name} appears more than once.`); names.add(name); secretEnv[name] = row.value; }); await rotateSecrets.mutateAsync(secretEnv); setSecretRows([{ name: "", value: "" }]); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
+                      <Button disabled={rotateSecrets.isPending || !secretRows.some(row => row.name.trim())} onClick={async () => { try { const secretEnv: Record<string, string> = {}; const names = new Set<string>(); secretRows.filter(row => row.name.trim()).forEach((row, index) => { const name = row.name.trim(); if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Invalid variable name in row ${index + 1}.`); if (names.has(name)) throw new Error(`Variable name ${name} appears more than once.`); names.add(name); secretEnv[name] = row.value; }); await rotateSecrets.mutateAsync(secretEnv); setSecretRows([{ name: "", value: "" }]); toast.success("Application secret version saved and deployment queued"); } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); } }} loading={rotateSecrets.isPending}>{rotateSecrets.isPending ? "Saving and queueing…" : "Save and deploy"}</Button>
                     </CardContent>
                   </Card>
                 </div>
@@ -230,20 +222,6 @@ export function ProjectDetailPage() {
               <ProjectServicesPanel project={project} view="settings" />
             </TabsContent>
             <TabsContent value="payments">
-              {invoiceQuery.isLoading && <Card className="mb-4"><CardHeader><Skeleton className="h-6 w-36" /></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div></CardContent></Card>}
-              {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) !== "invoice_unavailable" && <Alert className="mb-4"><AlertTitle>Invoice unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(invoiceQuery.error)}</AlertDescription></Alert>}
-              {invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) === "invoice_unavailable" && (servicesQuery.data?.length ?? 0) > 1
-                ? <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle>Service invoices</CardTitle><p className="mt-1 text-sm text-muted-foreground">This project bills services independently. Enter an amount for each service invoice.</p></div><Button size="sm" onClick={() => setServiceInvoiceOpen(true)}>Create service invoice</Button></CardHeader></Card>
-                : invoiceQuery.isError && getApiErrorCode(invoiceQuery.error) === "invoice_unavailable" && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle>Invoice</CardTitle><p className="mt-1 text-sm text-muted-foreground">No invoice has been created for this project.</p></div><Button size="sm" onClick={() => { setInvoiceDescription(`Services for ${project.name}`); setCreateInvoiceOpen(true); }}>Create invoice</Button></CardHeader></Card>}
-              {invoiceQuery.data && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between gap-3"><CardTitle>Invoice {invoiceQuery.data.invoice.number}</CardTitle><div className="flex gap-2">{invoiceQuery.data.invoice.download_url && <Button size="sm" variant="outline" disabled={invoiceDownloading} onClick={async () => { setInvoiceDownloading(true); try { const response = await api.get(`/admin/projects/${encodeURIComponent(slug)}/invoice/download`, { responseType: "blob" }); const url = URL.createObjectURL(response.data); const link = document.createElement("a"); link.href = url; link.download = `invoice-${slug}.pdf`; link.click(); URL.revokeObjectURL(url); } finally { setInvoiceDownloading(false); } }}>{invoiceDownloading ? "Downloading…" : "Download invoice"}</Button>}<Button size="sm" variant="outline" disabled={resyncInvoice.isPending} onClick={() => resyncInvoice.mutate(undefined, { onSuccess: async () => { toast.success("Scribed synchronization queued"); await refreshPaymentData(); }, onError: (error) => toast.error(getApiErrorMessage(error)) })}>{resyncInvoice.isPending ? "Syncing…" : "Sync with Scribed"}</Button></div></CardHeader><CardContent><div className="grid gap-4 sm:grid-cols-4"><InfoRow label="Status" value={invoiceQuery.data.invoice.status.replace(/_/g, " ")} /><InfoRow label="Total" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.amount}`} /><InfoRow label="Paid" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.paid}`} /><InfoRow label="Balance" value={`${invoiceQuery.data.invoice.currency} ${invoiceQuery.data.invoice.balance}`} /></div></CardContent></Card>}
-              <Dialog open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen}>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Create invoice</DialogTitle><DialogDescription>Creates the invoice in Scribed, then syncs this project’s payment history so missing receipts can be generated.</DialogDescription></DialogHeader>
-                  <div className="space-y-2"><Label htmlFor="invoice-description">Description</Label><Input id="invoice-description" value={invoiceDescription} onChange={event => setInvoiceDescription(event.target.value)} maxLength={500} /></div>
-                  <p className="text-sm text-muted-foreground">Invoice total: {project.currency} {((project.baseAmount ?? project.amountDue ?? 0) + project.additionalCharges - project.discounts).toLocaleString()}</p>
-                  <DialogFooter><Button variant="outline" onClick={() => setCreateInvoiceOpen(false)}>Cancel</Button><Button disabled={!invoiceDescription.trim() || createInvoice.isPending} onClick={() => createInvoice.mutate(invoiceDescription.trim(), { onSuccess: async () => { setCreateInvoiceOpen(false); toast.success("Invoice created; Scribed sync queued"); await refreshPaymentData(); }, onError: error => toast.error(getApiErrorMessage(error)) })}>{createInvoice.isPending ? "Creating…" : "Create invoice"}</Button></DialogFooter>
-                </DialogContent>
-              </Dialog>
               <section className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -269,8 +247,8 @@ export function ProjectDetailPage() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  <PaymentsHistoryTable payments={(projectPayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((projectPayments.data?.payments ?? []).filter(payment => payment.gatewayStatus === "success").map(payment => [payment.providerReference, `/admin/projects/${encodeURIComponent(project.slug)}/payments/${payment.id}/receipt`]))} receiptNames={Object.fromEntries((invoiceQuery.data?.payments ?? []).map((payment) => [payment.provider_reference, payment.receipt_number]))} onPaymentChanged={refreshPaymentData} />
-                  <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{projectPayments.data ? `${projectPayments.data.offset + 1}-${projectPayments.data.offset + projectPayments.data.payments.length} of ${projectPayments.data.total}` : "Loading payments…"}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={paymentPage === 0 || projectPayments.isFetching} onClick={() => setPaymentPage(value => value - 1)}>Previous</Button><Button size="sm" variant="outline" disabled={!projectPayments.data || projectPayments.data.offset + projectPayments.data.payments.length >= projectPayments.data.total || projectPayments.isFetching} onClick={() => setPaymentPage(value => value + 1)}>Next</Button></div></div>
+                  <PaymentsHistoryTable payments={(projectPayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((projectPayments.data?.payments ?? []).filter(payment => payment.gatewayStatus === "success" && payment.serviceId).map(payment => [payment.providerReference, `/admin/projects/${project.id}/services/${payment.serviceId}/payments/${payment.id}/receipt`]))} onPaymentChanged={refreshPaymentData} />
+                  <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{projectPayments.data ? `${projectPayments.data.offset + 1}-${projectPayments.data.offset + projectPayments.data.payments.length} of ${projectPayments.data.total}` : "Loading payments…"}</span><div className="flex gap-2"><Button size="sm" variant="outline" loading={projectPayments.isFetching} disabled={paymentPage === 0 || projectPayments.isFetching} onClick={() => setPaymentPage(value => value - 1)}>Previous</Button><Button size="sm" variant="outline" loading={projectPayments.isFetching} disabled={!projectPayments.data || projectPayments.data.offset + projectPayments.data.payments.length >= projectPayments.data.total || projectPayments.isFetching} onClick={() => setPaymentPage(value => value + 1)}>Next</Button></div></div>
               </section>
             </TabsContent>
 
@@ -312,7 +290,7 @@ export function ProjectDetailPage() {
                 <label className="space-y-1 text-sm">Deployment mode<select value={deploymentMode} onChange={(event) => setDeploymentMode(event.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2"><option value="client_hosted">Client hosted</option><option value="external_hosted">External hosted</option><option value="developer_hosted">Developer hosted</option></select></label>
                 <label className="space-y-1 text-sm">Service mode<select value={serviceMode} onChange={(event) => setServiceMode(event.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2"><option value="production">Production</option><option value="testing">Testing</option><option value="development">Development</option></select></label>
               </div>
-              <DialogFooter><Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button><Button disabled={transferProject.isPending} onClick={async () => { await transferProject.mutateAsync({ deploymentMode, serviceMode }); setTransferOpen(false); }}>Transfer project</Button></DialogFooter>
+              <DialogFooter><Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button><Button loading={transferProject.isPending} disabled={transferProject.isPending} onClick={async () => { await transferProject.mutateAsync({ deploymentMode, serviceMode }); setTransferOpen(false); }}>Transfer project</Button></DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -325,7 +303,7 @@ function AdjustmentDialogBody({ pending, onSubmit, onCancel }: { pending: boolea
   const [type, setType] = useState<"ADDITIONAL_CHARGE" | "DISCOUNT">("ADDITIONAL_CHARGE");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
-  return <DialogContent><DialogHeader><DialogTitle>Add charge or discount</DialogTitle><DialogDescription>Adjust the project ledger without changing its original charge or payment history.</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="space-y-2"><Label>Adjustment type</Label><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="ADDITIONAL_CHARGE">Additional charge</option><option value="DISCOUNT">Discount</option></select></div><div className="space-y-2"><Label htmlFor="adjustment-amount">Amount</Label><Input id="adjustment-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></div><div className="space-y-2"><Label htmlFor="adjustment-reason">Reason</Label><Input id="adjustment-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. Added reporting feature" /></div></div><DialogFooter><Button variant="outline" onClick={onCancel}>Cancel</Button><Button disabled={pending || !(Number(amount) > 0) || !reason.trim()} onClick={() => onSubmit({ type, amount: Number(amount), reason: reason.trim() })}>{pending ? "Saving…" : "Save adjustment"}</Button></DialogFooter></DialogContent>;
+  return <DialogContent><DialogHeader><DialogTitle>Add charge or discount</DialogTitle><DialogDescription>Adjust the project ledger without changing its original charge or payment history.</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="space-y-2"><Label>Adjustment type</Label><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="ADDITIONAL_CHARGE">Additional charge</option><option value="DISCOUNT">Discount</option></select></div><div className="space-y-2"><Label htmlFor="adjustment-amount">Amount</Label><Input id="adjustment-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></div><div className="space-y-2"><Label htmlFor="adjustment-reason">Reason</Label><Input id="adjustment-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. Added reporting feature" /></div></div><DialogFooter><Button variant="outline" onClick={onCancel}>Cancel</Button><Button loading={pending} disabled={pending || !(Number(amount) > 0) || !reason.trim()} onClick={() => onSubmit({ type, amount: Number(amount), reason: reason.trim() })}>{pending ? "Saving…" : "Save adjustment"}</Button></DialogFooter></DialogContent>;
 }
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {

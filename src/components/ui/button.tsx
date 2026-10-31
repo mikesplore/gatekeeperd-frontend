@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
+import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -33,13 +34,36 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  /** Shows a shared spinner and disables the button while its action is running. */
+  loading?: boolean;
+  /** Optional replacement label shown beside the spinner while loading. */
+  loadingText?: React.ReactNode;
+  /** Optional replacement indicator for actions that need a specialized busy icon. */
+  loadingIcon?: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading = false, loadingText, loadingIcon, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+    const indicator = loadingIcon ?? <LoaderCircle aria-hidden="true" className="animate-spin" />;
+    const content = !loading
+      ? children
+      : asChild && React.isValidElement<{ children?: React.ReactNode }>(children)
+        ? React.cloneElement(children, {}, <>{indicator}{size === "icon" ? null : loadingText ?? children.props.children}</>)
+        : <>{indicator}{size === "icon" ? null : loadingText ?? children}</>;
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }), asChild && loading && "pointer-events-none")}
+        ref={ref}
+        {...props}
+        disabled={disabled || (loading && !asChild)}
+        aria-busy={loading || undefined}
+        aria-disabled={asChild && loading || undefined}
+        tabIndex={asChild && loading ? -1 : props.tabIndex}
+        data-loading={loading ? "true" : undefined}
+      >
+        {content}
+      </Comp>
     );
   },
 );
