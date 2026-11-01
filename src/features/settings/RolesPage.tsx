@@ -42,8 +42,7 @@ export function RolesPage() {
   const toggle = (code: string) => setSelected(current => current.includes(code) ? current.filter(item => item !== code) : [...current, code]);
 
   return <div className="space-y-6">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h1 className="text-2xl font-semibold">Roles and permissions</h1><p className="text-sm text-muted-foreground">Grant only the capabilities each account needs.</p></div>
+    <div className="flex justify-end">
       <Button onClick={startCreate}>Create role</Button>
     </div>
     {roles.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(roles.error)}</p>}
