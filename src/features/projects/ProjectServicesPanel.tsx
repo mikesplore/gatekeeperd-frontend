@@ -122,7 +122,7 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
 }) {
   const keys = metadata?.latest?.keys ?? [];
   return <Card>
-    <CardHeader><CardTitle>Project shared environment</CardTitle><p className="text-sm text-muted-foreground">Imported keys are available to services. Values are write-only; submitting creates a version and redeploys services that follow the latest shared set.</p></CardHeader>
+    <CardHeader><CardTitle>Project shared environment</CardTitle><p className="text-sm text-muted-foreground">Environment values entered here are shared with this project’s services.</p></CardHeader>
     <CardContent className="space-y-4">
       <p className="text-xs text-muted-foreground">Latest shared set: {metadata?.latest ? `v${metadata.latest.version}` : "not configured"} · {keys.length} key(s)</p>
       {keys.length > 0 && <div className="flex flex-wrap gap-2">{keys.map(key => <span key={key} className="rounded border px-2 py-1 font-mono text-xs">{key}{key in draft ? " · replacement entered" : " · value hidden"}</span>)}</div>}
