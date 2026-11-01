@@ -86,7 +86,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
         {servicesQuery.isLoading && <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>}
         {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
         {!servicesQuery.isLoading && !servicesQuery.isError && servicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No services are configured for this project.</p>}
-        {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
+        {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} sitesReady={sitesQuery.isSuccess} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
         </div>
         {canManageServices && <Dialog open={createServiceOpen} onOpenChange={open => { if (!creatingService) setCreateServiceOpen(open); }}>
           <DialogContent className="fixed inset-y-0 right-0 left-auto top-0 flex h-full w-full max-w-md translate-x-0 translate-y-0 flex-col items-stretch gap-6 overflow-y-auto rounded-none border-l p-6 shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right sm:max-w-md">
@@ -109,7 +109,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
       {servicesQuery.isLoading && <Skeleton className="h-32 w-full" />}
       {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
       {!servicesQuery.isLoading && !servicesQuery.isError && !(servicesQuery.data ?? []).some(service => service.id === serviceId) && <Alert><AlertTitle>Service not found</AlertTitle><AlertDescription>This service does not belong to this project.</AlertDescription></Alert>}
-      {(servicesQuery.data ?? []).filter(service => service.id === serviceId).map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="detail" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
+      {(servicesQuery.data ?? []).filter(service => service.id === serviceId).map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="detail" sites={relevantSites.filter(site => site.serviceId === service.id)} sitesReady={sitesQuery.isSuccess} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
     </>}
   </div>;
 }
@@ -185,12 +185,13 @@ function ServiceDomainBindings({ projectId, serviceId }: { projectId: string; se
   </Card>;
 }
 
-function ServiceCard({ project, service, serviceCount, view, sites, refreshServices, draft, setDraft }: {
+function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, refreshServices, draft, setDraft }: {
   project: Project;
   view: "overview" | "detail";
   serviceCount: number;
   service: { id: string; name: string; serviceType: ServiceType; accessStatus: string; isDefault: boolean; blockReason?: string | null };
   sites: DashboardSite[];
+  sitesReady: boolean;
   refreshServices: () => void;
   draft: Record<string, string>; setDraft: (draft: Record<string, string>) => void;
 }) {
@@ -261,10 +262,11 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   const latestDeployment = history.data?.items[0];
   const active = history.data?.items.find(item => item.status === "active");
   const hasRuntimeConfiguration = Boolean(setupStatus.data?.sourceRuntime);
-  const gateway = setupStatus.data?.gateway;
   const openDeploymentSetup = () => setSetupOpen(true);
   const latestFailed = latestDeployment?.status.toLowerCase() === "failed" && !active;
-  const gatewayNeedsRepair = Boolean(gateway && gateway.status !== "active" && latestDeployment?.status.toLowerCase() === "active");
+  const hasActiveDeployment = latestDeployment?.status.toLowerCase() === "active";
+  const gatewayNeedsRepair = sitesReady && hasActiveDeployment && sites.length > 0 && sites.some(site => !site.available || !site.enabled || site.status !== "healthy");
+  const gatewayMissing = sitesReady && hasActiveDeployment && sites.length === 0;
   const currentValues = environment.data?.effectiveValues ?? {};
   const serviceKeys = Object.keys(currentValues);
   const environmentValues = environment.data?.effectiveValues;
@@ -447,7 +449,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
       <ServiceDomainBindings projectId={project.id} serviceId={service.id} />
-    {(!hasRuntimeConfiguration || latestFailed || gatewayNeedsRepair || (!gateway && latestDeployment?.status.toLowerCase() === "active")) && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Next steps for {service.name}</AlertTitle><AlertDescription className="space-y-2"><p>{!hasRuntimeConfiguration ? "Set up a source and image before deploying this service." : latestFailed ? `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}` : gatewayNeedsRepair ? "The service is deployed, but its gateway route is not active. Repair the gateway before sending traffic." : "The service is deployed, but no gateway is configured yet. Add or manage its site in Nginx before sending traffic."}</p><div className="flex flex-wrap gap-2">{!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => openDeploymentSetup()}>Set up deployment</Button> : latestFailed ? <Button size="sm" variant="outline" loading={deploy.isPending} disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Deployment retry queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Retry deployment"}</Button> : gatewayNeedsRepair ? <Button size="sm" variant="outline" loading={repairGateway.isPending} disabled={repairGateway.isPending} onClick={async () => { try { await repairGateway.mutateAsync(); toast.success("Gateway repair queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairGateway.isPending ? "Repairing…" : "Repair gateway"}</Button> : <Button size="sm" variant="outline" asChild><Link to="/app/nginx">Configure gateway</Link></Button>}</div></AlertDescription></Alert>}
+    {(!hasRuntimeConfiguration || latestFailed || gatewayNeedsRepair || gatewayMissing) && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Next steps for {service.name}</AlertTitle><AlertDescription className="space-y-2"><p>{!hasRuntimeConfiguration ? "Set up a source and image before deploying this service." : latestFailed ? `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}` : gatewayNeedsRepair ? "An Nginx site exists, but it is not healthy or enabled. Repair the gateway before sending traffic." : "No Nginx site is configured for this service yet. A saved domain binding does not create the gateway site; configure one in Nginx before sending traffic."}</p><div className="flex flex-wrap gap-2">{!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => openDeploymentSetup()}>Set up deployment</Button> : latestFailed ? <Button size="sm" variant="outline" loading={deploy.isPending} disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Deployment retry queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Retry deployment"}</Button> : gatewayNeedsRepair ? <Button size="sm" variant="outline" loading={repairGateway.isPending} disabled={repairGateway.isPending} onClick={async () => { try { await repairGateway.mutateAsync(); toast.success("Gateway repair queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairGateway.isPending ? "Repairing…" : "Repair gateway"}</Button> : <Button size="sm" variant="outline" asChild><Link to="/app/nginx">Configure gateway</Link></Button>}</div></AlertDescription></Alert>}
       </TabsContent>
       <TabsContent value="deployments" className="space-y-4">
     <Card>
