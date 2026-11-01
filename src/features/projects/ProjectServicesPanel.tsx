@@ -124,7 +124,6 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
   return <Card>
     <CardHeader><CardTitle>Project shared environment</CardTitle><p className="text-sm text-muted-foreground">Environment values entered here are shared with this project’s services.</p></CardHeader>
     <CardContent className="space-y-4">
-      <p className="text-xs text-muted-foreground">Latest shared set: {metadata?.latest ? `v${metadata.latest.version}` : "not configured"} · {keys.length} key(s)</p>
       {keys.length > 0 && <div className="flex flex-wrap gap-2">{keys.map(key => <span key={key} className="rounded border px-2 py-1 font-mono text-xs">{key}{key in draft ? " · replacement entered" : " · value hidden"}</span>)}</div>}
       <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
         <div className="space-y-1"><Label htmlFor="shared-key">Variable name</Label><Input id="shared-key" value={newKey} onChange={event => setNewKey(event.target.value)} placeholder="DATABASE_URL" /></div>
@@ -132,7 +131,7 @@ function SharedEnvironmentEditor({ metadata, draft, setDraft, newKey, setNewKey,
         <Button className="self-end" variant="outline" onClick={onAdd}><Plus className="h-4 w-4" />Add / replace</Button>
       </div>
       {Object.keys(draft).length > 0 && <div className="space-y-2 rounded-md border p-3"><p className="text-sm font-medium">Pending shared values</p>{Object.keys(draft).sort().map(key => <div key={key} className="flex items-center justify-between gap-2 font-mono text-xs"><span>{key}</span><Button size="sm" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(draft).filter(([name]) => name !== key)))}>Remove</Button></div>)}</div>}
-      <div className="flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">Saving replaces the full shared set. Reenter existing values you want to retain.</p><Button loading={saving} disabled={saving || !Object.keys(draft).length} onClick={onSave}><Save className="h-4 w-4" />{saving ? "Saving…" : "Save shared & deploy"}</Button></div>
+      <div className="flex justify-end"><Button loading={saving} disabled={saving || !Object.keys(draft).length} onClick={onSave}><Save className="h-4 w-4" />{saving ? "Saving…" : "Save shared & deploy"}</Button></div>
     </CardContent>
   </Card>;
 }
