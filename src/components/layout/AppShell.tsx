@@ -60,7 +60,7 @@ const navGroups = [
   },
   {
     label: "Account",
-    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }, { to: "/app/settings/users", label: "Admin users", icon: UserCog }],
+    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }, { to: "/app/settings/users", label: "Admin users", icon: UserCog }, { to: "/app/settings/roles", label: "Roles and permissions", icon: ShieldCheck }],
   },
 ];
 

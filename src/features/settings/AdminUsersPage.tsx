@@ -12,6 +12,7 @@ import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type AdminUser = { id: string; email: string; role: string; twoFactorEnabled: boolean; createdAt: string; active?: boolean };
+type AdminRole = { key: string; displayName: string; active: boolean };
 
 export function AdminUsersPage() {
   const client = useQueryClient();
@@ -35,6 +36,7 @@ export function AdminUsersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState("admin");
   const users = useQuery({ queryKey: ["admin-users", page, search], queryFn: async () => (await api.get<{ users: AdminUser[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/users", { params: { limit: pageSize, offset: page * pageSize, q: search || undefined } })).data });
+  const roles = useQuery({ queryKey: ["rbac-roles"], queryFn: async () => (await api.get<AdminRole[]>("/admin/rbac/roles")).data });
   const refresh = () => void client.invalidateQueries({ queryKey: ["admin-users"] });
   const create = useMutation({ mutationFn: async () => (await api.post<AdminUser>("/admin/users", { email, password, role })).data, onSuccess: () => { setEmail(""); setPassword(""); setRole("admin"); setCreateOpen(false); refresh(); toast.success("Admin user created"); }, onError: error => toast.error(getApiErrorMessage(error)) });
   const update = useMutation({ mutationFn: async ({ id, changes }: { id: string; changes: Record<string, unknown> }) => api.patch(`/admin/users/${id}`, changes), onSuccess: () => { refresh(); toast.success("User updated"); }, onError: error => toast.error(getApiErrorMessage(error)) });
@@ -64,7 +66,7 @@ export function AdminUsersPage() {
         <form className="grid content-start gap-4 px-6 py-5" onSubmit={event => { event.preventDefault(); create.mutate(); }}>
           <div className="space-y-2"><Label htmlFor="new-user-email">Email</Label><Input id="new-user-email" required type="email" value={email} onChange={event => setEmail(event.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="new-user-password">Password</Label><Input id="new-user-password" required minLength={8} type="password" value={password} onChange={event => setPassword(event.target.value)} /></div>
-          <div className="space-y-2"><Label htmlFor="new-user-role">Role</Label><select id="new-user-role" className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={role} onChange={event => setRole(event.target.value)}><option value="admin">Admin</option><option value="operator">Operator</option><option value="viewer">Viewer</option></select></div>
+          <div className="space-y-2"><Label htmlFor="new-user-role">Role</Label><select id="new-user-role" className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={role} onChange={event => setRole(event.target.value)}>{(roles.data ?? [{ key: "admin", displayName: "Administrator", active: true }, { key: "operator", displayName: "Operator", active: true }, { key: "viewer", displayName: "Viewer", active: true }]).filter(item => item.active).map(item => <option key={item.key} value={item.key}>{item.displayName}</option>)}</select>{roles.isError && <p className="text-xs text-destructive">Could not load roles. Check that your account has roles.read.</p>}</div>
           <p className="text-xs text-muted-foreground">Two-factor authentication is disabled initially.</p>
           <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button><Button type="submit" loading={create.isPending} disabled={create.isPending}>{create.isPending ? "Creating…" : "Create user"}</Button></SidePanelFooter>
         </form>
@@ -76,7 +78,7 @@ export function AdminUsersPage() {
         <SidePanelHeader className="border-b px-6 py-5 pr-14"><SidePanelTitle>Edit admin user</SidePanelTitle><SidePanelDescription>Update the account email or role.</SidePanelDescription></SidePanelHeader>
         <form className="grid content-start gap-4 px-6 py-5" onSubmit={event => { event.preventDefault(); if (editing) update.mutate({ id: editing.id, changes: { email: editEmail, role: editRole } }); }}>
           <div className="space-y-2"><Label htmlFor="edit-user-email">Email</Label><Input id="edit-user-email" required type="email" value={editEmail} onChange={event => setEditEmail(event.target.value)} /></div>
-          <div className="space-y-2"><Label htmlFor="edit-user-role">Role</Label><select id="edit-user-role" className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={editRole} onChange={event => setEditRole(event.target.value)}><option value="admin">Admin</option><option value="operator">Operator</option><option value="viewer">Viewer</option></select></div>
+          <div className="space-y-2"><Label htmlFor="edit-user-role">Role</Label><select id="edit-user-role" className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={editRole} onChange={event => setEditRole(event.target.value)}>{(roles.data ?? [{ key: "admin", displayName: "Administrator", active: true }, { key: "operator", displayName: "Operator", active: true }, { key: "viewer", displayName: "Viewer", active: true }]).map(item => <option key={item.key} value={item.key}>{item.displayName}{item.active ? "" : " (inactive)"}</option>)}</select>{roles.isError && <p className="text-xs text-destructive">Could not load roles. Check that your account has roles.read.</p>}</div>
           <SidePanelFooter className="sticky bottom-0 -mx-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => setEditing(null)}>Cancel</Button><Button type="submit" loading={update.isPending} disabled={update.isPending}>{update.isPending ? "Saving…" : "Save changes"}</Button></SidePanelFooter>
         </form>
       </SidePanelContent>

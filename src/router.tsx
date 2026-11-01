@@ -20,6 +20,7 @@ const CertificatesPage = lazy(() => import("@/features/nginx/CertificatesPage").
 const OperationsPage = lazy(() => import("@/features/operations/OperationsPage").then((module) => ({ default: module.OperationsPage })));
 const ProfileSettingsPage = lazy(() => import("@/features/settings/ProfileSettingsPage").then((module) => ({ default: module.ProfileSettingsPage })));
 const AdminUsersPage = lazy(() => import("@/features/settings/AdminUsersPage").then((module) => ({ default: module.AdminUsersPage })));
+const RolesPage = lazy(() => import("@/features/settings/RolesPage").then((module) => ({ default: module.RolesPage })));
 const NetworkDetailPage = lazy(() => import("@/features/infrastructure/NetworkDetailPage").then((module) => ({ default: module.NetworkDetailPage })));
 const VolumeDetailPage = lazy(() => import("@/features/infrastructure/VolumeDetailPage").then((module) => ({ default: module.VolumeDetailPage })));
 const AuditPage = lazy(() => import("@/features/audit/AuditPage").then((module) => ({ default: module.AuditPage })));
@@ -79,6 +80,7 @@ export const router = createBrowserRouter([
           { path: "settings/profile", element: <ProfileSettingsPage /> },
           { path: "credentials", element: <InfrastructureCredentialsPage /> },
           { path: "settings/users", element: <AdminUsersPage /> },
+          { path: "settings/roles", element: <RolesPage /> },
           { path: "networks", element: <NetworkResourcesPage /> },
           { path: "networks/:name", element: <NetworkDetailPage /> },
           { path: "volumes", element: <VolumeResourcesPage /> },
