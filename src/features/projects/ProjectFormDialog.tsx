@@ -15,7 +15,6 @@ import type { Project, UpdateProjectPayload } from "@/types/project";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum(["frontend", "backend"]),
   customerId: z.string().optional(),
 });
 type Values = z.infer<typeof schema>;
@@ -23,11 +22,10 @@ type Values = z.infer<typeof schema>;
 export function ProjectFormDialog({ open, onOpenChange, project }: { open: boolean; onOpenChange: (open: boolean) => void; project?: Project | null }) {
   const update = useUpdateProject(project?.slug ?? "");
   const customers = useDashboardCustomers();
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { type: "frontend" } });
-  const type = watch("type");
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<Values>({ resolver: zodResolver(schema) });
   const customerId = watch("customerId");
   useEffect(() => {
-    if (open && project) reset({ name: project.name, type: project.type, customerId: project.customerId ?? "" });
+    if (open && project) reset({ name: project.name, customerId: project.customerId ?? "" });
   }, [open, project, reset]);
   const onSubmit = (values: Values) => {
     const payload: UpdateProjectPayload = { ...values, customerId: values.customerId || undefined };
@@ -39,7 +37,6 @@ export function ProjectFormDialog({ open, onOpenChange, project }: { open: boole
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2"><Label>Project</Label><Input value={project?.name ?? ""} disabled /></div>
         <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" {...register("name")} />{errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}</div>
-        <div className="space-y-2"><Label>Type</Label><Select value={type} onValueChange={(value) => setValue("type", value as Values["type"])}><SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="frontend">Frontend</SelectItem><SelectItem value="backend">Backend</SelectItem></SelectContent></Select></div>
       </div>
       <div className="space-y-3"><Label>Customer</Label><Select value={customerId || ""} onValueChange={value => setValue("customerId", value)}><SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select a customer" /></SelectTrigger><SelectContent>{customers.data?.customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent></Select></div>
       <SidePanelFooter className="sticky bottom-0 -mx-6 -mb-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" loading={update.isPending} disabled={update.isPending}>{update.isPending ? "Saving…" : "Save changes"}</Button></SidePanelFooter>

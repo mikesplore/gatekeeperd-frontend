@@ -1,10 +1,5 @@
-export type AuditAction =
-  | "blocked"
-  | "unblocked"
-  | "payment_received"
-  | "manual_override"
-  | "project_created"
-  | "project_updated";
+// Audit actions are extensible: deployment and integration workflows add event names over time.
+export type AuditAction = string;
 
 export interface AuditLogEntry {
   id: string;

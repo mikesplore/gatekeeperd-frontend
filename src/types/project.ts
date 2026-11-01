@@ -1,4 +1,3 @@
-export type ProjectType = "frontend" | "backend";
 export type ServiceType = "frontend" | "backend" | "worker" | "database" | "redis" | "cache" | "custom";
 export type ProjectStatus = "active" | "blocked" | "manual_block";
 
@@ -7,7 +6,6 @@ export interface Project {
   slug: string;
   name: string;
   domain: string;
-  type: ProjectType;
   status: ProjectStatus;
   blockReason?: string;
   deploymentMode: "developer_hosted" | "client_hosted" | "external_hosted";
@@ -65,7 +63,7 @@ export interface ProjectHealthResponse {
 }
 
 export interface UpdateProjectPayload {
-  name?: string; domain?: string; type?: ProjectType; billingName?: string; billingEmail?: string;
+  name?: string; domain?: string; billingName?: string; billingEmail?: string;
   billingAddress?: string; amountDue?: number; dueDate?: string; gracePeriodDays?: number;
   customerId?: string; currency?: string;
 }
@@ -88,7 +86,7 @@ export interface AdoptableContainer {
   environmentVariableCount: number;
 }
 export interface ProjectOverview {
-  projectId: string; slug: string; name: string; type: ProjectType;
+  projectId: string; slug: string; name: string;
   accessLifecycle: { accessStatus: string; blockReason?: string | null; deploymentMode: string; serviceMode: string; lifecycleStatus: string };
   desiredConfiguration: { configurationId?: string | null; environment?: string | null; repository?: string | null; gitRef?: string | null; registry?: string | null; imageName?: string | null; imageTag?: string | null; containerPort?: number | null; envKeys: string[]; secretSetId?: string | null; secretSetVersion?: number | null };
   currentDeployment: { id?: string | null; status: string; environment: string; triggerSource?: string | null; createdAt?: string | null; activeAt?: string | null; imageName?: string | null; imageTag?: string | null; imageDigest?: string | null; commitSha?: string | null; runtimeHealth: string; runtimeUpstreamHost?: string | null; runtimeUpstreamPort?: number | null; portMappings?: { containerPort: number; hostPort: number; hostIp?: string | null }[]; publicExposure?: boolean; credentialSetId?: string | null; credentialSetVersion?: number | null; secretSetId?: string | null; secretSetVersion?: number | null };
