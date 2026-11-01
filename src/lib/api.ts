@@ -18,6 +18,22 @@ export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "/api",
 });
 
+type RefreshedTokens = { token: string; refreshToken: string };
+let refreshInFlight: { refreshToken: string; promise: Promise<RefreshedTokens> } | null = null;
+
+function refreshTokens(refreshToken: string): Promise<RefreshedTokens> {
+  if (!refreshInFlight || refreshInFlight.refreshToken !== refreshToken) {
+    const promise = axios
+      .post<RefreshedTokens>(`${api.defaults.baseURL}/auth/refresh`, { refreshToken })
+      .then(response => response.data)
+      .finally(() => {
+        if (refreshInFlight?.promise === promise) refreshInFlight = null;
+      });
+    refreshInFlight = { refreshToken, promise };
+  }
+  return refreshInFlight.promise;
+}
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
@@ -34,10 +50,24 @@ api.interceptors.response.use(
       const original = err.config;
       if (state.refreshToken && original && !original.url?.includes("/auth/refresh") && !(original as typeof original & { _retry?: boolean })._retry) {
         (original as typeof original & { _retry?: boolean })._retry = true;
+        const currentAuthorization = original.headers?.Authorization;
+        const currentToken = useAuthStore.getState().token;
+        if (currentToken && currentAuthorization !== `Bearer ${currentToken}`) {
+          original.headers.Authorization = `Bearer ${currentToken}`;
+          return api(original);
+        }
         try {
-          const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken: state.refreshToken });
-          useAuthStore.setState({ token: response.data.token, refreshToken: response.data.refreshToken });
-          original.headers.Authorization = `Bearer ${response.data.token}`;
+          const tokens = await refreshTokens(state.refreshToken);
+          const latest = useAuthStore.getState();
+          if (latest.refreshToken !== state.refreshToken) {
+            if (latest.token) {
+              original.headers.Authorization = `Bearer ${latest.token}`;
+              return api(original);
+            }
+            throw new Error("Authentication session changed during token refresh");
+          }
+          useAuthStore.setState(tokens);
+          original.headers.Authorization = `Bearer ${tokens.token}`;
           return api(original);
         } catch { /* fall through to logout */ }
       }

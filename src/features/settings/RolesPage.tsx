@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type Permission = { code: string; category: string; action: string; description: string };
 type Role = { id: string; key: string; displayName: string; description: string | null; superAdmin: boolean; active: boolean; permissions: string[] };
@@ -15,6 +16,7 @@ export function RolesPage() {
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Role | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<Role | null>(null);
   const [key, setKey] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
@@ -34,7 +36,7 @@ export function RolesPage() {
     onSuccess: () => { refresh(); setOpen(false); toast.success(editing ? "Role updated" : "Role created"); },
     onError: error => toast.error(getApiErrorMessage(error)),
   });
-  const remove = useMutation({ mutationFn: async (roleKey: string) => api.delete(`/admin/rbac/roles/${encodeURIComponent(roleKey)}`), onSuccess: () => { refresh(); toast.success("Role deleted"); }, onError: error => toast.error(getApiErrorMessage(error)) });
+  const remove = useMutation({ mutationFn: async (roleKey: string) => api.delete(`/admin/rbac/roles/${encodeURIComponent(roleKey)}`), onSuccess: () => { refresh(); setRemoveTarget(null); toast.success("Role deleted"); }, onError: error => toast.error(getApiErrorMessage(error)) });
   const startCreate = () => { setEditing(null); setKey(""); setDisplayName(""); setDescription(""); setActive(true); setSelected([]); setOpen(true); };
   const startEdit = (role: Role) => { setEditing(role); setKey(role.key); setDisplayName(role.displayName); setDescription(role.description ?? ""); setActive(role.active); setSelected(role.permissions); setOpen(true); };
   const toggle = (code: string) => setSelected(current => current.includes(code) ? current.filter(item => item !== code) : [...current, code]);
@@ -48,7 +50,7 @@ export function RolesPage() {
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {(roles.data ?? []).map(role => <Card key={role.key}>
         <CardHeader className="flex flex-row items-start justify-between gap-4"><div><CardTitle>{role.displayName}</CardTitle><p className="mt-1 text-xs text-muted-foreground">{role.key} · {role.superAdmin ? "Built-in superuser" : role.active ? "Active" : "Inactive"}</p></div><Button size="sm" variant="outline" disabled={role.superAdmin} onClick={() => startEdit(role)}>Edit</Button></CardHeader>
-        <CardContent className="space-y-3"><p className="min-h-5 text-sm text-muted-foreground">{role.description || "No description"}</p><p className="text-sm">{role.superAdmin ? "All permissions" : `${role.permissions.length} permissions`}</p>{!role.superAdmin && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={remove.isPending} onClick={() => { if (window.confirm(`Delete role “${role.displayName}”?`)) remove.mutate(role.key); }}>Delete</Button>{!role.active && <span className="self-center text-xs text-destructive">Inactive roles cannot access admin routes</span>}</div>}</CardContent>
+        <CardContent className="space-y-3"><p className="min-h-5 text-sm text-muted-foreground">{role.description || "No description"}</p><p className="text-sm">{role.superAdmin ? "All permissions" : `${role.permissions.length} permissions`}</p>{!role.superAdmin && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={remove.isPending} onClick={() => setRemoveTarget(role)}>Delete</Button>{!role.active && <span className="self-center text-xs text-destructive">Inactive roles cannot access admin routes</span>}</div>}</CardContent>
       </Card>)}
     </div>
     <SidePanel open={open} onOpenChange={setOpen}><SidePanelContent>
@@ -62,5 +64,8 @@ export function RolesPage() {
         <SidePanelFooter className="sticky bottom-0 -mx-6 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" loading={save.isPending} disabled={save.isPending || permissions.isLoading}>{save.isPending ? "Saving…" : "Save role"}</Button></SidePanelFooter>
       </form>
     </SidePanelContent></SidePanel>
+    <AlertDialog open={removeTarget !== null} onOpenChange={isOpen => { if (!isOpen && !remove.isPending) setRemoveTarget(null); }}>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {removeTarget?.displayName}?</AlertDialogTitle><AlertDialogDescription>This permanently deletes the role. Roles assigned to users cannot be deleted; reassign those users first.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" loading={remove.isPending} disabled={remove.isPending || !removeTarget} onClick={event => { event.preventDefault(); if (removeTarget) remove.mutate(removeTarget.key); }}>{remove.isPending ? "Deleting…" : "Delete role"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+    </AlertDialog>
   </div>;
 }
