@@ -265,7 +265,10 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
   const openDeploymentSetup = () => setSetupOpen(true);
   const latestFailed = latestDeployment?.status.toLowerCase() === "failed" && !active;
   const hasActiveDeployment = latestDeployment?.status.toLowerCase() === "active";
-  const gatewayNeedsRepair = sitesReady && hasActiveDeployment && sites.length > 0 && sites.some(site => !site.available || !site.enabled || site.status !== "healthy");
+  const unhealthySites = sites.filter(site => !site.available || !site.enabled || site.status !== "healthy");
+  const gatewayNeedsAttention = sitesReady && hasActiveDeployment && unhealthySites.length > 0;
+  const gatewayRepairAvailable = unhealthySites.some(site => site.upstreamKind === "DEPLOYMENT_MANAGED");
+  const siteToManage = unhealthySites[0];
   const gatewayMissing = sitesReady && hasActiveDeployment && sites.length === 0;
   const currentValues = environment.data?.effectiveValues ?? {};
   const serviceKeys = Object.keys(currentValues);
@@ -449,7 +452,29 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
       <ServiceDomainBindings projectId={project.id} serviceId={service.id} />
-    {(!hasRuntimeConfiguration || latestFailed || gatewayNeedsRepair || gatewayMissing) && <Alert className="border-amber-500/40 bg-amber-500/5"><AlertTitle>Next steps for {service.name}</AlertTitle><AlertDescription className="space-y-2"><p>{!hasRuntimeConfiguration ? "Set up a source and image before deploying this service." : latestFailed ? `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}` : gatewayNeedsRepair ? "An Nginx site exists, but it is not healthy or enabled. Repair the gateway before sending traffic." : "No Nginx site is configured for this service yet. A saved domain binding does not create the gateway site; configure one in Nginx before sending traffic."}</p><div className="flex flex-wrap gap-2">{!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => openDeploymentSetup()}>Set up deployment</Button> : latestFailed ? <Button size="sm" variant="outline" loading={deploy.isPending} disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Deployment retry queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Retry deployment"}</Button> : gatewayNeedsRepair ? <Button size="sm" variant="outline" loading={repairGateway.isPending} disabled={repairGateway.isPending} onClick={async () => { try { await repairGateway.mutateAsync(); toast.success("Gateway repair queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairGateway.isPending ? "Repairing…" : "Repair gateway"}</Button> : <Button size="sm" variant="outline" asChild><Link to="/app/nginx">Configure gateway</Link></Button>}</div></AlertDescription></Alert>}
+    {(!hasRuntimeConfiguration || latestFailed || gatewayNeedsAttention || gatewayMissing) && <Alert className="border-amber-500/40 bg-amber-500/5">
+      <AlertTitle>Next steps for {service.name}</AlertTitle>
+      <AlertDescription className="space-y-2">
+        <p>
+          {!hasRuntimeConfiguration
+            ? "Set up a source and image before deploying this service."
+            : latestFailed
+              ? `The latest deployment failed${latestDeployment?.failureReason ? `: ${latestDeployment.failureReason}` : "."}`
+              : gatewayNeedsAttention
+                ? gatewayRepairAvailable
+                  ? "An Nginx site exists, but it is not healthy or enabled. Repair the deployment-managed gateway before sending traffic."
+                  : "This Nginx site is not deployment-managed, so it cannot be repaired here. Manage the site directly in Nginx."
+                : "No Nginx site is configured for this service yet. A saved domain binding does not create the gateway site; configure one in Nginx before sending traffic."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {!hasRuntimeConfiguration ? <Button size="sm" variant="outline" onClick={() => openDeploymentSetup()}>Set up deployment</Button>
+            : latestFailed ? <Button size="sm" variant="outline" loading={deploy.isPending} disabled={deploy.isPending} onClick={async () => { try { await deploy.mutateAsync(); toast.success("Deployment retry queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{deploy.isPending ? "Queuing…" : "Retry deployment"}</Button>
+              : gatewayNeedsAttention && gatewayRepairAvailable ? <Button size="sm" variant="outline" loading={repairGateway.isPending} disabled={repairGateway.isPending} onClick={async () => { try { await repairGateway.mutateAsync(); toast.success("Gateway repair queued"); } catch (error) { toast.error(getApiErrorMessage(error)); } }}>{repairGateway.isPending ? "Repairing…" : "Repair gateway"}</Button>
+                : gatewayNeedsAttention && siteToManage ? <Button size="sm" variant="outline" asChild><Link to={`/app/nginx/sites/${encodeURIComponent(siteToManage.slug)}`}>Manage site</Link></Button>
+                  : <Button size="sm" variant="outline" asChild><Link to="/app/nginx">Configure gateway</Link></Button>}
+        </div>
+      </AlertDescription>
+    </Alert>}
       </TabsContent>
       <TabsContent value="deployments" className="space-y-4">
     <Card>
