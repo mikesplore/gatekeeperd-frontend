@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -46,8 +45,6 @@ export function ProjectsTable({ projects, selectedSlugs, onSelectionChange, onEd
         { key: "lifecycle", header: "Lifecycle", render: project => <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge> },
         { key: "deployment", header: "Deployment", render: project => <Badge variant="secondary" className="text-[10px]">{project.deploymentMode.replace(/_/g, " ")}</Badge> },
         { key: "customer", header: "Customer", searchable: true, render: project => <span className="block max-w-[12rem] break-words">{project.customerName ?? "Not set"}</span> },
-        { key: "due", header: "Due date", render: project => project.dueDate ? format(new Date(project.dueDate), "MMM d, yyyy") : "Not set" },
-        { key: "amount", header: "Remaining", render: project => project.remainingBalance != null ? `${project.currency} ${project.remainingBalance.toLocaleString()}` : project.amountDue != null ? `${project.currency} ${project.amountDue.toLocaleString()}` : "Not set" },
         ...(canManage ? [{ key: "actions", header: "", render: (project: Project) => <ProjectActionsMenu project={project} onEdit={onEdit} onBlock={onBlock} onUnblock={onUnblock} onDelete={onDelete} /> }] : []),
       ]}
     />

@@ -46,8 +46,8 @@ export function DeleteProjectDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Archive {project?.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This archives the project in Gatekeeper. Gating stops immediately, but payment history,
-            audit log, and payment events are kept for records. The client container is not stopped
+            This archives the project in Gatekeeper. Gating stops immediately, but service invoices,
+            payment history, audit log, and payment events are kept for records. The client container is not stopped
             or removed. The slug{" "}
             <span className="font-mono">{project?.slug}</span> stays reserved while archived.
           </AlertDialogDescription>

@@ -82,7 +82,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
         {canManageServices && <Button onClick={() => setCreateServiceOpen(true)}><Plus className="h-4 w-4" />Create service</Button>}
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="flex flex-wrap items-start gap-3">
         {servicesQuery.isLoading && <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>}
         {servicesQuery.isError && <Alert variant="destructive"><AlertTitle>Services unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(servicesQuery.error)}</AlertDescription></Alert>}
         {!servicesQuery.isLoading && !servicesQuery.isError && servicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No services are configured for this project.</p>}
@@ -407,15 +407,20 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   </AlertDialog>;
 
   if (view === "overview") {
-    return <Card className="overflow-hidden">
-      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+    return <Card className="w-fit max-w-full">
+      <CardContent className="flex w-fit max-w-full items-center justify-start gap-4 p-4">
         <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="text-base font-semibold transition-colors hover:text-primary">{service.name}</Link><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(service.serviceType)}</span>{service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>{formatStatus(service.accessStatus)}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(serviceHealth)}</span></div>
-          <p className="truncate text-sm text-muted-foreground">{sites.length ? sites.map(site => site.domain).join(", ") : "Gateway not configured yet"}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="truncate font-semibold transition-colors hover:text-primary">{service.name}</Link>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(service.serviceType)}</span>
+            {service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}
+          </div>
+          <p className={`text-xs font-medium ${service.accessStatus === "active" ? "text-emerald-700" : "text-red-700"}`}>{formatStatus(service.accessStatus)}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">{canManageServices && serviceCount > 1 && !service.isDefault && <Button size="sm" variant="outline" disabled={serviceActionPending} onClick={() => void makeDefault()}>{serviceActionPending ? "Saving…" : "Set as default"}</Button>}<Button asChild size="sm" variant="outline"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Manage service</Link></Button>{canManageServices && <Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button>}</div>
+        <Button asChild size="sm" variant="outline" className="shrink-0">
+          <Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Open service</Link>
+        </Button>
       </CardContent>
-      {blockDialog}
     </Card>;
   }
 

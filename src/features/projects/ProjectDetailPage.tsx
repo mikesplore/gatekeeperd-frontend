@@ -1,7 +1,6 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
-import { format } from "date-fns";
-import { Link2, Pencil, Trash2, Rocket, Upload, Info, Plus } from "lucide-react";
+import { Pencil, Trash2, Upload, Info, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,21 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { QueryState } from "@/components/QueryState";
-import { useAddProjectAdjustment, useProjectDetail, useProjectOverview, useTransferProject, useProjectSecretRotation, useProjectServices } from "@/hooks/useProjects";
-import { useProjectPayments } from "@/hooks/usePayments";
+import { useProjectDetail, useProjectOverview, useTransferProject, useProjectSecretRotation } from "@/hooks/useProjects";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { AuditLogTimeline } from "@/features/audit/AuditLogTimeline";
-import { CapturePaymentDrawer } from "@/features/payments/CapturePaymentDrawer";
-import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
-import { ServiceAdjustmentDialog } from "@/features/payments/ServiceAdjustmentDialog";
-import { CreateServiceInvoiceDialog } from "@/features/payments/CreateServiceInvoiceDialog";
 import { BlockUnblockDialog } from "@/features/projects/BlockUnblockDialog";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
-import { ProjectSetupWizardPage } from "@/features/projects/ProjectSetupWizardPage";
 import { ProjectServicesPanel } from "@/features/projects/ProjectServicesPanel";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useCan } from "@/hooks/usePermissions";
@@ -72,62 +64,26 @@ function InfoHint({ children }: { children: string }) {
 
 export function ProjectDetailPage() {
   const canManageProjects = useCan("projects.manage");
-  const canManageServices = useCan("services.manage");
   const canReadServices = useCan("services.read");
-  const canManageDeployments = useCan("deployments.manage");
-  const canReadPayments = useCan("payments.read");
-  const canManagePayments = useCan("payments.manage");
   const canReadAudit = useCan("audit.read");
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { data, isLoading, isError, error, refetch: refetchProjectDetail } = useProjectDetail(slug);
+  const { data, isLoading, isError, error } = useProjectDetail(slug);
   const overview = useProjectOverview(slug);
   const rotateSecrets = useProjectSecretRotation(data?.project.id ?? "", slug);
   const [secretRows, setSecretRows] = useState<{ name: string; value: string }[]>([{ name: "", value: "" }]);
-  const servicesQuery = useProjectServices(data?.project.id ?? "");
   const [editOpen, setEditOpen] = useState(false);
-  const [setupOpen, setSetupOpen] = useState(false);
-  const [setupStep, setSetupStep] = useState(1);
-  const [serviceAdjustmentOpen, setServiceAdjustmentOpen] = useState(false);
-  const [serviceInvoiceOpen, setServiceInvoiceOpen] = useState(false);
-  const [capturePaymentOpen, setCapturePaymentOpen] = useState(false);
   const [blockMode, setBlockMode] = useState<"block" | "unblock" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
-  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
-  const [paymentPage, setPaymentPage] = useState(0);
-  const projectPayments = useProjectPayments(data?.project.id ?? "", 25, paymentPage * 25);
-  const refreshPaymentData = async () => {
-    await Promise.all([
-      refetchProjectDetail(),
-      projectPayments.refetch(),
-      servicesQuery.refetch(),
-      overview.refetch(),
-    ]);
-  };
   const [deploymentMode, setDeploymentMode] = useState("client_hosted");
   const [serviceMode, setServiceMode] = useState("production");
   const transferProject = useTransferProject(slug);
-  const addAdjustment = useAddProjectAdjustment(slug);
-
-  const openProjectSetup = (step: number) => {
-    setSetupStep(step);
-    setSetupOpen(true);
-  };
 
   const requestedTab = searchParams.get("tab");
-  const requestedDefaultTab = requestedTab === "payments" || requestedTab === "settings" ? requestedTab : "overview";
-  const defaultTab = requestedDefaultTab === "payments" && !canReadPayments || requestedDefaultTab === "settings" && !canManageProjects ? "overview" : requestedDefaultTab;
-
-  const reversalAlert = useMemo(() => {
-    if (!data) return null;
-    const { project, payments } = data;
-    if (project.status === "active" || payments.length === 0) return null;
-    const latest = payments[0];
-    if (latest.gatewayStatus !== "reversed") return null;
-    return latest.paidAt ?? latest.createdAt;
-  }, [data]);
+  const requestedDefaultTab = requestedTab === "settings" ? requestedTab : "overview";
+  const defaultTab = requestedDefaultTab === "settings" && !canManageProjects ? "overview" : requestedDefaultTab;
 
   if (isError && getApiErrorCode(error) === "project_not_found") {
     return (
@@ -157,7 +113,6 @@ export function ProjectDetailPage() {
       {({ project, audit_log }) => (
         <div className="space-y-6">
           <div className="flex flex-wrap justify-end gap-2">
-                {canManageDeployments && <Button size="sm" onClick={() => openProjectSetup(1)}><Rocket className="h-4 w-4" />New deployment</Button>}
                 {canManageProjects && (project.status === "active" ? (
                   <Button variant="outline" size="sm" onClick={() => setBlockMode("block")} className="border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700">Block project</Button>
                 ) : (
@@ -170,15 +125,11 @@ export function ProjectDetailPage() {
               <TabsList className="w-full sm:w-auto">
                 <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
                 {canManageProjects && <TabsTrigger value="settings" className="flex-1 sm:flex-none">Settings</TabsTrigger>}
-                {canReadPayments && <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>}
                 {canReadAudit && <TabsTrigger value="audit" className="flex-1 sm:flex-none">Audit Log</TabsTrigger>}
               </TabsList>
             </div>
 
             <TabsContent value="overview">
-              {overview.data && <div className="mb-4 grid gap-4 xl:grid-cols-2">
-                <Card className="xl:col-span-2"><CardHeader><CardTitle>Customer &amp; billing</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><InfoRow label="Customer" value={overview.data.customerBilling.customerId && overview.data.customerBilling.customerName ? <Link to={`/app/customers/${overview.data.customerBilling.customerId}`} className="text-primary hover:underline">{overview.data.customerBilling.customerName}</Link> : "Not set"} /><InfoRow label="Billing contact" value={overview.data.customerBilling.billingName ?? overview.data.customerBilling.customerName ?? "Not set"} /><InfoRow label="Billed" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.billed.toLocaleString()}`} /><InfoRow label="Paid" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.paid.toLocaleString()}`} /><InfoRow label="Balance" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.balance.toLocaleString()}`} /><InfoRow label="Due date" value={overview.data.customerBilling.dueDate ?? "Not set"} /></CardContent></Card>
-              </div>}
               {overview.isError && <Alert><AlertTitle>Project overview unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(overview.error)}. Existing project details are still shown below.</AlertDescription></Alert>}
               {canReadServices && <ProjectServicesPanel project={project} view="overview" />}
             </TabsContent>
@@ -188,20 +139,12 @@ export function ProjectDetailPage() {
                 <div><p className="mt-1 text-sm text-muted-foreground">Configure project details, deployments, provider connections, and shared or service environment variables.</p></div>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" />Edit project</Button>
-                  {canManagePayments && <Button variant="outline" size="sm" onClick={() => setAdjustmentOpen(true)}>Add charge / discount</Button>}
                   {canManageProjects && project.lifecycleStatus !== "archived" && <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>Transfer</Button>}
                   <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4" />Archive</Button>
                 </div>
               </div>
               <TooltipProvider delayDuration={200}>
                 <div className="grid gap-4 lg:grid-cols-1">
-                  <Card>
-                    <CardHeader><div className="flex items-center gap-2"><CardTitle>Container registry access</CardTitle><InfoHint>Used by Gatekeeperd to pull private images. These credentials are not passed into your application container.</InfoHint></div></CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      <p>Active registry credential: {overview.data?.currentDeployment.credentialSetId ? `${overview.data.currentDeployment.credentialSetId} · version ${overview.data.currentDeployment.credentialSetVersion}` : "Not recorded"}</p>
-                      <Button variant="outline" asChild><Link to="/app/credentials">Manage registry credentials</Link></Button>
-                    </CardContent>
-                  </Card>
                   <Card className="hidden">
                     <CardHeader><div className="flex items-center gap-2"><CardTitle>Application environment variables</CardTitle><InfoHint>These are secrets your app reads at runtime, such as DATABASE_URL or API_TOKEN. Values are encrypted and write-only: after saving, admins cannot view them again. Edit the draft or upload a replacement .env, then save to create a new immutable version and queue a deployment. Paste KEY=value lines into the first name field or upload a .env file. Keep a secure copy of values you may need later.</InfoHint></div></CardHeader>
                     <CardContent className="space-y-3">
@@ -230,37 +173,6 @@ export function ProjectDetailPage() {
               </TooltipProvider>
               {canReadServices && <ProjectServicesPanel project={project} view="settings" />}
             </TabsContent>}
-            {canReadPayments && <TabsContent value="payments">
-              <section className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <CardTitle>Payment history</CardTitle>
-                    {project.amountDue != null && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Remaining balance: <span className="font-semibold text-foreground">{project.currency} {(project.remainingBalance ?? 0).toLocaleString()}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 sm:justify-end">
-                    {canManagePayments && <Button size="sm" onClick={() => setCapturePaymentOpen(true)}><Link2 className="h-4 w-4" />Capture payment</Button>}
-                    {canManageServices && servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceInvoiceOpen(true)}>Create service invoice</Button>}
-                    {canManageServices && servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceAdjustmentOpen(true)}><Plus className="h-4 w-4" />Add service charge</Button>}
-                  </div>
-                </div>
-                  {reversalAlert && (
-                    <Alert variant="destructive">
-                      <AlertTitle>Payment reversed</AlertTitle>
-                      <AlertDescription>
-                        This project was automatically re-blocked due to a payment reversal on{" "}
-                        {format(new Date(reversalAlert), "MMM d, yyyy")}.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <PaymentsHistoryTable payments={(projectPayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((projectPayments.data?.payments ?? []).filter(payment => payment.gatewayStatus === "success" && payment.serviceId).map(payment => [payment.providerReference, `/admin/projects/${project.id}/services/${payment.serviceId}/payments/${payment.id}/receipt`]))} onPaymentChanged={refreshPaymentData} />
-                  <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{projectPayments.data ? `${projectPayments.data.offset + 1}-${projectPayments.data.offset + projectPayments.data.payments.length} of ${projectPayments.data.total}` : "Loading payments…"}</span><div className="flex gap-2"><Button size="sm" variant="outline" loading={projectPayments.isFetching} disabled={paymentPage === 0 || projectPayments.isFetching} onClick={() => setPaymentPage(value => value - 1)}>Previous</Button><Button size="sm" variant="outline" loading={projectPayments.isFetching} disabled={!projectPayments.data || projectPayments.data.offset + projectPayments.data.payments.length >= projectPayments.data.total || projectPayments.isFetching} onClick={() => setPaymentPage(value => value + 1)}>Next</Button></div></div>
-              </section>
-            </TabsContent>}
-
             {canReadAudit && <TabsContent value="audit">
               <Card>
                 <CardHeader>
@@ -274,17 +186,6 @@ export function ProjectDetailPage() {
           </Tabs>
 
           <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
-          <ProjectSetupWizardPage open={setupOpen} onOpenChange={setSetupOpen} projectId={project.id} initialStep={setupStep} />
-          <Dialog open={adjustmentOpen} onOpenChange={setAdjustmentOpen}>
-            <AdjustmentDialogBody
-              pending={addAdjustment.isPending}
-              onSubmit={async (payload) => { await addAdjustment.mutateAsync(payload); setAdjustmentOpen(false); }}
-              onCancel={() => setAdjustmentOpen(false)}
-            />
-          </Dialog>
-          <CapturePaymentDrawer project={project} open={capturePaymentOpen} onOpenChange={setCapturePaymentOpen} onPaymentChanged={refreshPaymentData} />
-          <ServiceAdjustmentDialog projectId={project.id} currency={project.currency} open={serviceAdjustmentOpen} onOpenChange={setServiceAdjustmentOpen} onSaved={refreshPaymentData} />
-          <CreateServiceInvoiceDialog projectId={project.id} projectName={project.name} currency={project.currency} open={serviceInvoiceOpen} onOpenChange={setServiceInvoiceOpen} onCreated={refreshPaymentData} />
           <BlockUnblockDialog project={project} mode={blockMode} onClose={() => setBlockMode(null)} />
           <DeleteProjectDialog
             project={project}
@@ -308,18 +209,3 @@ export function ProjectDetailPage() {
   );
 }
 
-function AdjustmentDialogBody({ pending, onSubmit, onCancel }: { pending: boolean; onSubmit: (payload: { type: "ADDITIONAL_CHARGE" | "DISCOUNT"; amount: number; reason: string }) => Promise<void>; onCancel: () => void }) {
-  const [type, setType] = useState<"ADDITIONAL_CHARGE" | "DISCOUNT">("ADDITIONAL_CHARGE");
-  const [amount, setAmount] = useState("");
-  const [reason, setReason] = useState("");
-  return <DialogContent><DialogHeader><DialogTitle>Add charge or discount</DialogTitle><DialogDescription>Adjust the project ledger without changing its original charge or payment history.</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="space-y-2"><Label>Adjustment type</Label><select className="flex h-9 w-full rounded-md border bg-background px-3 text-sm" value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="ADDITIONAL_CHARGE">Additional charge</option><option value="DISCOUNT">Discount</option></select></div><div className="space-y-2"><Label htmlFor="adjustment-amount">Amount</Label><Input id="adjustment-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></div><div className="space-y-2"><Label htmlFor="adjustment-reason">Reason</Label><Input id="adjustment-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. Added reporting feature" /></div></div><DialogFooter><Button variant="outline" onClick={onCancel}>Cancel</Button><Button loading={pending} disabled={pending || !(Number(amount) > 0) || !reason.trim()} onClick={() => onSubmit({ type, amount: Number(amount), reason: reason.trim() })}>{pending ? "Saving…" : "Save adjustment"}</Button></DialogFooter></DialogContent>;
-}
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-foreground/70">{label}</p>
-      <p className="text-sm font-medium text-foreground break-all">{value}</p>
-    </div>
-  );
-}

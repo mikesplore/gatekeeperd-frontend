@@ -113,7 +113,7 @@ export function ProjectsListPage() {
             <Select value={bulkBlockReasonCode} onValueChange={setBulkBlockReasonCode}>
               <SelectTrigger id="bulk-block-reason"><SelectValue placeholder="Choose a reason" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="payment">Payment issue</SelectItem><SelectItem value="manual_hold">Manual hold</SelectItem><SelectItem value="abuse_tos">Abuse or terms violation</SelectItem><SelectItem value="suspended_by_request">Suspended by request</SelectItem><SelectItem value="other">Other</SelectItem>
+                <SelectItem value="manual_hold">Manual hold</SelectItem><SelectItem value="abuse_tos">Abuse or terms violation</SelectItem><SelectItem value="suspended_by_request">Suspended by request</SelectItem><SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
