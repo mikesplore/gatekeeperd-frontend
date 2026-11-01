@@ -24,6 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCan } from "@/hooks/usePermissions";
 import { useServiceInvoice, useServicePayments } from "@/hooks/usePayments";
 import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
 import { CapturePaymentDrawer } from "@/features/payments/CapturePaymentDrawer";
@@ -31,6 +32,7 @@ import { CreateServiceInvoiceDialog } from "@/features/payments/CreateServiceInv
 
 type HistoryResponse = { projectId: string; environment: string; items: ProjectDeploymentHistoryItem[] };
 export function ProjectServicesPanel({ project, view = "overview", serviceId }: { project: Project; view?: "overview" | "settings" | "detail"; serviceId?: string }) {
+  const canManageServices = useCan("services.manage");
   const queryClient = useQueryClient();
   const servicesQuery = useProjectServices(project.id);
   const sitesQuery = useDashboardSites("all", 500, 0);
@@ -77,7 +79,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
     {view === "overview" && <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div><CardTitle>Services</CardTitle><p className="mt-1 text-sm text-muted-foreground">Each service has its own deployment, access, runtime health, and domains.</p></div>
-        <Button onClick={() => setCreateServiceOpen(true)}><Plus className="h-4 w-4" />Create service</Button>
+        {canManageServices && <Button onClick={() => setCreateServiceOpen(true)}><Plus className="h-4 w-4" />Create service</Button>}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
@@ -86,7 +88,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
         {!servicesQuery.isLoading && !servicesQuery.isError && servicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No services are configured for this project.</p>}
         {servicesQuery.data?.map(service => <ServiceCard key={service.id} project={project} service={service} serviceCount={servicesQuery.data?.length ?? 0} view="overview" sites={relevantSites.filter(site => site.serviceId === service.id)} refreshServices={async () => { await servicesQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ["project-overview"] }); }} draft={serviceDrafts[service.id] ?? {}} setDraft={draft => setServiceDrafts(current => ({ ...current, [service.id]: draft }))} />)}
         </div>
-        <Dialog open={createServiceOpen} onOpenChange={open => { if (!creatingService) setCreateServiceOpen(open); }}>
+        {canManageServices && <Dialog open={createServiceOpen} onOpenChange={open => { if (!creatingService) setCreateServiceOpen(open); }}>
           <DialogContent className="fixed inset-y-0 right-0 left-auto top-0 flex h-full w-full max-w-md translate-x-0 translate-y-0 flex-col items-stretch gap-6 overflow-y-auto rounded-none border-l p-6 shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Create a service</DialogTitle>
@@ -100,7 +102,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
               <DialogFooter className="mt-auto flex w-full items-center justify-between border-t pt-4 sm:justify-between"><Button type="button" variant="outline" disabled={creatingService} onClick={() => setCreateServiceOpen(false)}>Cancel</Button><Button type="submit" loading={creatingService} disabled={!newServiceName.trim() || creatingService || servicesQuery.isFetching}>{creatingService ? "Creating…" : "Create service"}</Button></DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+        </Dialog>}
       </CardContent>
     </Card>}
     {view === "detail" && <>
@@ -193,6 +195,10 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
   refreshServices: () => void;
   draft: Record<string, string>; setDraft: (draft: Record<string, string>) => void;
 }) {
+  const canManageServices = useCan("services.manage");
+  const canReadPayments = useCan("payments.read");
+  const canManagePayments = useCan("payments.manage");
+  const canManageDeployments = useCan("deployments.manage");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const environment = useServiceEnvironmentMetadata(project.id, service.id);
@@ -407,7 +413,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
           <div className="flex flex-wrap items-center gap-2"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`} className="text-base font-semibold transition-colors hover:text-primary">{service.name}</Link><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(service.serviceType)}</span>{service.isDefault && <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Default</span>}<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${service.accessStatus === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}`}>{formatStatus(service.accessStatus)}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{formatStatus(serviceHealth)}</span></div>
           <p className="truncate text-sm text-muted-foreground">{sites.length ? sites.map(site => site.domain).join(", ") : "Gateway not configured yet"}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">{serviceCount > 1 && !service.isDefault && <Button size="sm" variant="outline" disabled={serviceActionPending} onClick={() => void makeDefault()}>{serviceActionPending ? "Saving…" : "Set as default"}</Button>}<Button asChild size="sm" variant="outline"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Manage service</Link></Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button></div>
+        <div className="flex shrink-0 flex-wrap gap-2">{canManageServices && serviceCount > 1 && !service.isDefault && <Button size="sm" variant="outline" disabled={serviceActionPending} onClick={() => void makeDefault()}>{serviceActionPending ? "Saving…" : "Set as default"}</Button>}<Button asChild size="sm" variant="outline"><Link to={`/app/projects/${encodeURIComponent(project.slug)}/services/${service.id}`}>Manage service</Link></Button>{canManageServices && <Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button>}</div>
       </CardContent>
       {blockDialog}
     </Card>;
@@ -425,15 +431,15 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">{sites.length ? sites.map(site => <a className="inline-flex items-center gap-1.5 transition-colors hover:text-primary" key={site.slug} href={`${site.tlsMode === "http_only" ? "http" : "https"}://${site.domain}`} target="_blank" rel="noreferrer"><Globe className="h-3.5 w-3.5" />{site.domain}</a>) : <span>Gateway not configured yet</span>}</div>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2"><Button size="sm" onClick={() => openDeploymentSetup()}><Rocket className="h-4 w-4" />Make a new deployment</Button><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" loading={serviceActionPending} aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem>{serviceCount > 1 && !service.isDefault && <DropdownMenuItem disabled={serviceActionPending} onSelect={() => void makeDefault()}><Settings2 className="mr-2 h-4 w-4" />Set as default</DropdownMenuItem>}<DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+        <div className="flex shrink-0 flex-wrap gap-2">{canManageDeployments && <Button size="sm" onClick={() => openDeploymentSetup()}><Rocket className="h-4 w-4" />Make a new deployment</Button>}{canManageServices && <><Button size="sm" variant={service.accessStatus === "active" ? "destructive" : "outline"} onClick={() => service.accessStatus === "active" ? setConfirmBlockOpen(true) : void toggleBlock()}><LockKeyhole className="h-4 w-4" />{service.accessStatus === "active" ? "Block service" : "Unblock service"}</Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" loading={serviceActionPending} aria-label={`More actions for ${service.name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setServiceName(service.name); setEditOpen(true); }}><Pencil className="mr-2 h-4 w-4" />Edit name</DropdownMenuItem>{serviceCount > 1 && !service.isDefault && <DropdownMenuItem disabled={serviceActionPending} onSelect={() => void makeDefault()}><Settings2 className="mr-2 h-4 w-4" />Set as default</DropdownMenuItem>}<DropdownMenuItem disabled={service.isDefault} className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" />{service.isDefault ? "Default service is required" : "Delete service"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></>}</div>
       </CardContent>
     </Card>
     <Tabs defaultValue="overview" className="space-y-4">
       <TabsList className="w-full justify-start sm:w-auto">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="deployments">Deployments</TabsTrigger>
-        <TabsTrigger value="settings">Settings</TabsTrigger>
-        <TabsTrigger value="payments">Payments</TabsTrigger>
+        {canManageServices && <TabsTrigger value="settings">Settings</TabsTrigger>}
+        {canReadPayments && <TabsTrigger value="payments">Payments</TabsTrigger>}
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
       <ServiceDomainBindings projectId={project.id} serviceId={service.id} />
@@ -445,16 +451,16 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
       <CardContent className="space-y-2">{history.data?.items.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"><div className="min-w-0"><p className="truncate font-medium">{item.imageName}:{item.imageTag}</p><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</p>{item.runtimeContainerName && item.status.toLowerCase() === "superseded" ? <p className="mt-1 text-xs text-muted-foreground">Previous container removed after cutover</p> : item.runtimeContainerName && <p className={`mt-1 text-xs ${item.runtimeState && item.runtimeState !== "running" && item.runtimeState !== "missing" ? "text-destructive" : "text-muted-foreground"}`}>Container: {item.runtimeState === "missing" ? "no longer present" : item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>}{item.failureReason && <p className="mt-1 text-xs text-destructive">{item.failureReason}</p>}</div><div className="flex items-center gap-2"><span className={`rounded px-2 py-1 text-xs font-medium ${item.status.toLowerCase() === "failed" ? "bg-red-500/10 text-red-700" : item.status.toLowerCase() === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted"}`}>{formatStatus(item.status)}</span>{item.actions.includes("rollback") && <Button size="sm" variant="outline" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}>Rollback</Button>}{item.actions.includes("delete") ? <Button size="sm" variant="outline" className="text-muted-foreground hover:text-destructive" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" />Delete</Button> : item.actions.includes("referenced") && <Button size="sm" variant="outline" disabled title="Another deployment references this version"><Trash2 className="h-4 w-4" />Delete</Button>}</div></div>)}{!history.isLoading && !history.data?.items.length && <p className="text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}</CardContent>
     </Card>
       </TabsContent>
-      <TabsContent value="payments" className="space-y-4">
+      {canReadPayments && <TabsContent value="payments" className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><CardTitle className="text-base">Service billing</CardTitle><p className="mt-1 text-xs text-muted-foreground">This invoice and payment history belong only to {service.name}.</p></div>
           <div className="flex flex-wrap gap-2">
-            {!serviceInvoice.data && <Button size="sm" variant="outline" onClick={() => setCreateInvoiceOpen(true)}>Create invoice</Button>}
-            <Button size="sm" disabled={!serviceInvoice.data} onClick={() => setCapturePaymentOpen(true)}>Capture payment</Button>
+            {canManageServices && !serviceInvoice.data && <Button size="sm" variant="outline" onClick={() => setCreateInvoiceOpen(true)}>Create invoice</Button>}
+            {canManagePayments && <Button size="sm" disabled={!serviceInvoice.data} onClick={() => setCapturePaymentOpen(true)}>Capture payment</Button>}
           </div>
         </div>
         {serviceInvoice.isLoading && <Skeleton className="h-24 w-full" />}
-        {serviceInvoice.isError && <Alert><AlertTitle>No service invoice</AlertTitle><AlertDescription className="space-y-3"><p>Create an invoice before collecting payment for this service.</p><Button size="sm" onClick={() => setCreateInvoiceOpen(true)}>Create &amp; sync invoice</Button></AlertDescription></Alert>}
+        {serviceInvoice.isError && <Alert><AlertTitle>No service invoice</AlertTitle><AlertDescription className="space-y-3"><p>Create an invoice before collecting payment for this service.</p>{canManageServices && <Button size="sm" onClick={() => setCreateInvoiceOpen(true)}>Create &amp; sync invoice</Button>}</AlertDescription></Alert>}
         {serviceInvoice.data && <Card><CardContent className="space-y-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">Invoice summary</p><Button size="sm" variant="outline" loading={invoiceDownloadPending} loadingText="Downloading…" onClick={() => void downloadInvoice()}><Download className="h-4 w-4" />Download invoice</Button></div>
           <div className="grid gap-4 sm:grid-cols-3">
@@ -471,7 +477,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, refreshServi
         </CardContent></Card>
         <CapturePaymentDrawer project={project} initialServiceId={service.id} open={capturePaymentOpen} onOpenChange={setCapturePaymentOpen} onPaymentChanged={async () => { await Promise.all([servicePayments.refetch(), serviceInvoice.refetch()]); }} />
         <CreateServiceInvoiceDialog projectId={project.id} projectName={project.name} currency={project.currency} initialServiceId={service.id} open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen} onCreated={async () => { await Promise.all([serviceInvoice.refetch(), servicePayments.refetch()]); }} />
-      </TabsContent>
+      </TabsContent>}
       <TabsContent value="settings" className="space-y-4">
     <Card>
       <CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle className="text-base">Service containers</CardTitle><p className="mt-1 text-xs text-muted-foreground">Bundle application, database, Redis, and cache containers with this service.</p></div>{activeInspection.data?.status === "ready" && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">Ready · gateway cutover pending</span>}</div></CardHeader>

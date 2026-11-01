@@ -23,12 +23,14 @@ import { DataTable } from "@/components/common/DataTable";
 import { useContainerAction, useDeleteContainer } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import type { ContainerInfo } from "@/types/container";
+import { useCan } from "@/hooks/usePermissions";
 
 interface ContainersTableProps {
   containers: ContainerInfo[];
 }
 
 export function ContainersTable({ containers }: ContainersTableProps) {
+  const canManage = useCan("docker.manage");
   return (
     <DataTable data={containers} getRowKey={(container) => container.id} hidePagination
       filters={[{ label: "State", options: [...new Set(containers.map((container) => container.state))].map((value) => ({ label: value, value })), getValue: (container) => container.state }]}
@@ -38,7 +40,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
         { key: "status", header: "Status", render: (container) => <span className="text-xs">{container.status}</span> },
         { key: "state", header: "State", render: (container) => <ContainerStateBadge state={container.state} /> },
         { key: "ports", header: "Ports", render: (container) => <span className="block max-w-[16rem] truncate font-mono text-xs" title={container.ports}>{container.ports || "Not set"}</span> },
-        { key: "actions", header: "Actions", render: (container) => <ContainerActionsMenu container={container} /> },
+        ...(canManage ? [{ key: "actions", header: "Actions", render: (container: ContainerInfo) => <ContainerActionsMenu container={container} /> }] : []),
       ]}
     />
   );

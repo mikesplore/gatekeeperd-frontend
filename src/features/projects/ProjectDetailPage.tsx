@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { useCan } from "@/hooks/usePermissions";
 
 function parseSecretEnv(text: string): [string, string][] {
   const entries: [string, string][] = [];
@@ -70,6 +71,13 @@ function InfoHint({ children }: { children: string }) {
 }
 
 export function ProjectDetailPage() {
+  const canManageProjects = useCan("projects.manage");
+  const canManageServices = useCan("services.manage");
+  const canReadServices = useCan("services.read");
+  const canManageDeployments = useCan("deployments.manage");
+  const canReadPayments = useCan("payments.read");
+  const canManagePayments = useCan("payments.manage");
+  const canReadAudit = useCan("audit.read");
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -109,7 +117,8 @@ export function ProjectDetailPage() {
   };
 
   const requestedTab = searchParams.get("tab");
-  const defaultTab = requestedTab === "payments" || requestedTab === "settings" ? requestedTab : "overview";
+  const requestedDefaultTab = requestedTab === "payments" || requestedTab === "settings" ? requestedTab : "overview";
+  const defaultTab = requestedDefaultTab === "payments" && !canReadPayments || requestedDefaultTab === "settings" && !canManageProjects ? "overview" : requestedDefaultTab;
 
   const reversalAlert = useMemo(() => {
     if (!data) return null;
@@ -148,21 +157,21 @@ export function ProjectDetailPage() {
       {({ project, audit_log }) => (
         <div className="space-y-6">
           <div className="flex flex-wrap justify-end gap-2">
-                <Button size="sm" onClick={() => openProjectSetup(1)}><Rocket className="h-4 w-4" />New deployment</Button>
-                {project.status === "active" ? (
+                {canManageDeployments && <Button size="sm" onClick={() => openProjectSetup(1)}><Rocket className="h-4 w-4" />New deployment</Button>}
+                {canManageProjects && (project.status === "active" ? (
                   <Button variant="outline" size="sm" onClick={() => setBlockMode("block")} className="border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700">Block project</Button>
                 ) : (
                   <Button size="sm" onClick={() => setBlockMode("unblock")}>Unblock project</Button>
-                )}
+                ))}
           </div>
 
           <Tabs defaultValue={defaultTab}>
             <div className="overflow-x-auto -mx-1 px-1">
               <TabsList className="w-full sm:w-auto">
                 <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
-                <TabsTrigger value="settings" className="flex-1 sm:flex-none">Settings</TabsTrigger>
-                <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>
-                <TabsTrigger value="audit" className="flex-1 sm:flex-none">Audit Log</TabsTrigger>
+                {canManageProjects && <TabsTrigger value="settings" className="flex-1 sm:flex-none">Settings</TabsTrigger>}
+                {canReadPayments && <TabsTrigger value="payments" className="flex-1 sm:flex-none">Payments</TabsTrigger>}
+                {canReadAudit && <TabsTrigger value="audit" className="flex-1 sm:flex-none">Audit Log</TabsTrigger>}
               </TabsList>
             </div>
 
@@ -171,16 +180,16 @@ export function ProjectDetailPage() {
                 <Card className="xl:col-span-2"><CardHeader><CardTitle>Customer &amp; billing</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><InfoRow label="Customer" value={overview.data.customerBilling.customerId && overview.data.customerBilling.customerName ? <Link to={`/app/customers/${overview.data.customerBilling.customerId}`} className="text-primary hover:underline">{overview.data.customerBilling.customerName}</Link> : "Not set"} /><InfoRow label="Billing contact" value={overview.data.customerBilling.billingName ?? overview.data.customerBilling.customerName ?? "Not set"} /><InfoRow label="Billed" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.billed.toLocaleString()}`} /><InfoRow label="Paid" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.paid.toLocaleString()}`} /><InfoRow label="Balance" value={`${overview.data.customerBilling.currency} ${overview.data.customerBilling.balance.toLocaleString()}`} /><InfoRow label="Due date" value={overview.data.customerBilling.dueDate ?? "Not set"} /></CardContent></Card>
               </div>}
               {overview.isError && <Alert><AlertTitle>Project overview unavailable</AlertTitle><AlertDescription>{getApiErrorMessage(overview.error)}. Existing project details are still shown below.</AlertDescription></Alert>}
-              <ProjectServicesPanel project={project} view="overview" />
+              {canReadServices && <ProjectServicesPanel project={project} view="overview" />}
             </TabsContent>
 
-            <TabsContent value="settings">
+            {canManageProjects && <TabsContent value="settings">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-4 rounded-lg border bg-card p-4">
                 <div><p className="mt-1 text-sm text-muted-foreground">Configure project details, deployments, provider connections, and shared or service environment variables.</p></div>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" />Edit project</Button>
-                  <Button variant="outline" size="sm" onClick={() => setAdjustmentOpen(true)}>Add charge / discount</Button>
-                  {project.lifecycleStatus !== "archived" && <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>Transfer</Button>}
+                  {canManagePayments && <Button variant="outline" size="sm" onClick={() => setAdjustmentOpen(true)}>Add charge / discount</Button>}
+                  {canManageProjects && project.lifecycleStatus !== "archived" && <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>Transfer</Button>}
                   <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4" />Archive</Button>
                 </div>
               </div>
@@ -219,9 +228,9 @@ export function ProjectDetailPage() {
                   </Card>
                 </div>
               </TooltipProvider>
-              <ProjectServicesPanel project={project} view="settings" />
-            </TabsContent>
-            <TabsContent value="payments">
+              {canReadServices && <ProjectServicesPanel project={project} view="settings" />}
+            </TabsContent>}
+            {canReadPayments && <TabsContent value="payments">
               <section className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -233,9 +242,9 @@ export function ProjectDetailPage() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 sm:justify-end">
-                    <Button size="sm" onClick={() => setCapturePaymentOpen(true)}><Link2 className="h-4 w-4" />Capture payment</Button>
-                    {servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceInvoiceOpen(true)}>Create service invoice</Button>}
-                    {servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceAdjustmentOpen(true)}><Plus className="h-4 w-4" />Add service charge</Button>}
+                    {canManagePayments && <Button size="sm" onClick={() => setCapturePaymentOpen(true)}><Link2 className="h-4 w-4" />Capture payment</Button>}
+                    {canManageServices && servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceInvoiceOpen(true)}>Create service invoice</Button>}
+                    {canManageServices && servicesQuery.data && servicesQuery.data.length > 1 && <Button size="sm" variant="outline" onClick={() => setServiceAdjustmentOpen(true)}><Plus className="h-4 w-4" />Add service charge</Button>}
                   </div>
                 </div>
                   {reversalAlert && (
@@ -250,9 +259,9 @@ export function ProjectDetailPage() {
                   <PaymentsHistoryTable payments={(projectPayments.data?.payments ?? []).map(payment => ({ ...payment, status: payment.gatewayStatus }))} currency={project.currency} projectSlug={project.slug} receiptUrls={Object.fromEntries((projectPayments.data?.payments ?? []).filter(payment => payment.gatewayStatus === "success" && payment.serviceId).map(payment => [payment.providerReference, `/admin/projects/${project.id}/services/${payment.serviceId}/payments/${payment.id}/receipt`]))} onPaymentChanged={refreshPaymentData} />
                   <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{projectPayments.data ? `${projectPayments.data.offset + 1}-${projectPayments.data.offset + projectPayments.data.payments.length} of ${projectPayments.data.total}` : "Loading payments…"}</span><div className="flex gap-2"><Button size="sm" variant="outline" loading={projectPayments.isFetching} disabled={paymentPage === 0 || projectPayments.isFetching} onClick={() => setPaymentPage(value => value - 1)}>Previous</Button><Button size="sm" variant="outline" loading={projectPayments.isFetching} disabled={!projectPayments.data || projectPayments.data.offset + projectPayments.data.payments.length >= projectPayments.data.total || projectPayments.isFetching} onClick={() => setPaymentPage(value => value + 1)}>Next</Button></div></div>
               </section>
-            </TabsContent>
+            </TabsContent>}
 
-            <TabsContent value="audit">
+            {canReadAudit && <TabsContent value="audit">
               <Card>
                 <CardHeader>
                   <CardTitle>Audit log</CardTitle>
@@ -261,7 +270,7 @@ export function ProjectDetailPage() {
                   <AuditLogTimeline entries={audit_log} />
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent>}
           </Tabs>
 
           <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />

@@ -28,45 +28,47 @@ const navGroups = [
   {
     label: "Manage",
     items: [
-      { to: "/app/projects", label: "Projects", icon: Box },
-      { to: "/app/customers", label: "Customers", icon: UsersRound },
-      { to: "/app/payments", label: "Payments", icon: CreditCard },
+      { to: "/app/projects", label: "Projects", icon: Box, permission: "projects.read" },
+      { to: "/app/customers", label: "Customers", icon: UsersRound, permission: "customers.read" },
+      { to: "/app/payments", label: "Payments", icon: CreditCard, permission: "payments.read" },
     ],
   },
   {
     label: "Delivery",
     items: [
-      { to: "/app/credentials", label: "Credentials", icon: ShieldCheck },
-      { to: "/app/nginx", label: "Nginx", icon: Server },
-      { to: "/app/nginx/certificates", label: "Certificates", icon: ShieldCheck },
+      { to: "/app/credentials", label: "Credentials", icon: ShieldCheck, permission: "integrations.read" },
+      { to: "/app/nginx", label: "Nginx", icon: Server, permission: "nginx.read" },
+      { to: "/app/nginx/certificates", label: "Certificates", icon: ShieldCheck, permission: "nginx.read" },
     ],
   },
   {
     label: "Infrastructure",
     items: [
-      { to: "/app/containers", label: "Containers", icon: Container },
-      { to: "/app/networks", label: "Networks", icon: Network },
-      { to: "/app/volumes", label: "Volumes", icon: Database },
+      { to: "/app/containers", label: "Containers", icon: Container, permission: "docker.read" },
+      { to: "/app/networks", label: "Networks", icon: Network, permission: "docker.read" },
+      { to: "/app/volumes", label: "Volumes", icon: Database, permission: "docker.read" },
     ],
   },
   {
     label: "System",
     items: [
-      { to: "/app/operations", label: "Operations", icon: Activity },
-      { to: "/app/logs", label: "Logs", icon: ScrollText },
-      { to: "/app/audit", label: "Audit log", icon: FileClock },
-      { to: "/app/notifications", label: "Notifications", icon: Bell },
+      { to: "/app/operations", label: "Operations", icon: Activity, permission: "operations.read" },
+      { to: "/app/logs", label: "Logs", icon: ScrollText, permission: "logs.read" },
+      { to: "/app/audit", label: "Audit log", icon: FileClock, permission: "audit.read" },
+      { to: "/app/notifications", label: "Notifications", icon: Bell, permission: "notifications.read" },
     ],
   },
   {
     label: "Account",
-    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }, { to: "/app/settings/users", label: "Admin users", icon: UserCog }, { to: "/app/settings/roles", label: "Roles and permissions", icon: ShieldCheck }],
+    items: [{ to: "/app/settings/profile", label: "Settings", icon: Settings }, { to: "/app/settings/users", label: "Admin users", icon: UserCog, permission: "users.read" }, { to: "/app/settings/roles", label: "Roles and permissions", icon: ShieldCheck, permission: "roles.read" }],
   },
 ];
 
 function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => void }) {
   const location = useLocation();
-  const activeGroup = navGroups.find(group => group.items.some(({ to }) => to === "/app" ? location.pathname === "/app" : to === "/app/nginx" ? location.pathname === to || (location.pathname.startsWith(`${to}/`) && !location.pathname.startsWith(`${to}/certificates`)) : location.pathname === to || location.pathname.startsWith(`${to}/`)))?.label;
+  const permissions = useAuthStore(state => state.permissions);
+  const visibleGroups = navGroups.map(group => ({ ...group, items: group.items.filter(item => !item.permission || permissions.includes(item.permission)) })).filter(group => group.items.length > 0);
+  const activeGroup = visibleGroups.find(group => group.items.some(({ to }) => to === "/app" ? location.pathname === "/app" : to === "/app/nginx" ? location.pathname === to || (location.pathname.startsWith(`${to}/`) && !location.pathname.startsWith(`${to}/certificates`)) : location.pathname === to || location.pathname.startsWith(`${to}/`)))?.label;
   const [openGroups, setOpenGroups] = useState<string[]>(() => navGroups.map(group => group.label));
 
   useEffect(() => {
@@ -75,7 +77,7 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
 
   return (
     <nav className="space-y-2 p-2">
-      {navGroups.map(group => {
+      {visibleGroups.map(group => {
         const groupOpen = openGroups.includes(group.label);
         return <div key={group.label} className="space-y-1">
         {!collapsed && <Button type="button" variant="ghost" aria-expanded={groupOpen} onClick={() => setOpenGroups(current => groupOpen ? current.filter(label => label !== group.label) : [...current, group.label])} className="flex h-auto w-full items-center justify-between rounded-md px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/55 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"><span>{group.label}</span><ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !groupOpen && "-rotate-90")} /></Button>}

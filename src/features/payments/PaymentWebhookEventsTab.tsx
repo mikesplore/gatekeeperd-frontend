@@ -9,11 +9,13 @@ import { DataTable } from "@/components/ui/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, getApiErrorMessage } from "@/lib/api";
 import type { PaymentEvent } from "@/types/payment";
+import { useCan } from "@/hooks/usePermissions";
 
 const PAGE_SIZE = 25;
 type PaymentEventsResponse = { data: PaymentEvent[]; total: number; limit: number; offset: number; hasMore: boolean };
 
 export function PaymentWebhookEventsTab() {
+  const canManagePayments = useCan("payments.manage");
   const [status, setStatus] = useState("all");
   const [provider, setProvider] = useState("all");
   const [page, setPage] = useState(0);
@@ -68,7 +70,7 @@ export function PaymentWebhookEventsTab() {
             { key: "attempts", header: "Attempts", render: event => <span className="tabular-nums">{event.processingAttempts}</span> },
             { key: "received", header: "Received", render: event => <span className="whitespace-nowrap text-xs text-muted-foreground">{new Date(event.receivedAt).toLocaleString()}</span> },
             { key: "error", header: "Processing error", render: event => event.processingError ? <span className="block max-w-[18rem] truncate text-xs text-destructive" title={event.processingError}>{event.processingError}</span> : "—" },
-            { key: "actions", header: "", render: event => event.provider === "paystack" && event.processingStatus === "failed" ? <Button size="sm" variant="outline" loading={replay.isPending} disabled={replay.isPending} onClick={() => replay.mutate(event.id)}><RotateCw className="mr-2 h-4 w-4" />Replay</Button> : null },
+            ...(canManagePayments ? [{ key: "actions", header: "", render: (event: PaymentEvent) => event.provider === "paystack" && event.processingStatus === "failed" ? <Button size="sm" variant="outline" loading={replay.isPending} disabled={replay.isPending} onClick={() => replay.mutate(event.id)}><RotateCw className="mr-2 h-4 w-4" />Replay</Button> : null }] : []),
           ]}
         />
       </CardContent>

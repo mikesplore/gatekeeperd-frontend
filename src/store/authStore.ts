@@ -6,10 +6,9 @@ interface AuthState {
   refreshToken: string | null;
   email: string | null;
   role: string | null;
-  isHydrating: boolean;
-  setHydrating: (value: boolean) => void;
-  login: (token: string, refreshToken: string, email: string, role: string) => void;
-  setUser: (email: string, role: string) => void;
+  permissions: string[];
+  login: (token: string, refreshToken: string, email: string, role: string, permissions?: string[]) => void;
+  setUser: (email: string, role: string, permissions: string[]) => void;
   logout: () => void;
 }
 
@@ -20,11 +19,10 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       email: null,
       role: null,
-      isHydrating: false,
-      setHydrating: (value) => set({ isHydrating: value }),
-      login: (token, refreshToken, email, role) => set({ token, refreshToken, email, role }),
-      setUser: (email, role) => set({ email, role }),
-      logout: () => set({ token: null, refreshToken: null, email: null, role: null }),
+      permissions: [],
+      login: (token, refreshToken, email, role, permissions = []) => set({ token, refreshToken, email, role, permissions }),
+      setUser: (email, role, permissions) => set({ email, role, permissions }),
+      logout: () => set({ token: null, refreshToken: null, email: null, role: null, permissions: [] }),
     }),
     {
       name: "gatekeeper-auth",
@@ -33,6 +31,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         email: state.email,
         role: state.role,
+        permissions: state.permissions,
       }),
     },
   ),

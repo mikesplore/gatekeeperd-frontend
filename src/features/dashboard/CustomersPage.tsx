@@ -13,10 +13,12 @@ import { getApiErrorMessage } from "@/lib/api";
 import { useCreateDashboardCustomer, useDashboardCustomer, useDashboardCustomerTransactions, useDashboardCustomers } from "@/hooks/useSiteDashboard";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCan } from "@/hooks/usePermissions";
 
 function Money({ value }: { value: number }) { return <span>KES {value.toLocaleString()}</span>; }
 
 export function CustomersPage() {
+  const canManageCustomers = useCan("customers.manage");
   const [params, setParams] = useSearchParams();
   const pageSize = 25;
   const page = Math.max(0, Number(params.get("page") ?? 0) || 0);
@@ -38,9 +40,9 @@ export function CustomersPage() {
         <div className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-muted-foreground">Manage customer contacts, project ownership, and billing totals.</p>
-            <Button onClick={() => setOpen(true)} className="w-full sm:w-auto">
+            {canManageCustomers && <Button onClick={() => setOpen(true)} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />New Customer
-            </Button>
+            </Button>}
           </div>
 
           <Card>
@@ -56,7 +58,7 @@ export function CustomersPage() {
                 search={{ value: search, onChange: value => update("q", value) }}
                 searchPlaceholder="Search customers…"
                 emptyMessage="No customers found."
-                emptyAction={{ label: "New Customer", onClick: () => setOpen(true) }}
+                emptyAction={canManageCustomers ? { label: "New Customer", onClick: () => setOpen(true) } : undefined}
                 getRowKey={customer => customer.id}
                 columns={[
                   { key: "name", header: "Customer", render: customer => <Link className="font-medium text-primary hover:underline" to={`/app/customers/${customer.id}`}>{customer.name}</Link> },
@@ -69,7 +71,7 @@ export function CustomersPage() {
             </CardContent>
           </Card>
 
-          <SidePanel open={open} onOpenChange={setOpen}>
+          {canManageCustomers && <SidePanel open={open} onOpenChange={setOpen}>
             <SidePanelContent>
               <SidePanelHeader className="border-b px-6 py-5 pr-14">
                 <SidePanelTitle>New customer</SidePanelTitle>
@@ -95,7 +97,7 @@ export function CustomersPage() {
                 </SidePanelFooter>
               </form>
             </SidePanelContent>
-          </SidePanel>
+          </SidePanel>}
         </div>
       )}
     </QueryState>

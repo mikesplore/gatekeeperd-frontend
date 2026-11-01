@@ -10,11 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useCan } from "@/hooks/usePermissions";
 
 type AdminUser = { id: string; email: string; role: string; twoFactorEnabled: boolean; createdAt: string; active?: boolean };
 type AdminRole = { key: string; displayName: string; active: boolean };
 
 export function AdminUsersPage() {
+  const canManageUsers = useCan("users.manage");
   const client = useQueryClient();
   const [params, setParams] = useSearchParams();
   const pageSize = 15;
@@ -37,7 +39,10 @@ export function AdminUsersPage() {
   const [editRole, setEditRole] = useState("admin");
   const users = useQuery({ queryKey: ["admin-users", page, search], queryFn: async () => (await api.get<{ users: AdminUser[]; total: number; limit: number; offset: number; hasMore: boolean }>("/admin/users", { params: { limit: pageSize, offset: page * pageSize, q: search || undefined } })).data });
   const roles = useQuery({ queryKey: ["rbac-roles"], queryFn: async () => (await api.get<AdminRole[]>("/admin/rbac/roles")).data });
-  const refresh = () => void client.invalidateQueries({ queryKey: ["admin-users"] });
+  const refresh = () => {
+    void client.invalidateQueries({ queryKey: ["admin-users"] });
+    void client.invalidateQueries({ queryKey: ["auth", "me"] });
+  };
   const create = useMutation({ mutationFn: async () => (await api.post<AdminUser>("/admin/users", { email, password, role })).data, onSuccess: () => { setEmail(""); setPassword(""); setRole("admin"); setCreateOpen(false); refresh(); toast.success("Admin user created"); }, onError: error => toast.error(getApiErrorMessage(error)) });
   const update = useMutation({ mutationFn: async ({ id, changes }: { id: string; changes: Record<string, unknown> }) => api.patch(`/admin/users/${id}`, changes), onSuccess: () => { refresh(); toast.success("User updated"); }, onError: error => toast.error(getApiErrorMessage(error)) });
   const remove = useMutation({ mutationFn: async (id: string) => api.delete(`/admin/users/${id}`), onSuccess: () => { refresh(); setDeleteTarget(null); toast.success("User deleted"); }, onError: error => toast.error(getApiErrorMessage(error)) });
@@ -45,18 +50,18 @@ export function AdminUsersPage() {
   const columns: DataTableColumn<AdminUser>[] = [
     { key: "email", header: "Email", searchable: true, searchValue: user => `${user.email} ${user.role}`, render: user => <div className="min-w-0"><p className="font-medium">{user.email}</p><p className="text-xs text-muted-foreground">{user.role} · {user.twoFactorEnabled ? "2FA enabled" : "2FA disabled"} · {user.active === false ? "Suspended" : "Active"}</p></div> },
     { key: "createdAt", header: "Created", sortable: true, sortValue: user => new Date(user.createdAt).getTime(), render: user => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={user.createdAt}>{new Date(user.createdAt).toLocaleDateString()}</time> },
-    { key: "actions", header: "Actions", render: user => <div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => edit(user)}>Edit</Button><Button size="sm" variant="outline" loading={update.isPending && update.variables?.id === user.id} disabled={update.isPending} onClick={() => update.mutate({ id: user.id, changes: { active: user.active === false } })}>{user.active === false ? "Reactivate" : "Suspend"}</Button><Button size="sm" variant="destructive" loading={remove.isPending && remove.variables === user.id} disabled={remove.isPending} onClick={() => setDeleteTarget(user)}>{remove.isPending && remove.variables === user.id ? "Deleting…" : "Delete"}</Button></div> },
+    ...(canManageUsers ? [{ key: "actions", header: "Actions", render: (user: AdminUser) => <div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => edit(user)}>Edit</Button><Button size="sm" variant="outline" loading={update.isPending && update.variables?.id === user.id} disabled={update.isPending} onClick={() => update.mutate({ id: user.id, changes: { active: user.active === false } })}>{user.active === false ? "Reactivate" : "Suspend"}</Button><Button size="sm" variant="destructive" loading={remove.isPending && remove.variables === user.id} disabled={remove.isPending} onClick={() => setDeleteTarget(user)}>{remove.isPending && remove.variables === user.id ? "Deleting…" : "Delete"}</Button></div> }] : []),
   ];
 
   return <div className="space-y-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-muted-foreground">Manage administrator and service accounts.</p>
-      <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">Create user</Button>
+      {canManageUsers && <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">Create user</Button>}
     </div>
     <Card>
       <CardHeader><CardTitle>All admin users</CardTitle></CardHeader>
       <CardContent className="pt-0">
-        <DataTable data={users.data?.users ?? []} mode="server" total={users.data?.total ?? 0} page={page} pageSize={pageSize} search={{ value: search, onChange: value => updateTable("q", value) }} searchPlaceholder="Search users…" onPageChange={next => updateTable("page", String(next))} isLoading={users.isLoading} getRowKey={user => user.id} columns={columns} emptyMessage="No admin users found." emptyAction={{ label: "Create user", onClick: () => setCreateOpen(true) }} />
+        <DataTable data={users.data?.users ?? []} mode="server" total={users.data?.total ?? 0} page={page} pageSize={pageSize} search={{ value: search, onChange: value => updateTable("q", value) }} searchPlaceholder="Search users…" onPageChange={next => updateTable("page", String(next))} isLoading={users.isLoading} getRowKey={user => user.id} columns={columns} emptyMessage="No admin users found." emptyAction={canManageUsers ? { label: "Create user", onClick: () => setCreateOpen(true) } : undefined} />
       </CardContent>
     </Card>
 

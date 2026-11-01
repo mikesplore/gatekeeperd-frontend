@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useCan } from "@/hooks/usePermissions";
 
 type Permission = { code: string; category: string; action: string; description: string };
 type Role = { id: string; key: string; displayName: string; description: string | null; superAdmin: boolean; active: boolean; permissions: string[] };
 
 export function RolesPage() {
+  const canManageRoles = useCan("roles.manage");
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Role | null>(null);
@@ -28,7 +30,10 @@ export function RolesPage() {
     (result[item.category] ??= []).push(item);
     return result;
   }, {}), [permissions.data]);
-  const refresh = () => void client.invalidateQueries({ queryKey: ["rbac-roles"] });
+  const refresh = () => {
+    void client.invalidateQueries({ queryKey: ["rbac-roles"] });
+    void client.invalidateQueries({ queryKey: ["auth", "me"] });
+  };
   const save = useMutation({
     mutationFn: async () => editing
       ? api.put(`/admin/rbac/roles/${encodeURIComponent(editing.key)}`, { displayName, description: description || null, active, permissions: selected })
@@ -43,13 +48,13 @@ export function RolesPage() {
 
   return <div className="space-y-6">
     <div className="flex justify-end">
-      <Button onClick={startCreate}>Create role</Button>
+      {canManageRoles && <Button onClick={startCreate}>Create role</Button>}
     </div>
     {roles.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(roles.error)}</p>}
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {(roles.data ?? []).map(role => <Card key={role.key}>
-        <CardHeader className="flex flex-row items-start justify-between gap-4"><div><CardTitle>{role.displayName}</CardTitle><p className="mt-1 text-xs text-muted-foreground">{role.key} · {role.superAdmin ? "Built-in superuser" : role.active ? "Active" : "Inactive"}</p></div><Button size="sm" variant="outline" disabled={role.superAdmin} onClick={() => startEdit(role)}>Edit</Button></CardHeader>
-        <CardContent className="space-y-3"><p className="min-h-5 text-sm text-muted-foreground">{role.description || "No description"}</p><p className="text-sm">{role.superAdmin ? "All permissions" : `${role.permissions.length} permissions`}</p>{!role.superAdmin && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={remove.isPending} onClick={() => setRemoveTarget(role)}>Delete</Button>{!role.active && <span className="self-center text-xs text-destructive">Inactive roles cannot access admin routes</span>}</div>}</CardContent>
+        <CardHeader className="flex flex-row items-start justify-between gap-4"><div><CardTitle>{role.displayName}</CardTitle><p className="mt-1 text-xs text-muted-foreground">{role.key} · {role.superAdmin ? "Built-in superuser" : role.active ? "Active" : "Inactive"}</p></div>{canManageRoles && <Button size="sm" variant="outline" disabled={role.superAdmin} onClick={() => startEdit(role)}>Edit</Button>}</CardHeader>
+        <CardContent className="space-y-3"><p className="min-h-5 text-sm text-muted-foreground">{role.description || "No description"}</p><p className="text-sm">{role.superAdmin ? "All permissions" : `${role.permissions.length} permissions`}</p>{canManageRoles && !role.superAdmin && <div className="flex gap-2"><Button size="sm" variant="outline" disabled={remove.isPending} onClick={() => setRemoveTarget(role)}>Delete</Button>{!role.active && <span className="self-center text-xs text-destructive">Inactive roles cannot access admin routes</span>}</div>}</CardContent>
       </Card>)}
     </div>
     <SidePanel open={open} onOpenChange={setOpen}><SidePanelContent>

@@ -2,6 +2,9 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { lazy } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
+import { AuthorizedHome, PermissionRoute } from "@/components/auth/PermissionGuard";
+
+const allow = (permission: string, element: React.ReactNode) => <PermissionRoute permission={permission}>{element}</PermissionRoute>;
 
 const LandingPage = lazy(() => import("@/features/landing/LandingPage").then((module) => ({ default: module.LandingPage })));
 const LoginPage = lazy(() => import("@/features/auth/LoginPage").then((module) => ({ default: module.LoginPage })));
@@ -9,7 +12,6 @@ const ForgotPasswordPage = lazy(() => import("@/features/auth/PasswordResetPage"
 const ResetPasswordPage = lazy(() => import("@/features/auth/PasswordResetPage").then((module) => ({ default: module.ResetPasswordPage })));
 const ContainersPage = lazy(() => import("@/features/containers/ContainersPage").then((module) => ({ default: module.ContainersPage })));
 const ContainerDetailPage = lazy(() => import("@/features/containers/ContainerDetailPage").then((module) => ({ default: module.ContainerDetailPage })));
-const DashboardOverviewPage = lazy(() => import("@/features/dashboard/DashboardOverviewPage").then((module) => ({ default: module.DashboardOverviewPage })));
 const NotFoundPage = lazy(() => import("@/features/NotFoundPage").then((module) => ({ default: module.NotFoundPage })));
 const ProjectDetailPage = lazy(() => import("@/features/projects/ProjectDetailPage").then((module) => ({ default: module.ProjectDetailPage })));
 const ServiceDetailPage = lazy(() => import("@/features/projects/ServiceDetailPage").then((module) => ({ default: module.ServiceDetailPage })));
@@ -55,36 +57,36 @@ export const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <DashboardOverviewPage /> },
-          { path: "projects", element: <ProjectsListPage /> },
-          { path: "projects/setup", element: <ProjectSetupWizardPage /> },
-          { path: "projects/setup/:projectId", element: <ProjectSetupWizardPage /> },
-          { path: "projects/:slug/services/:serviceId", element: <ServiceDetailPage /> },
-          { path: "projects/:slug", element: <ProjectDetailPage /> },
-          { path: "payments", element: <PaymentsPage /> },
-          { path: "payments/events", element: <PaymentEventsPage /> },
-          { path: "containers", element: <ContainersPage /> },
-          { path: "containers/:name", element: <ContainerDetailPage /> },
-          { path: "nginx", element: <SitesDashboardPage /> },
+          { index: true, element: <AuthorizedHome /> },
+          { path: "projects", element: allow("projects.read", <ProjectsListPage />) },
+          { path: "projects/setup", element: allow("projects.manage", <ProjectSetupWizardPage />) },
+          { path: "projects/setup/:projectId", element: allow("projects.manage", <ProjectSetupWizardPage />) },
+          { path: "projects/:slug/services/:serviceId", element: allow("services.read", <ServiceDetailPage />) },
+          { path: "projects/:slug", element: allow("projects.read", <ProjectDetailPage />) },
+          { path: "payments", element: allow("payments.read", <PaymentsPage />) },
+          { path: "payments/events", element: allow("payments.read", <PaymentEventsPage />) },
+          { path: "containers", element: allow("docker.read", <ContainersPage />) },
+          { path: "containers/:name", element: allow("docker.read", <ContainerDetailPage />) },
+          { path: "nginx", element: allow("nginx.read", <SitesDashboardPage />) },
           { path: "nginx/manage", element: <Navigate to="/app/nginx" replace /> },
-          { path: "nginx/certificates", element: <CertificatesPage /> },
-          { path: "nginx/sites/:slug", element: <SiteDetailPage /> },
-          { path: "nginx/dead-configs", element: <DeadConfigsPage /> },
-          { path: "nginx/sites/:slug/advanced", element: <SiteAdvancedConfigPage /> },
-          { path: "customers", element: <CustomersPage /> },
-          { path: "customers/:id", element: <CustomerDetailPage /> },
-          { path: "operations", element: <OperationsPage /> },
-          { path: "logs", element: <LogsPage /> },
-          { path: "audit", element: <AuditPage /> },
-          { path: "notifications", element: <NotificationsPage /> },
+          { path: "nginx/certificates", element: allow("nginx.read", <CertificatesPage />) },
+          { path: "nginx/sites/:slug", element: allow("nginx.read", <SiteDetailPage />) },
+          { path: "nginx/dead-configs", element: allow("nginx.read", <DeadConfigsPage />) },
+          { path: "nginx/sites/:slug/advanced", element: allow("nginx.read", <SiteAdvancedConfigPage />) },
+          { path: "customers", element: allow("customers.read", <CustomersPage />) },
+          { path: "customers/:id", element: allow("customers.read", <CustomerDetailPage />) },
+          { path: "operations", element: allow("operations.read", <OperationsPage />) },
+          { path: "logs", element: allow("logs.read", <LogsPage />) },
+          { path: "audit", element: allow("audit.read", <AuditPage />) },
+          { path: "notifications", element: allow("notifications.read", <NotificationsPage />) },
           { path: "settings/profile", element: <ProfileSettingsPage /> },
-          { path: "credentials", element: <InfrastructureCredentialsPage /> },
-          { path: "settings/users", element: <AdminUsersPage /> },
-          { path: "settings/roles", element: <RolesPage /> },
-          { path: "networks", element: <NetworkResourcesPage /> },
-          { path: "networks/:name", element: <NetworkDetailPage /> },
-          { path: "volumes", element: <VolumeResourcesPage /> },
-          { path: "volumes/:name", element: <VolumeDetailPage /> },
+          { path: "credentials", element: allow("integrations.read", <InfrastructureCredentialsPage />) },
+          { path: "settings/users", element: allow("users.read", <AdminUsersPage />) },
+          { path: "settings/roles", element: allow("roles.read", <RolesPage />) },
+          { path: "networks", element: allow("docker.read", <NetworkResourcesPage />) },
+          { path: "networks/:name", element: allow("docker.read", <NetworkDetailPage />) },
+          { path: "volumes", element: allow("docker.read", <VolumeResourcesPage />) },
+          { path: "volumes/:name", element: allow("docker.read", <VolumeDetailPage />) },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

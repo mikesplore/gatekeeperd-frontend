@@ -21,27 +21,8 @@ export function useLogin() {
     onSuccess: (result) => {
       if (result.requiresTwoFactor) return;
       const authenticated = result as LoginResponse & AuthUser;
-      login(authenticated.token!, authenticated.refreshToken!, authenticated.email, authenticated.role);
+      login(authenticated.token!, authenticated.refreshToken!, authenticated.email, authenticated.role, authenticated.permissions ?? []);
     },
-  });
-}
-
-export function useRehydrateSession() {
-  const { token, setUser, setHydrating } = useAuthStore();
-
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await api.get<AuthUser>("/auth/me");
-      return data;
-    },
-    onMutate: () => setHydrating(true),
-    onSuccess: (data) => {
-      if (token) {
-        setUser(data.email, data.role);
-      }
-    },
-    onSettled: () => setHydrating(false),
-    retry: false,
   });
 }
 

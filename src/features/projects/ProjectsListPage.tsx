@@ -19,8 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useCan } from "@/hooks/usePermissions";
 
 export function ProjectsListPage() {
+  const canManageProjects = useCan("projects.manage");
   const { data, isLoading, isError, error } = useProjects();
   const [formOpen, setFormOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -45,10 +47,10 @@ export function ProjectsListPage() {
         <div>
           <p className="text-muted-foreground">Manage client projects and access control.</p>
         </div>
-        <div className="flex flex-wrap gap-2">{selectedSlugs.length > 0 && <><Button variant="outline" loading={bulkAction.isPending} disabled={bulkAction.isPending} onClick={() => void runBulk("block")}><ShieldAlert className="mr-2 h-4 w-4"/>Block {selectedSlugs.length}</Button><Button variant="outline" loading={bulkAction.isPending} disabled={bulkAction.isPending} onClick={() => void runBulk("unblock")}><ShieldCheck className="mr-2 h-4 w-4"/>Unblock {selectedSlugs.length}</Button></>}<Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2">{canManageProjects && selectedSlugs.length > 0 && <><Button variant="outline" loading={bulkAction.isPending} disabled={bulkAction.isPending} onClick={() => void runBulk("block")}><ShieldAlert className="mr-2 h-4 w-4"/>Block {selectedSlugs.length}</Button><Button variant="outline" loading={bulkAction.isPending} disabled={bulkAction.isPending} onClick={() => void runBulk("unblock")}><ShieldCheck className="mr-2 h-4 w-4"/>Unblock {selectedSlugs.length}</Button></>}{canManageProjects && <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           New Project
-        </Button></div>
+        </Button>}</div>
       </div>
 
       <Card>
@@ -79,6 +81,7 @@ export function ProjectsListPage() {
                 onUnblock={(p) => setBlockTarget({ project: p, mode: "unblock" })}
                 onDelete={setDeleteTarget}
                 onCreate={() => setCreateOpen(true)}
+                canManage={canManageProjects}
               />
             )}
           </QueryState>

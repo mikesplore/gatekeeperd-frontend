@@ -4,7 +4,6 @@ import {
   ShieldCheck,
   FolderPlus,
   GitBranch,
-  Rocket,
   Globe,
   Zap,
   Bell,
@@ -20,7 +19,6 @@ import firewallImg from "@/images/undraw_firewall_cfej.svg";
 import heavyLiftingImg from "@/images/undraw_heavy-lifting_d753.svg";
 import onlinePaymentsImg from "@/images/undraw_online-payments_d5ef.svg";
 import relaxationImg from "@/images/undraw_relaxation_jsge.svg";
-import rideTillICanNoMoreImg from "@/images/undraw_jogging_tf9a.svg";
 
 const paymentFeatures = [
   {
@@ -96,29 +94,23 @@ const steps = [
   {
     step: "01",
     icon: FolderPlus,
-    title: "Create a project",
-    description: "Add the client, the amount due and the due date. No container needed yet.",
+    title: "Add the client and billing terms",
+    description: "Set the amount due and the date payment is expected for the client’s app.",
   },
   {
     step: "02",
-    icon: Rocket,
-    title: "Configure and deploy",
-    description: "Set the repository, runtime and environment variables, then ship a release.",
+    icon: Globe,
+    title: "Put the gate in front of the app",
+    description: "Connect the app’s domain through Gatekeeperd using the supported proxy setup.",
   },
   {
     step: "03",
-    icon: Globe,
-    title: "Attach the domain",
-    description: "Gatekeeperd manages the nginx site and certificate in front of your app.",
+    icon: Bell,
+    title: "Let reminders go out",
+    description: "Clients receive payment reminders as the due date approaches and after it passes.",
   },
   {
     step: "04",
-    icon: Bell,
-    title: "Reminders run on schedule",
-    description: "Clients hear from Gatekeeperd as the due date approaches and after it passes.",
-  },
-  {
-    step: "05",
     icon: Zap,
     title: "Access follows payment",
     description: "Overdue projects are gated. Paid projects are restored within seconds.",
@@ -139,10 +131,16 @@ export function LandingPage() {
           </div>
           <nav className="flex items-center gap-6">
             <a
+              href="#payment-gating"
+              className="hidden text-sm text-muted-foreground hover:text-foreground sm:block"
+            >
+              Payment gating
+            </a>
+            <a
               href="#deployments"
               className="hidden text-sm text-muted-foreground hover:text-foreground sm:block"
             >
-              Deployments
+              Deployment tools
             </a>
             <a
               href="#how-it-works"
@@ -179,48 +177,65 @@ export function LandingPage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div className="text-center lg:text-left">
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-tight">
-                Host your clients' apps. Get paid for them.
+                Keep client apps online when they pay. Gate access when they don’t.
               </h1>
               <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-                Gatekeeperd deploys and routes each client project, then gates access by payment
-                status. Reminders, enforcement and restoration run on their own, so you spend your
-                time building.
+                Put a payment-aware gate in front of your clients’ apps. Gatekeeperd restores access
+                when payment is confirmed and shows an overdue notice when it isn’t. No manual
+                follow-ups, container stops, or app code changes.
               </p>
               {!token && (
                 <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
                   <Button size="lg" asChild>
                     <Link to="/login">
-                      Get started
+                      Set up payment gating
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
-                    <a href="#how-it-works">See how it works</a>
+                  <a href="#payment-gating">See how the gate works</a>
                   </Button>
                 </div>
               )}
             </div>
-            <div className="lg:block">
-              <img
-                src={rideTillICanNoMoreImg}
-                alt=""
-                className="w-full h-auto max-h-64 sm:max-h-none object-contain"
-                loading="eager"
-              />
+            <div className="mx-auto w-full max-w-xl">
+              <div className="rounded-2xl border bg-card p-5 shadow-xl sm:p-7">
+                <div className="flex items-center justify-between gap-4 border-b pb-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Payment status controls access</p>
+                    <p className="mt-1 text-lg font-semibold">Client application</p>
+                  </div>
+                  <ShieldCheck className="h-8 w-8 shrink-0 text-primary" />
+                </div>
+                <div className="grid gap-3 pt-5 sm:grid-cols-2">
+                  <div className="rounded-xl border border-emerald-600/25 bg-emerald-500/5 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Payment received</p>
+                    <p className="mt-2 text-lg font-semibold">App access allowed</p>
+                    <p className="mt-1 text-sm text-muted-foreground">The gate lets the client through.</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-600/25 bg-amber-500/5 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Payment overdue</p>
+                    <p className="mt-2 text-lg font-semibold">Payment page shown</p>
+                    <p className="mt-1 text-sm text-muted-foreground">The app keeps running behind the gate.</p>
+                  </div>
+                </div>
+                <p className="mt-5 text-center text-sm text-muted-foreground">Confirmed payment restores access automatically.</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Payment enforcement */}
-      <section id="features" className="border-b py-20">
+      <section id="payment-gating" className="border-b py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Stop chasing late payments
+              Payment status should decide who gets through
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Your terms are enforced by policy, so you don't have to argue about them.
+              Gatekeeperd connects billing to traffic access. Your client sees a clear payment page
+              when overdue, and access returns after payment is confirmed.
             </p>
           </div>
           <div className="mt-16 space-y-24">
@@ -257,11 +272,11 @@ export function LandingPage() {
           <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.4fr]">
             <div>
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Deploy and manage the app too
+                Deployment management is included too
               </h2>
               <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
-                A project is the client's application. Containers come and go underneath it, while
-                the customer, billing, domain and history stay put.
+                The gate works with an existing app. When you want one place to manage delivery,
+                Gatekeeperd also handles projects, deployments, domains and runtime settings.
               </p>
               <img
                 src={heavyLiftingImg}
@@ -291,13 +306,11 @@ export function LandingPage() {
           <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Lock className="h-6 w-6 text-primary" />
           </div>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Billing and deployments stay separate
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
-            A failed deploy never changes a client's access or billing status, and a blocked client
-            never needs their container stopped. Each side has its own state, so one problem cannot
-            quietly cause another.
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">A payment issue shouldn’t take your app down</h2>
+            <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
+              Gatekeeperd controls the request path in front of your app. If a client is overdue, it
+              shows the payment page while the application and its container keep running. Once
+              payment is confirmed, the gate opens again without a redeploy.
           </p>
         </div>
       </section>
@@ -307,7 +320,7 @@ export function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">How it works</h2>
-            <p className="mt-4 text-muted-foreground">Set a project up once, then let it run.</p>
+            <p className="mt-4 text-muted-foreground">Connect billing to the gate. Deployment management is optional.</p>
           </div>
           <div className="mt-16 grid gap-12 sm:grid-cols-2 lg:grid-cols-5 lg:gap-6">
             {steps.map((item) => (
@@ -334,11 +347,11 @@ export function LandingPage() {
               <ShieldCheck className="h-7 w-7 text-primary" />
             </div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              One place for the app and the invoice
+              Put payment enforcement on autopilot
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Deploy client projects, route their domains, and let payment status decide who gets
-              through.
+              Let payment status control access to your clients’ apps. Add deployment and domain
+              management when you want those tools in the same place.
             </p>
             <div className="mt-8 flex items-center justify-center gap-4">
               {token ? (
@@ -351,7 +364,7 @@ export function LandingPage() {
               ) : (
                 <Button size="lg" asChild>
                   <Link to="/login">
-                    Get started
+                    Set up payment gating
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
