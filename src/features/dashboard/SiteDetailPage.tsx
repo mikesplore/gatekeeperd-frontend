@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Clock3, ExternalLink, FileCode2, LockKeyhole, MoreHorizontal, Server, ShieldAlert, Trash2 } from "lucide-react";
+import { Check, Clock3, ExternalLink, FileCode2, Link2, LockKeyhole, MoreHorizontal, Server, ShieldAlert, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { QueryState } from "@/components/QueryState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useDashboardSite, useDeleteDashboardSite, useUpdateDashboardSite } from "@/hooks/useSiteDashboard";
+import { useConvertSiteToDeploymentManaged, useDashboardSite, useDeleteDashboardSite, useUpdateDashboardSite, useUpstreamMigrationReport } from "@/hooks/useSiteDashboard";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import type { SiteStatus } from "@/types/sites";
 import { useCan } from "@/hooks/usePermissions";
@@ -29,6 +29,8 @@ export function SiteDetailPage() {
   const query = useDashboardSite(slug);
   const update = useUpdateDashboardSite(slug);
   const remove = useDeleteDashboardSite();
+  const migrationReport = useUpstreamMigrationReport(canManageNginx);
+  const convertSite = useConvertSiteToDeploymentManaged();
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tab, setTab] = useState("overview");
@@ -40,6 +42,14 @@ export function SiteDetailPage() {
 
   return <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={query.data}>
     {detail => <div className="w-full space-y-6">
+      {canManageNginx && (() => {
+        const migration = migrationReport.data?.find(row => row.domain.toLowerCase() === detail.site.domain.toLowerCase());
+        const managed = detail.site.upstreamKind === "DEPLOYMENT_MANAGED" || migration?.currentKind === "DEPLOYMENT_MANAGED";
+        return <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="flex items-start gap-3"><span className="rounded-lg bg-primary/10 p-2 text-primary"><Link2 className="h-4 w-4" /></span><div><p className="font-medium">Deployment connection</p><p className="mt-1 text-sm text-muted-foreground">{managed ? "This site is connected to its service deployment and can be repaired here." : migration?.result === "ready_to_apply" ? "Connect this site to the service’s active production deployment to enable repair." : migration?.result === "needs_adoption_first" ? "Adopt this site into a service deployment, then activate a production deployment to enable repair." : migration?.result === "explicit_site_unchanged" ? "This site has no service deployment configuration to connect." : "An active production deployment is required before this site can be connected. Development deployments do not qualify."}</p></div></div>
+          {managed ? <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-400">Connected</Badge> : migration?.result === "ready_to_apply" ? <Button disabled={convertSite.isPending} onClick={() => { void convertSite.mutateAsync(migration.siteId).then(() => toast.success("Site connected to production deployment")).catch(error => toast.error(getApiErrorMessage(error))); }}>{convertSite.isPending ? "Connecting…" : "Connect to production"}</Button> : <Badge variant="outline">Not connected</Badge>}
+        </CardContent></Card>;
+      })()}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">Manage this site’s health, routing, and configuration.</p>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2"><Button variant="outline" asChild><a href={`https://${detail.site.domain}`} target="_blank" rel="noreferrer"><ExternalLink className="mr-2 h-4 w-4" />Visit site</a></Button>{canManageNginx && <><Button variant="outline" asChild><Link to={`/app/nginx/sites/${encodeURIComponent(detail.site.slug)}/advanced`}><FileCode2 className="mr-2 h-4 w-4" />Advanced config</Link></Button><Button variant="destructive" size="icon" aria-label="Delete site" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4" /></Button></>}</div>

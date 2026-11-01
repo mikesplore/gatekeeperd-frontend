@@ -8,6 +8,20 @@ export function useDashboardSites(status?: SiteStatus | "all", limit = 25, offse
   return useQuery({ queryKey: ["dashboard", "sites", status, limit, offset], queryFn: async () => (await api.get<PaginatedDashboardSites>("/admin/dashboard/sites", { params: { status: status && status !== "all" ? status : undefined, limit, offset } })).data });
 }
 export function useDashboardSite(slug: string) { return useQuery({ queryKey: ["dashboard", "site", slug], queryFn: async () => (await api.get<SiteDetail>(`/admin/dashboard/sites/${encodeURIComponent(slug)}`)).data, enabled: !!slug }); }
+export interface UpstreamMigrationRow { siteId: string; projectSlug: string | null; domain: string; currentKind: string | null; result: string; reason?: string | null; }
+export function useUpstreamMigrationReport(enabled = true) { return useQuery({ queryKey: ["nginx", "upstream-migration"], queryFn: async () => (await api.get<UpstreamMigrationRow[]>("/admin/nginx/upstream-migration")).data, enabled }); }
+export function useConvertSiteToDeploymentManaged() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (siteId: string) => api.post(`/admin/nginx/upstream-migration/sites/${encodeURIComponent(siteId)}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["nginx", "upstream-migration"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "site"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "sites"] });
+      queryClient.invalidateQueries({ queryKey: ["nginx", "config-artifacts"] });
+    },
+  });
+}
 export interface DashboardSiteUpdate { domain?: string; upstreamHost?: string; upstreamMode?: string; upstreamExplicitPort?: number; tlsMode?: string; certMode?: string; certExplicitPath?: string; gateEnabled?: boolean; bypassPaths?: string[]; }
 export function useUpdateDashboardSite(slug: string) {
   const queryClient = useQueryClient();
