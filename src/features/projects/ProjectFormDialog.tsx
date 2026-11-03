@@ -38,7 +38,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: { open: boole
         <div className="space-y-2"><Label>Project</Label><Input value={project?.name ?? ""} disabled /></div>
         <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" {...register("name")} />{errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}</div>
       </div>
-      <div className="space-y-3"><Label>Customer</Label><Select value={customerId || ""} onValueChange={value => setValue("customerId", value)}><SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select a customer" /></SelectTrigger><SelectContent>{customers.data?.customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-3"><Label>Customer</Label><Select value={customerId || ""} onValueChange={value => setValue("customerId", value)}><SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select a customer" /></SelectTrigger><SelectContent>{customers.data?.customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.firstName} {customer.lastName}</SelectItem>)}</SelectContent></Select></div>
       <SidePanelFooter className="sticky bottom-0 -mx-6 -mb-6 mt-2 border-t bg-background px-6 py-4"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" loading={update.isPending} disabled={update.isPending}>{update.isPending ? "Saving…" : "Save changes"}</Button></SidePanelFooter>
     </form>
   </SidePanelContent></SidePanel>;

@@ -41,7 +41,7 @@ export function AppBreadcrumb() {
   const settingsChild = location.pathname === "/app/settings/users" ? "Admin users" : location.pathname === "/app/settings/roles" ? "Roles and permissions" : location.pathname === "/app/settings/profile" ? "Profile" : null;
 
   if (customerMatch) {
-    return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/customers" className="transition-colors hover:text-primary">Customers</Link><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{customer.isLoading ? "Loading…" : customer.data?.name ?? "Customer"}</span></h1>;
+    return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/customers" className="transition-colors hover:text-primary">Customers</Link><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{customer.isLoading ? "Loading…" : (customer.data ? `${customer.data.firstName} ${customer.data.lastName}`.trim() : "Customer")}</span></h1>;
   }
 
   if (projectMatch) {
