@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Check, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 
@@ -7,67 +7,47 @@ export function LandingPage() {
   const token = useAuthStore((state) => state.token);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <ShieldCheck className="h-5 w-5 text-primary" />
+    <div className="flex min-h-screen flex-col bg-[#090b0c] text-white">
+      <header className="border-b border-white/10">
+        <div className="mx-auto flex h-16 max-w-6xl items-center px-5 sm:px-8">
+          <Link to="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
+            <ShieldCheck className="h-5 w-5 text-emerald-400" />
             <span>Gatekeeperd</span>
           </Link>
-          <Button size="sm" asChild>
-            <Link to={token ? "/app" : "/login"}>
-              {token ? "Dashboard" : "Sign in"}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
         </div>
       </header>
 
-      <main className="flex flex-1 items-center px-4 py-16 sm:px-6 sm:py-20">
-        <section className="mx-auto w-full max-w-5xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Keep client access in sync with payment.
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-              Gate overdue client sites and restore access when payment is confirmed. The app keeps running behind the gate.
-            </p>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Works with existing apps behind nginx or Traefik.
-            </p>
+      <main className="relative flex flex-1 items-center justify-center overflow-hidden px-5 py-20 sm:px-8">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.09),transparent_58%)]" />
+        <section className="relative mx-auto w-full max-w-5xl text-center">
+          <h1 className="mx-auto max-w-4xl text-5xl font-semibold leading-[1.04] tracking-[-0.045em] sm:text-6xl md:text-7xl lg:text-[5.5rem]">
+            Client access should
+            <br className="hidden sm:block" /> follow <span className="text-emerald-400">payment.</span>
+          </h1>
+          <p className="mx-auto mt-7 max-w-2xl text-base leading-7 text-white/60 sm:text-lg">
+            Gate overdue sites and restore access after payment is confirmed. Your app keeps running behind the gate.
+          </p>
+
+          <div className="mx-auto mt-10 flex max-w-xl flex-col items-center justify-center gap-5 sm:flex-row sm:gap-10" aria-label="How access responds to payment status">
+            <div className="flex items-center gap-3 text-left">
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.55)]" />
+              <span><span className="block text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">Paid</span><span className="mt-0.5 block text-sm text-white/70">Access allowed</span></span>
+            </div>
+            <span aria-hidden="true" className="hidden h-9 w-px bg-white/15 sm:block" />
+            <div className="flex items-center gap-3 text-left">
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.45)]" />
+              <span><span className="block text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">Overdue</span><span className="mt-0.5 block text-sm text-white/70">Payment page shown</span></span>
+            </div>
           </div>
 
-          <div className="mx-auto mt-12 max-w-3xl overflow-hidden rounded-2xl border bg-card shadow-sm">
-            <div className="flex items-center gap-3 border-b px-5 py-4 sm:px-7">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <div>
-                <h2 className="text-sm font-semibold">Client app access</h2>
-                <p className="text-sm text-muted-foreground">Payment status is checked at the gateway</p>
-              </div>
-            </div>
-            <div className="grid sm:grid-cols-2">
-              <div className="flex items-center gap-4 px-5 py-5 sm:px-7 sm:py-6">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600/10 text-emerald-700">
-                  <Check className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Paid</p>
-                  <p className="mt-1 font-medium">Access allowed</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 border-t px-5 py-5 sm:border-l sm:border-t-0 sm:px-7 sm:py-6">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-600/10 text-amber-700">
-                  <LockKeyhole className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Overdue</p>
-                  <p className="mt-1 font-medium">Payment page shown</p>
-                </div>
-              </div>
-            </div>
-            <p className="border-t px-5 py-3 text-center text-sm text-muted-foreground sm:px-7">
-              The application keeps running in either state.
-            </p>
+          <p className="mt-9 text-sm text-white/40">Works with apps behind nginx or Traefik.</p>
+          <div className="mt-8">
+            <Button size="lg" asChild className="bg-emerald-400 px-6 font-semibold text-[#07110d] hover:bg-emerald-300">
+              <Link to={token ? "/app" : "/login"}>
+                {token ? "Open dashboard" : "Sign in"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </section>
       </main>
