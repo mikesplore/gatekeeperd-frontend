@@ -206,7 +206,7 @@ export function AppShell() {
                   <p className="text-xs text-muted-foreground">Operational events from Gatekeeperd</p>
                 </div>
                 <DropdownMenuSeparator />
-                {notificationItems.slice(0, 5).map(item => <DropdownMenuItem key={item.id} asChild><Link to="/app/notifications" className="flex-col items-start gap-1 py-3"><span className={cn("font-medium capitalize", item.severity === "error" && "text-destructive")}>{item.title}</span><span className="line-clamp-2 text-xs text-muted-foreground">{item.message}</span></Link></DropdownMenuItem>)}
+                {notificationItems.slice(0, 5).map(item => <DropdownMenuItem key={item.id} asChild><Link to="/app/notifications" className="flex-col items-start py-2.5"><span className={cn("font-medium capitalize", item.severity === "error" && "text-destructive")}>{item.title}</span></Link></DropdownMenuItem>)}
                 {notificationCount === 0 && (
                   <div className="px-2 py-4 text-sm text-muted-foreground">No recent notifications.</div>
                 )}
