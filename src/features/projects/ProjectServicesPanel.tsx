@@ -237,6 +237,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deploymentDeleteTarget, setDeploymentDeleteTarget] = useState<{ id: string; label: string; status: string; referenced: boolean } | null>(null);
   const [deploymentRollbackTarget, setDeploymentRollbackTarget] = useState<ProjectDeploymentHistoryItem | null>(null);
+  const [expandedDeploymentId, setExpandedDeploymentId] = useState<string | null>(null);
   const [serviceName, setServiceName] = useState(service.name);
   const [serviceType, setServiceType] = useState<ServiceType>(service.serviceType);
   const [serviceActionPending, setServiceActionPending] = useState(false);
@@ -478,8 +479,51 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
       </TabsContent>
       <TabsContent value="deployments" className="space-y-4">
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div><Button size="sm" onClick={openDeploymentSetup} disabled={!hasRuntimeConfiguration}><Rocket className="mr-2 h-4 w-4" />Make a new deployment</Button></CardHeader>
-      <CardContent className="space-y-2">{history.data?.items.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"><div className="min-w-0"><p className="truncate font-medium">{item.imageName}:{item.imageTag}</p><p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</p>{item.runtimeContainerName && item.status.toLowerCase() === "superseded" ? <p className="mt-1 text-xs text-muted-foreground">Previous container removed after cutover</p> : item.runtimeContainerName && <p className={`mt-1 text-xs ${item.runtimeState && item.runtimeState !== "running" && item.runtimeState !== "missing" ? "text-destructive" : "text-muted-foreground"}`}>Container: {item.runtimeState === "missing" ? "no longer present" : item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>}{item.failureReason && <p className="mt-1 text-xs text-destructive">{item.failureReason}</p>}</div><div className="flex items-center gap-2"><span className={`rounded px-2 py-1 text-xs font-medium ${item.status.toLowerCase() === "failed" ? "bg-red-500/10 text-red-700" : item.status.toLowerCase() === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted"}`}>{formatStatus(item.status)}</span>{item.actions.includes("rollback") && <Button size="sm" variant="outline" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}>Rollback</Button>}{item.actions.includes("delete") ? <Button size="sm" variant="outline" className="text-muted-foreground hover:text-destructive" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" />Delete</Button> : item.actions.includes("referenced") && <Button size="sm" variant="outline" disabled title="Another deployment references this version"><Trash2 className="h-4 w-4" />Delete</Button>}</div></div>)}{!history.isLoading && !history.data?.items.length && <p className="text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}</CardContent>
+      <CardHeader className="py-4"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div></CardHeader>
+      <CardContent className="space-y-2 px-3 pb-3 pt-0 sm:px-4">
+        {history.data?.items.slice(0, 5).map(item => {
+          const expanded = expandedDeploymentId === item.id;
+          const status = item.status.toLowerCase();
+          const statusClass = status === "failed"
+            ? "bg-red-500/10 text-red-700"
+            : status === "active"
+              ? "bg-emerald-500/10 text-emerald-700"
+              : "bg-muted text-muted-foreground";
+          return <div key={item.id} className="overflow-hidden rounded-md border text-sm">
+            <div className="flex items-stretch">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-expanded={expanded}
+                onClick={() => setExpandedDeploymentId(expanded ? null : item.id)}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{item.imageName}:{item.imageTag}</span>
+                  {expanded && <span className="mt-1 block text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</span>}
+                </span>
+                <span className={`shrink-0 rounded px-2 py-1 text-xs font-medium ${statusClass}`}>{formatStatus(item.status)}</span>
+              </button>
+              <div className="flex shrink-0 items-center gap-1 border-l px-2">
+                {item.actions.includes("rollback")
+                  ? <Button size="sm" variant="outline" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}>Rollback</Button>
+                  : <span aria-hidden="true" className="w-[5.25rem]" />}
+                {item.actions.includes("delete")
+                  ? <Button size="sm" variant="outline" className="text-muted-foreground hover:text-destructive" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" />Delete</Button>
+                  : item.actions.includes("referenced")
+                    ? <Button size="sm" variant="outline" disabled title="Another deployment references this version"><Trash2 className="h-4 w-4" />Delete</Button>
+                    : <span aria-hidden="true" className="w-[4.75rem]" />}
+              </div>
+            </div>
+            {expanded && <div className="space-y-1 border-t bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              {item.runtimeContainerName && (status === "superseded"
+                ? <p>Previous container removed after cutover</p>
+                : <p className={item.runtimeState && item.runtimeState !== "running" && item.runtimeState !== "missing" ? "text-destructive" : ""}>Container: {item.runtimeState === "missing" ? "no longer present" : item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>)}
+              {item.failureReason && <p className="text-destructive">{item.failureReason}</p>}
+            </div>}
+          </div>;
+        })}
+        {!history.isLoading && !history.data?.items.length && <p className="px-1 py-2 text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}
+      </CardContent>
     </Card>
       </TabsContent>
       {canReadPayments && <TabsContent value="payments" className="space-y-4">
