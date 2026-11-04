@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAdoptableContainers, useAdoptProjectContainer, useContainer, useCreateServiceDomain, useDeleteServiceDomain, useProjectServices, useProjectSetupStatus, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceDomainBindings, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata, useUpdateServiceDomain } from "@/hooks/useProjects";
+import { useAdoptableContainers, useAdoptProjectContainer, useContainer, useCreateServiceDomain, useDeleteServiceDomain, useProjectServices, useProjectSetupStatus, useProjectDeploymentDiagnostics, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceDomainBindings, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata, useUpdateServiceDomain } from "@/hooks/useProjects";
 import type { Project, ProjectDeploymentHistoryItem, ServiceType } from "@/types/project";
 import type { DashboardSite } from "@/types/sites";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
@@ -238,6 +238,8 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
   const [deploymentDeleteTarget, setDeploymentDeleteTarget] = useState<{ id: string; label: string; status: string; referenced: boolean } | null>(null);
   const [deploymentRollbackTarget, setDeploymentRollbackTarget] = useState<ProjectDeploymentHistoryItem | null>(null);
   const [expandedDeploymentId, setExpandedDeploymentId] = useState<string | null>(null);
+  const expandedDeployment = history.data?.items.find(item => item.id === expandedDeploymentId);
+  const deploymentDiagnostics = useProjectDeploymentDiagnostics(project.slug, expandedDeploymentId ?? "", expandedDeployment?.status.toLowerCase() === "failed");
   const [serviceName, setServiceName] = useState(service.name);
   const [serviceType, setServiceType] = useState<ServiceType>(service.serviceType);
   const [serviceActionPending, setServiceActionPending] = useState(false);
@@ -519,6 +521,13 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
                 ? <p>Previous container removed after cutover</p>
                 : <p className={item.runtimeState && item.runtimeState !== "running" && item.runtimeState !== "missing" ? "text-destructive" : ""}>Container: {item.runtimeState === "missing" ? "no longer present" : item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>)}
               {item.failureReason && <p className="text-destructive">{item.failureReason}</p>}
+              {status === "failed" && <section className="space-y-2 rounded border bg-background p-2">
+                <p className="font-medium text-foreground">Deployment diagnostics</p>
+                {deploymentDiagnostics.isLoading ? <p>Loading command output…</p>
+                  : deploymentDiagnostics.isError ? <p className="text-destructive">Could not load command output: {getApiErrorMessage(deploymentDiagnostics.error)}</p>
+                    : deploymentDiagnostics.data?.logs ? <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-foreground">{deploymentDiagnostics.data.logs}</pre>
+                      : <p>No command output was captured for this attempt.</p>}
+              </section>}
             </div>}
           </div>;
         })}

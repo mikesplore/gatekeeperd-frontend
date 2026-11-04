@@ -345,6 +345,15 @@ export function useProjectDeploymentHistory(slug: string) {
   });
 }
 
+export function useProjectDeploymentDiagnostics(slug: string, deploymentId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["project-deployment-diagnostics", slug, deploymentId],
+    queryFn: async () => (await api.get<{ deploymentId: string; status: string; step: string; errorMessage: string | null; logs: string }>(`/admin/projects/${encodeURIComponent(slug)}/deployments/${encodeURIComponent(deploymentId)}/diagnostics`)).data,
+    enabled: Boolean(slug && deploymentId && enabled),
+    staleTime: 5_000,
+  });
+}
+
 export function useProjectSecretRotation(projectId: string, slug: string) {
   const qc = useQueryClient();
   return useMutation({
