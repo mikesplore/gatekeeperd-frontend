@@ -27,6 +27,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [mpesaReference, setMpesaReference] = useState("");
   const [mpesaFinalStatus, setMpesaFinalStatus] = useState<"failed" | "abandoned" | "reversed" | null>(null);
+  const [mpesaQueryError, setMpesaQueryError] = useState<string | null>(null);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const services = useProjectServices(project.id);
   const selectedService = services.data?.find(service => service.id === serviceId);
@@ -59,6 +60,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
     setPaymentLink(null);
     setMpesaReference("");
     setMpesaFinalStatus(null);
+    setMpesaQueryError(null);
   }, [open, project.customerEmail, project.remainingBalance, project.amountDue, initialServiceId]);
 
   useEffect(() => {
@@ -71,8 +73,11 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
     if (!open || !mpesaReference || !mpesaPaymentId || mpesaPaymentStatus !== "pending") return;
     const interval = window.setInterval(() => {
       void reconcilePaymentNow(mpesaPaymentId)
-        .then(() => refetchServicePayments())
-        .catch(() => undefined);
+        .then(() => {
+          setMpesaQueryError(null);
+          return refetchServicePayments();
+        })
+        .catch(error => setMpesaQueryError(getApiErrorMessage(error)));
     }, 10_000);
     return () => window.clearInterval(interval);
   }, [open, mpesaReference, mpesaPaymentId, mpesaPaymentStatus, reconcilePaymentNow, refetchServicePayments]);
@@ -103,6 +108,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
         if (!phone.trim()) { toast.error("Enter the customer's M-Pesa phone number"); return; }
         setMpesaReference("");
         setMpesaFinalStatus(null);
+        setMpesaQueryError(null);
         const response = await initiateMpesa.mutateAsync({ slug: project.slug, phone: phone.trim(), amount: numericAmount, serviceId });
         setMpesaReference(response.data.reference);
         toast.success("M-Pesa prompt sent to the customer");
@@ -171,7 +177,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
           {method === "mpesa" && <div className="space-y-2"><Label htmlFor="capture-phone">M-Pesa phone number</Label><Input id="capture-phone" value={phone} onChange={event => setPhone(event.target.value)} placeholder="2547XXXXXXXX" />{amountValid && !Number.isInteger(numericAmount) && <p className="text-xs text-muted-foreground">M-Pesa accepts whole KES amounts.</p>}</div>}
 
           {method === "mpesa" && mpesaReference && <div role="status" className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            {mpesaFinalStatus ? <><p className="font-medium text-foreground">Payment {mpesaFinalStatus}</p><p className="mt-1">You can send another prompt or close this panel.</p></> : <p className="flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Waiting for M-Pesa confirmation. This panel will update when the payment succeeds or fails.</p>}
+            {mpesaFinalStatus ? <><p className="font-medium text-foreground">Payment {mpesaFinalStatus}</p><p className="mt-1">You can send another prompt or close this panel.</p></> : <><p className="flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Waiting for M-Pesa confirmation. This panel will update when the payment succeeds or fails.</p>{mpesaQueryError && <p className="mt-2 text-destructive">Status check failed: {mpesaQueryError}. Retrying automatically.</p>}</>}
           </div>}
 
           {method && <div className="space-y-2">

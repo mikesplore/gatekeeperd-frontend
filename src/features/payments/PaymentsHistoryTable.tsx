@@ -21,6 +21,7 @@ interface PaymentsHistoryTableProps {
 export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptUrls = {}, receiptNames = {}, onPaymentChanged }: PaymentsHistoryTableProps) {
   const reconcile = useReconcilePayment();
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
+  const [reconcilingPayments, setReconcilingPayments] = useState<Set<string>>(() => new Set());
   const openReceipt = async (payment: Payment) => {
     const receiptUrl = receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`);
     if (!receiptUrl) return;
@@ -40,6 +41,22 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
       setReceiptLoading(null);
     }
   };
+  const reconcilePayment = async (payment: Payment) => {
+    setReconcilingPayments(current => new Set(current).add(payment.id));
+    try {
+      const result = await reconcile.mutateAsync(payment.id);
+      toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending");
+      await onPaymentChanged?.();
+    } catch {
+      toast.error("Unable to reconcile payment");
+    } finally {
+      setReconcilingPayments(current => {
+        const next = new Set(current);
+        next.delete(payment.id);
+        return next;
+      });
+    }
+  };
   if (payments.length === 0) {
     return <p className="py-8 text-center text-sm text-muted-foreground">No payments yet.</p>;
   }
@@ -53,7 +70,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
             { key: "status", header: "Status", render: (payment) => <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} /> },
             { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "Not set"}</span> },
             { key: "paidAt", header: "Paid at", render: (payment) => <span className="whitespace-nowrap">{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}</span> },
-            { key: "actions", header: "", render: (payment) => <div className="flex flex-wrap gap-2">{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" loading={receiptLoading === payment.id} loadingText="Downloading…" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id ? "Downloading…" : "Receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" loading={reconcile.isPending} disabled={reconcile.isPending} onClick={() => reconcile.mutate(payment.id, { onSuccess: async (result) => { toast.success(result.data?.reconciled ? "Payment reconciled" : "Provider still pending"); await onPaymentChanged?.(); }, onError: () => toast.error("Unable to reconcile payment") })}>Reconcile</Button>}</div> },
+            { key: "actions", header: "", render: (payment) => <div className="flex flex-wrap gap-2">{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" loading={receiptLoading === payment.id} loadingText="Downloading…" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id ? "Downloading…" : "Receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" loading={reconcilingPayments.has(payment.id)} disabled={reconcilingPayments.has(payment.id)} onClick={() => void reconcilePayment(payment)}>Reconcile</Button>}</div> },
           ]}
         />
   );
