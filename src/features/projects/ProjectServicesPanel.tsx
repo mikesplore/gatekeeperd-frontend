@@ -548,7 +548,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
         {serviceInvoice.data && <Card><CardContent className="space-y-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">Invoice summary</p><Button size="sm" variant="outline" loading={invoiceDownloadPending} loadingText="Downloading…" onClick={() => void downloadInvoice()}><Download className="h-4 w-4" />Download invoice</Button></div>
           <div className="grid gap-4 sm:grid-cols-3">
-          <InfoItem label="Description" value={serviceInvoice.data.invoice.description} />
+          <InfoItem className="sm:col-span-3" label="Description" value={serviceInvoice.data.invoice.description} valueClassName="break-words font-normal" />
           <InfoItem label="Billed" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.amount).toLocaleString()}`} />
           <InfoItem label="Paid" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.paid).toLocaleString()}`} />
           <InfoItem label="Balance" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.balance).toLocaleString()}`} />
@@ -633,8 +633,8 @@ function ServiceTypeOptions() {
   ].map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</>;
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return <div><p className="text-xs font-medium uppercase text-muted-foreground">{label}</p><p className="mt-1 text-sm font-semibold">{value}</p></div>;
+function InfoItem({ label, value, className, valueClassName }: { label: string; value: string; className?: string; valueClassName?: string }) {
+  return <div className={className}><p className="text-xs font-medium uppercase text-muted-foreground">{label}</p><p className={`mt-1 text-sm font-medium ${valueClassName ?? ""}`}>{value}</p></div>;
 }
 
 function PaymentPager({ page, total, count, fetching, onPageChange }: { page: number; total: number; count: number; fetching: boolean; onPageChange: (page: number) => void }) {
