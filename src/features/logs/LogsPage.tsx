@@ -86,7 +86,7 @@ export function LogsPage() {
 
   return <div className="space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <p className="text-sm text-muted-foreground">Recent Gatekeeperd service logs, searchable by message, source, request ID, and level.</p>
+      <p className="text-sm text-muted-foreground">Recent Gatekeeperd bootstrap and blue/green service logs, searchable by message, source, request ID, and level.</p>
       <Button variant="outline" size="sm" loading={query.isFetching} loadingText="Refresh" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
     </div>
 

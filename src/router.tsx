@@ -19,6 +19,7 @@ const ProjectsListPage = lazy(() => import("@/features/projects/ProjectsListPage
 const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then((module) => ({ default: module.PaymentsPage })));
 const PaymentEventsPage = lazy(() => import("@/features/payments/PaymentEventsPage").then((module) => ({ default: module.PaymentEventsPage })));
 const CertificatesPage = lazy(() => import("@/features/nginx/CertificatesPage").then((module) => ({ default: module.CertificatesPage })));
+const NginxErrorLogsPage = lazy(() => import("@/features/nginx/NginxErrorLogsPage").then((module) => ({ default: module.NginxErrorLogsPage })));
 const OperationsPage = lazy(() => import("@/features/operations/OperationsPage").then((module) => ({ default: module.OperationsPage })));
 const ProfileSettingsPage = lazy(() => import("@/features/settings/ProfileSettingsPage").then((module) => ({ default: module.ProfileSettingsPage })));
 const AdminUsersPage = lazy(() => import("@/features/settings/AdminUsersPage").then((module) => ({ default: module.AdminUsersPage })));
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
           { path: "containers/:name", element: allow("docker.read", <ContainerDetailPage />) },
           { path: "nginx", element: allow("nginx.read", <SitesDashboardPage />) },
           { path: "nginx/manage", element: <Navigate to="/app/nginx" replace /> },
+          { path: "nginx/error-logs", element: allow("nginx.read", <NginxErrorLogsPage />) },
           { path: "nginx/certificates", element: allow("nginx.read", <CertificatesPage />) },
           { path: "nginx/sites/:slug", element: allow("nginx.read", <SiteDetailPage />) },
           { path: "nginx/dead-configs", element: allow("nginx.read", <DeadConfigsPage />) },

@@ -16,8 +16,6 @@ import type { Project } from "@/types/project";
 
 interface ProjectsTableProps {
   projects: Project[];
-  selectedSlugs: string[];
-  onSelectionChange: (slugs: string[]) => void;
   onEdit: (project: Project) => void;
   onBlock: (project: Project) => void;
   onUnblock: (project: Project) => void;
@@ -26,8 +24,7 @@ interface ProjectsTableProps {
   canManage: boolean;
 }
 
-export function ProjectsTable({ projects, selectedSlugs, onSelectionChange, onEdit, onBlock, onUnblock, onDelete, onCreate, canManage }: ProjectsTableProps) {
-  const toggle = (slug: string) => onSelectionChange(selectedSlugs.includes(slug) ? selectedSlugs.filter(item => item !== slug) : [...selectedSlugs, slug]);
+export function ProjectsTable({ projects, onEdit, onBlock, onUnblock, onDelete, onCreate, canManage }: ProjectsTableProps) {
   return (
     <DataTable
       data={projects}
@@ -38,7 +35,6 @@ export function ProjectsTable({ projects, selectedSlugs, onSelectionChange, onEd
       emptyAction={canManage ? { label: "New Project", onClick: onCreate } : undefined}
       filters={[{ label: "Access", options: [{ label: "Active", value: "active" }, { label: "Blocked", value: "blocked" }, { label: "Manual block", value: "manual_block" }], getValue: project => project.status }]}
       columns={[
-        ...(canManage ? [{ key: "select", header: "", render: (project: Project) => <input aria-label={`Select ${project.name}`} type="checkbox" checked={selectedSlugs.includes(project.slug)} onChange={() => toggle(project.slug)} className="h-4 w-4 accent-primary" /> }] : []),
         { key: "name", header: "Name", searchable: true, render: project => <Link to={`/app/projects/${project.slug}`} className="font-medium hover:underline">{project.name}</Link> },
         { key: "access", header: "Access", render: project => <ProjectStatusBadge status={project.status} /> },
         { key: "lifecycle", header: "Lifecycle", render: project => <Badge variant="outline" className="text-[10px]">{project.lifecycleStatus}</Badge> },
