@@ -65,8 +65,15 @@ export interface ProjectInvoiceStatus {
 }
 
 export interface ServiceInvoiceStatus {
-  invoice: { id: number; number: string; status: string; amount: string; currency: string; paid: string; balance: string; download_url?: string };
-  payments: { id: number; provider: string; provider_reference: string; amount: string; currency: string; paid_at: string; receipt_number: string; receipt_url: string }[];
+  invoice: {
+    id: string;
+    description: string;
+    amount: string;
+    currency: string;
+    paid: string;
+    balance: string;
+    due_date: string | null;
+  };
 }
 
 export interface PaymentsListResponse {

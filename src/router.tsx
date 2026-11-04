@@ -7,6 +7,8 @@ import { AuthorizedHome, PermissionRoute } from "@/components/auth/PermissionGua
 const allow = (permission: string, element: React.ReactNode) => <PermissionRoute permission={permission}>{element}</PermissionRoute>;
 
 const LandingPage = lazy(() => import("@/features/landing/LandingPage").then((module) => ({ default: module.LandingPage })));
+const SupportPage = lazy(() => import("@/features/support/SupportPage").then((module) => ({ default: module.SupportPage })));
+const isSelfServiceHost = window.location.hostname === "selfservice.gatekeeperd.mikesplore.me";
 const LoginPage = lazy(() => import("@/features/auth/LoginPage").then((module) => ({ default: module.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/features/auth/PasswordResetPage").then((module) => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/features/auth/PasswordResetPage").then((module) => ({ default: module.ResetPasswordPage })));
@@ -43,7 +45,11 @@ const VolumeResourcesPage = lazy(() => import("@/features/infrastructure/DockerR
 export const router = createBrowserRouter([
   {
     index: true,
-    element: <LandingPage />,
+    element: isSelfServiceHost ? <SupportPage /> : <LandingPage />,
+  },
+  {
+    path: "help",
+    element: <SupportPage />,
   },
   {
     path: "login",

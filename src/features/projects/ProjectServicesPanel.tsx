@@ -548,11 +548,12 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
         {serviceInvoice.data && <Card><CardContent className="space-y-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">Invoice summary</p><Button size="sm" variant="outline" loading={invoiceDownloadPending} loadingText="Downloading…" onClick={() => void downloadInvoice()}><Download className="h-4 w-4" />Download invoice</Button></div>
           <div className="grid gap-4 sm:grid-cols-3">
-          <InfoItem label="Invoice" value={serviceInvoice.data.invoice.number} />
+          <InfoItem label="Description" value={serviceInvoice.data.invoice.description} />
           <InfoItem label="Billed" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.amount).toLocaleString()}`} />
           <InfoItem label="Paid" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.paid).toLocaleString()}`} />
           <InfoItem label="Balance" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.balance).toLocaleString()}`} />
-          <InfoItem label="Status" value={serviceInvoice.data.invoice.status} />
+          <InfoItem label="Due date" value={serviceInvoice.data.invoice.due_date ? new Date(serviceInvoice.data.invoice.due_date).toLocaleDateString() : "Not set"} />
+          <InfoItem label="Status" value={Number(serviceInvoice.data.invoice.balance) <= 0 ? "Paid" : Number(serviceInvoice.data.invoice.paid) > 0 ? "Partially paid" : "Unpaid"} />
           </div>
         </CardContent></Card>}
         <Card><CardContent className="p-4">
