@@ -55,11 +55,12 @@ export function useProjectPayments(projectId: string, limit = 25, offset = 0) {
   });
 }
 
-export function useServicePayments(projectId: string, serviceId: string, limit = 25, offset = 0) {
+export function useServicePayments(projectId: string, serviceId: string, limit = 25, offset = 0, refetchInterval: number | false = false) {
   return useQuery({
     queryKey: ["service-payments", projectId, serviceId, limit, offset],
     queryFn: async () => (await api.get<{ payments: import("@/types/payment").Payment[]; total: number; limit: number; offset: number; hasMore?: boolean }>(`/admin/projects/${projectId}/services/${serviceId}/payments`, { params: { limit, offset } })).data,
     enabled: Boolean(projectId && serviceId),
+    refetchInterval,
   });
 }
 

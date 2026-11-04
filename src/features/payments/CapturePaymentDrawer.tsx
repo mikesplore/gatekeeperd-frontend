@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Copy, ExternalLink, Link2 } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Copy, ExternalLink, Link2, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelFooter, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
 import { CreateServiceInvoiceDialog } from "@/features/payments/CreateServiceInvoiceDialog";
-import { useInitializePayment, useInitiateMpesaPayment } from "@/hooks/useProjects";
-import { useCaptureCashPayment, useServiceInvoice } from "@/hooks/usePayments";
+import { useInitializePayment, useInitiateMpesaPayment, useReconcilePayment } from "@/hooks/useProjects";
+import { useCaptureCashPayment, useServiceInvoice, useServicePayments } from "@/hooks/usePayments";
 import { useProjectServices } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import type { Project } from "@/types/project";
@@ -25,10 +25,14 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
   const [receiptNumber, setReceiptNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [mpesaReference, setMpesaReference] = useState("");
+  const [mpesaFinalStatus, setMpesaFinalStatus] = useState<"failed" | "abandoned" | "reversed" | null>(null);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const services = useProjectServices(project.id);
   const selectedService = services.data?.find(service => service.id === serviceId);
   const serviceInvoice = useServiceInvoice(project.id, serviceId);
+  const servicePayments = useServicePayments(project.id, serviceId, 25, 0, open && mpesaReference ? 3_000 : false);
+  const mpesaPayment = servicePayments.data?.payments.find(payment => payment.providerReference === mpesaReference);
   const serviceBalance = Number(serviceInvoice.data?.invoice.balance ?? 0);
   const balance = serviceBalance;
   const numericAmount = Number(amount);
@@ -36,6 +40,11 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
   const initializePaystack = useInitializePayment(project.slug);
   const initiateMpesa = useInitiateMpesaPayment();
   const captureCash = useCaptureCashPayment(project.id);
+  const reconcilePayment = useReconcilePayment();
+  const mpesaPaymentId = mpesaPayment?.id;
+  const mpesaPaymentStatus = mpesaPayment?.gatewayStatus;
+  const reconcilePaymentNow = reconcilePayment.mutateAsync;
+  const refetchServicePayments = servicePayments.refetch;
 
   useEffect(() => {
     if (!open) return;
@@ -48,13 +57,36 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
     setReceiptNumber("");
     setNotes("");
     setPaymentLink(null);
+    setMpesaReference("");
+    setMpesaFinalStatus(null);
   }, [open, project.customerEmail, project.remainingBalance, project.amountDue, initialServiceId]);
 
   useEffect(() => {
     if (selectedService && serviceInvoice.data) setAmount(serviceBalance.toString());
   }, [selectedService, serviceInvoice.data, serviceBalance]);
 
-  const close = () => onOpenChange(false);
+  const close = useCallback(() => onOpenChange(false), [onOpenChange]);
+
+  useEffect(() => {
+    if (!open || !mpesaReference || !mpesaPaymentId || mpesaPaymentStatus !== "pending") return;
+    const interval = window.setInterval(() => {
+      void reconcilePaymentNow(mpesaPaymentId)
+        .then(() => refetchServicePayments())
+        .catch(() => undefined);
+    }, 10_000);
+    return () => window.clearInterval(interval);
+  }, [open, mpesaReference, mpesaPaymentId, mpesaPaymentStatus, reconcilePaymentNow, refetchServicePayments]);
+
+  useEffect(() => {
+    if (mpesaPaymentStatus === "success") {
+      toast.success("M-Pesa payment confirmed");
+      void onPaymentChanged?.();
+      close();
+    } else if (mpesaPaymentStatus && ["failed", "abandoned", "reversed"].includes(mpesaPaymentStatus)) {
+      setMpesaFinalStatus(mpesaPaymentStatus as "failed" | "abandoned" | "reversed");
+      toast.error(`M-Pesa payment ${mpesaPaymentStatus}`);
+    }
+  }, [mpesaPaymentId, mpesaPaymentStatus, onPaymentChanged, close]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -69,10 +101,11 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
         await onPaymentChanged?.();
       } else if (method === "mpesa") {
         if (!phone.trim()) { toast.error("Enter the customer's M-Pesa phone number"); return; }
-        await initiateMpesa.mutateAsync({ slug: project.slug, phone: phone.trim(), amount: numericAmount, serviceId });
+        setMpesaReference("");
+        setMpesaFinalStatus(null);
+        const response = await initiateMpesa.mutateAsync({ slug: project.slug, phone: phone.trim(), amount: numericAmount, serviceId });
+        setMpesaReference(response.data.reference);
         toast.success("M-Pesa prompt sent to the customer");
-        await onPaymentChanged?.();
-        close();
       } else {
         await captureCash.mutateAsync({
           amount: numericAmount,
@@ -137,6 +170,10 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
           {method === "paystack" && <div className="space-y-2"><Label htmlFor="capture-email">Customer email</Label><Input id="capture-email" type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="customer@example.com" /></div>}
           {method === "mpesa" && <div className="space-y-2"><Label htmlFor="capture-phone">M-Pesa phone number</Label><Input id="capture-phone" value={phone} onChange={event => setPhone(event.target.value)} placeholder="2547XXXXXXXX" />{amountValid && !Number.isInteger(numericAmount) && <p className="text-xs text-muted-foreground">M-Pesa accepts whole KES amounts.</p>}</div>}
 
+          {method === "mpesa" && mpesaReference && <div role="status" className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+            {mpesaFinalStatus ? <><p className="font-medium text-foreground">Payment {mpesaFinalStatus}</p><p className="mt-1">You can send another prompt or close this panel.</p></> : <p className="flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Waiting for M-Pesa confirmation. This panel will update when the payment succeeds or fails.</p>}
+          </div>}
+
           {method && <div className="space-y-2">
             <Label htmlFor="capture-amount">Amount ({project.currency})</Label>
             <Input id="capture-amount" type="number" min="0.01" max={balance} step="0.01" value={amount} onChange={event => setAmount(event.target.value)} required />
@@ -155,8 +192,8 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
 
           <SidePanelFooter className="sticky bottom-0 -mx-6 -mb-6 mt-6 border-t bg-background px-6 py-4">
             <Button type="button" variant="outline" onClick={close}>Close</Button>
-            {method && !paymentLink && <Button type="submit" loading={pending} disabled={pending || !amountValid || (method === "mpesa" && (!phone.trim() || !Number.isInteger(numericAmount)))}>
-              {method === "paystack" ? <><Link2 className="h-4 w-4" />{pending ? "Creating link…" : "Create Paystack link"}</> : method === "mpesa" ? (pending ? "Sending prompt…" : "Send M-Pesa prompt") : (pending ? "Capturing…" : "Capture payment")}
+            {method && !paymentLink && <Button type="submit" loading={pending} disabled={pending || !amountValid || (method === "mpesa" && (!phone.trim() || !Number.isInteger(numericAmount) || (!!mpesaReference && !mpesaFinalStatus)))}>
+              {method === "paystack" ? <><Link2 className="h-4 w-4" />{pending ? "Creating link…" : "Create Paystack link"}</> : method === "mpesa" ? (pending ? "Sending prompt…" : mpesaReference && !mpesaFinalStatus ? "Waiting for confirmation…" : "Send M-Pesa prompt") : (pending ? "Capturing…" : "Capture payment")}
             </Button>}
           </SidePanelFooter>
         </form>
