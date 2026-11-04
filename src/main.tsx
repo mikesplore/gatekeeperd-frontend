@@ -1,19 +1,12 @@
 import { StrictMode, Suspense, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { Toaster } from "sonner";
 import { router } from "@/router";
 import { useThemeStore } from "@/store/themeStore";
+import { queryClient } from "@/lib/queryClient";
 import "./index.css";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 10_000,
-    },
-  },
-});
 
 function ThemeBootstrap({ children }: { children: React.ReactNode }) {
   const dark = useThemeStore((s) => s.dark);

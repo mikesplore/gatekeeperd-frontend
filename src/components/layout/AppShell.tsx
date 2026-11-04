@@ -19,6 +19,7 @@ import { useThemeStore } from "@/store/themeStore";
 import { api } from "@/lib/api";
 import { useNotificationStream, useNotifications } from "@/hooks/useProjects";
 import { AppBreadcrumb } from "@/components/layout/AppBreadcrumb";
+import { clearClientSession } from "@/lib/clearClientSession";
 
 const navGroups = [
   {
@@ -110,8 +111,6 @@ function SidebarNav({ collapsed, onNav }: { collapsed?: boolean; onNav?: () => v
 
 export function AppShell() {
   const email = useAuthStore((s) => s.email);
-  const logout = useAuthStore((s) => s.logout);
-  const refreshToken = useAuthStore((s) => s.refreshToken);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dark = useThemeStore((s) => s.dark);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
@@ -120,6 +119,18 @@ export function AppShell() {
   useNotificationStream();
   const notificationItems = notifications.data?.data ?? [];
   const notificationCount = notificationItems.length;
+
+  const handleLogout = async () => {
+    const refreshToken = useAuthStore.getState().refreshToken;
+    try {
+      if (refreshToken) await api.post("/auth/revoke-refresh", { refreshToken });
+    } catch {
+      // Always clear the local session even if the server cannot revoke it.
+    } finally {
+      clearClientSession();
+      window.location.replace("/login");
+    }
+  };
 
   const initials = email?.slice(0, 2).toUpperCase() ?? "AD";
   const profileName = profile.data?.displayName?.trim() || email || "Admin";
@@ -158,11 +169,7 @@ export function AppShell() {
                 <Link to="/app/settings/profile"><Settings className="h-4 w-4" />Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => {
-                void api.post("/auth/revoke-refresh", { refreshToken });
-                logout();
-                window.location.href = "/login";
-              }}>
+              <DropdownMenuItem onSelect={() => { void handleLogout(); }}>
                 <LogOut className="h-4 w-4" />Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -232,11 +239,7 @@ export function AppShell() {
                 <DropdownMenuItem asChild><Link to="/app/settings/profile"><Settings className="h-4 w-4" />Profile settings</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {
-                    void api.post("/auth/revoke-refresh", { refreshToken });
-                    logout();
-                    window.location.href = "/login";
-                  }}
+                  onClick={() => { void handleLogout(); }}
                 >
                   <LogOut className="h-4 w-4" />
                   Log out

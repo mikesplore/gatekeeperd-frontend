@@ -1,5 +1,6 @@
 import axios, { type AxiosError } from "axios";
 import { useAuthStore } from "@/store/authStore";
+import { clearClientSession } from "@/lib/clearClientSession";
 
 /** Uniform backend error shape: every API failure returns this. */
 export interface ApiErrorBody {
@@ -71,7 +72,8 @@ api.interceptors.response.use(
           return api(original);
         } catch { /* fall through to logout */ }
       }
-      useAuthStore.getState().logout(); window.location.href = "/login";
+      clearClientSession();
+      window.location.replace("/login");
     }
     return Promise.reject(err);
   },

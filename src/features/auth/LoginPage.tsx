@@ -1,18 +1,18 @@
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link, Navigate } from "react-router-dom";
-import { ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isInvalidCredentials, useLogin } from "@/hooks/useAuth";
 import { getApiErrorMessage } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import enterImg from "@/images/undraw_enter_nwx3.svg";
+import firewallImg from "@/images/undraw_firewall_cfej.svg";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -40,8 +40,6 @@ export function LoginPage() {
     return <Navigate to="/app" replace />;
   }
 
-  if (challenge) return <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4"><Card className="w-full max-w-md"><CardHeader><CardTitle>Two-factor verification</CardTitle><CardDescription>Enter the 6-digit code from Google Authenticator, or a recovery code.</CardDescription></CardHeader><CardContent><form className="space-y-4" onSubmit={async event => { event.preventDefault(); setVerifyError(null); try { const { data } = await api.post<{ token: string; refreshToken: string }>("/auth/2fa/verify", { challengeToken: challenge, code }); const me = await api.get<{ email: string; role: string; permissions: string[] }>("/auth/me", { headers: { Authorization: `Bearer ${data.token}` } }); useAuthStore.getState().login(data.token, data.refreshToken, me.data.email, me.data.role, me.data.permissions ?? []); } catch (error) { setVerifyError(getApiErrorMessage(error)); } }}><Label htmlFor="two-factor-code">Authentication code</Label><Input id="two-factor-code" inputMode="numeric" autoComplete="one-time-code" autoFocus value={code} onChange={event => setCode(event.target.value)} maxLength={20} /><p className="text-xs text-muted-foreground">Recovery codes may be used once.</p>{verifyError && <p className="text-sm text-destructive">{verifyError}</p>}<Button className="w-full" disabled={!code.trim()}>Verify</Button><Button type="button" variant="ghost" className="w-full" onClick={() => setChallenge(null)}>Back to sign in</Button></form></CardContent></Card></div>;
-
   const onSubmit = (data: LoginForm) => {
     login.mutate(data, {
       onSuccess: result => { if (result.requiresTwoFactor && result.challengeToken) setChallenge(result.challengeToken); },
@@ -55,68 +53,94 @@ export function LoginPage() {
     });
   };
 
-  return (
-    <div className="flex min-h-screen">
-      {/* Left side - illustration */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-12">
-        <div className="max-w-md text-center">
-          <img
-            src={enterImg}
-            alt=""
-            className="w-full h-auto mb-8"
-            loading="eager"
-          />
-          <h2 className="text-2xl font-bold tracking-tight">
-            Welcome back to{" "}
-            <span className="text-primary">Gatekeeperd</span>
-          </h2>
-          <p className="mt-3 text-muted-foreground">
-            Your projects are waiting. Sign in to manage client access, track payments, and keep everything running smoothly.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-1 text-sm text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            <span>Secure admin access only</span>
-          </div>
-        </div>
-      </div>
+  const onVerify = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setVerifyError(null);
+    try {
+      const { data } = await api.post<{ token: string; refreshToken: string }>("/auth/2fa/verify", { challengeToken: challenge, code });
+      const me = await api.get<{ email: string; role: string; permissions: string[] }>("/auth/me", { headers: { Authorization: `Bearer ${data.token}` } });
+      useAuthStore.getState().login(data.token, data.refreshToken, me.data.email, me.data.role, me.data.permissions ?? []);
+    } catch (error) {
+      setVerifyError(getApiErrorMessage(error));
+    }
+  };
 
-      {/* Right side - login form */}
-      <div className="flex flex-1 items-center justify-center bg-muted/30 p-4">
-        <Card className="w-full max-w-md border-0 shadow-none bg-transparent sm:border sm:shadow-sm sm:bg-card">
-          <CardHeader className="text-center sm:text-left">
-            <div className="flex items-center justify-center gap-2 font-bold text-xl mb-2 sm:hidden">
-              <ShieldCheck className="h-6 w-6 text-primary" />
-              Gatekeeperd
+  return (
+    <div className="grid min-h-screen bg-background lg:grid-cols-2">
+      <aside className="relative hidden min-h-screen flex-col justify-start overflow-hidden border-r bg-[#f7f6ff] px-10 py-9 text-[#211d35] lg:flex xl:px-16 xl:py-12">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_48%_46%,rgba(108,99,255,0.12),transparent_62%)]" />
+        <Link to="/" className="relative flex w-fit items-center gap-2.5 font-semibold tracking-tight">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+          <span>Gatekeeperd</span>
+        </Link>
+        <div className="relative mx-auto my-auto w-full max-w-lg">
+          <img src={challenge ? firewallImg : enterImg} alt="" className="mx-auto mb-8 block w-full max-w-md" loading="eager" />
+          <h1 className="whitespace-nowrap text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">{challenge ? "Verify your identity." : "Manage client access."}</h1>
+        </div>
+      </aside>
+
+      <main className="flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-12 xl:px-16">
+        <div className="flex items-center justify-between lg:hidden">
+          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            <span>Gatekeeperd</span>
+          </Link>
+          <Link to="/" aria-label="Back to home" className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="flex flex-1 items-center justify-center py-12 lg:py-0">
+          <section className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+            <div className="mb-9">
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight">{challenge ? "Verify it’s you" : "Welcome back"}</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {challenge ? "Enter your authenticator code or a recovery code to continue." : "Sign in to manage your projects and client access."}
+              </p>
             </div>
-            <CardTitle className="text-2xl">Sign in</CardTitle>
-            <CardDescription>Enter your credentials to access the dashboard.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" autoComplete="email" {...register("email")} />
-                {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" autoComplete="current-password" {...register("password")} />
-                {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-              </div>
-              {errors.root && <p className="text-sm text-destructive">{errors.root.message}</p>}
-              <Button type="submit" className="w-full" loading={login.isPending} disabled={login.isPending}>
-                {login.isPending ? "Signing in..." : "Sign in"}
-              </Button>
-              <Link to="/forgot-password" className="block text-center text-sm text-muted-foreground hover:text-foreground">Forgot password?</Link>
-            </form>
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              <Link to="/" className="hover:text-foreground transition-colors">
-                Back to home
-              </Link>
+
+            {challenge ? (
+              <form className="space-y-5" onSubmit={onVerify}>
+                <div className="space-y-2">
+                  <Label htmlFor="two-factor-code">Authentication code</Label>
+                  <Input id="two-factor-code" inputMode="numeric" autoComplete="one-time-code" autoFocus value={code} onChange={event => setCode(event.target.value)} maxLength={20} />
+                  <p className="text-xs text-muted-foreground">Recovery codes can only be used once.</p>
+                </div>
+                {verifyError && <p role="alert" className="text-sm text-destructive">{verifyError}</p>}
+                <Button className="w-full" disabled={!code.trim()}>
+                  Continue <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+                <Button type="button" variant="ghost" className="w-full" onClick={() => setChallenge(null)}>Back to sign in</Button>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" autoComplete="email" placeholder="you@example.com" {...register("email")} />
+                  {errors.email && <p role="alert" className="text-sm text-destructive">{errors.email.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="password">Password</Label>
+                    <Link to="/forgot-password" className="text-xs font-medium text-primary hover:underline">Forgot password?</Link>
+                  </div>
+                  <Input id="password" type="password" autoComplete="current-password" placeholder="Enter your password" {...register("password")} />
+                  {errors.password && <p role="alert" className="text-sm text-destructive">{errors.password.message}</p>}
+                </div>
+                {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
+                <Button type="submit" className="w-full" loading={login.isPending} disabled={login.isPending}>
+                  {login.isPending ? "Signing in..." : "Sign in"}
+                  {!login.isPending && <ArrowRight className="ml-1 h-4 w-4" />}
+                </Button>
+              </form>
+            )}
+
+            <p className="mt-9 border-t pt-6 text-center text-xs text-muted-foreground lg:text-left">
+              <Link to="/" className="transition-colors hover:text-foreground">Back to home</Link>
             </p>
-          </CardContent>
-        </Card>
-      </div>
+          </section>
+        </div>
+      </main>
     </div>
   );
 }
