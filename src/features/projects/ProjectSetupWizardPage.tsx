@@ -52,6 +52,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [step, setStep] = useState(projectId ? Math.max(1, Math.min(2, requestedStep)) : 0);
   const [projectForm, setProjectForm] = useState({ name: "", customerId: "" });
   const [runtime, setRuntime] = useState<ProjectSetupRuntimeInput>(initialRuntime);
+  const [sourceMode, setSourceMode] = useState<"github" | "image">("image");
   const [envText, setEnvText] = useState("");
   const [queuedDeploymentId, setQueuedDeploymentId] = useState("");
   const [adoptContainerId, setAdoptContainerId] = useState("");
@@ -81,12 +82,14 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     if (!savedRuntime) {
       loadedConfiguration.current = "";
       setRuntime(initialRuntime);
+      setSourceMode("image");
       setEnvText("");
       return;
     }
     if (loadedConfiguration.current === `${projectId}:${savedRuntime.id}`) return;
     loadedConfiguration.current = `${projectId}:${savedRuntime.id}`;
     const saved = savedRuntime;
+    setSourceMode(saved.repository ? "github" : "image");
     setRuntime({
       repository: saved.repository ?? "", gitRef: saved.gitRef, registry: saved.registry,
       imageName: saved.imageName, imageTag: saved.imageTag,
@@ -122,6 +125,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setStep(0);
     setProjectForm({ name: "", customerId: "" });
     setRuntime(initialRuntime);
+    setSourceMode("image");
     setEnvText("");
     setQueuedDeploymentId("");
     setAdoptContainerId("");
@@ -141,7 +145,8 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const saveSource = async () => {
     try {
       const env = parseEnv(envText);
-      await saveRuntime.mutateAsync({ ...runtime, containerPort: undefined, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, repository: runtime.repository?.trim() || null, env, serviceId });
+      if (sourceMode === "github" && !runtime.repository?.trim()) throw new Error("Enter the GitHub owner and repository.");
+      await saveRuntime.mutateAsync({ ...runtime, containerPort: undefined, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, repository: sourceMode === "github" ? runtime.repository?.trim() || null : null, autoDeploy: sourceMode === "github" && Boolean(runtime.autoDeploy), env, serviceId });
       toast.success("Source and runtime settings saved");
       goToStep(2);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
@@ -222,27 +227,39 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                 </div>
               </details>
               <Card>
-                <CardHeader><CardTitle>Choose a source image</CardTitle><CardDescription>Enter a repository to build from GitHub, or leave it blank to deploy a prebuilt image.</CardDescription></CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label>GitHub repository <span className="font-normal text-muted-foreground">(optional)</span></Label><Input value={runtime.repository ?? ""} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /></div>
-                  <div className="space-y-2"><Label>Branch or tag</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} placeholder="main" /></div>
-                  <div className="space-y-2"><Label>Registry</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
-                  <div className="space-y-2"><Label>Image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
-                  <div className="space-y-2"><Label>Image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
-                  <details className="rounded-md border sm:col-span-2"><summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">Optional runtime settings</summary><div className="grid gap-4 border-t p-3 sm:grid-cols-2">
+                <CardHeader><CardTitle>Choose one deployment source</CardTitle><CardDescription>Select either a GitHub repository that Gatekeeperd builds, or an existing Docker image. These are separate deployment paths.</CardDescription></CardHeader>
+                <CardContent className="grid gap-4">
+                  <fieldset className="grid gap-3 sm:grid-cols-2">
+                    <legend className="sr-only">Deployment source</legend>
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 ${sourceMode === "github" ? "border-primary bg-primary/5" : ""}`}><input type="radio" name="deployment-source" value="github" checked={sourceMode === "github"} onChange={() => setSourceMode("github")} className="mt-1 h-4 w-4" /><span><span className="block text-sm font-medium">Build from GitHub</span><span className="block text-xs text-muted-foreground">Choose a repository and branch or tag. Gatekeeperd builds the image for deployment.</span></span></label>
+                    <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 ${sourceMode === "image" ? "border-primary bg-primary/5" : ""}`}><input type="radio" name="deployment-source" value="image" checked={sourceMode === "image"} onChange={() => { setSourceMode("image"); setRuntime(current => ({ ...current, repository: "", autoDeploy: false })); }} className="mt-1 h-4 w-4" /><span><span className="block text-sm font-medium">Use a Docker image</span><span className="block text-xs text-muted-foreground">Deploy an image that has already been built and published.</span></span></label>
+                  </fieldset>
+                  {sourceMode === "github" ? <div className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
+                    <div className="space-y-2"><Label>GitHub repository</Label><Input value={runtime.repository ?? ""} onChange={e => setRuntime({ ...runtime, repository: e.target.value })} placeholder="acme/portal" /><p className="text-xs text-muted-foreground">Use owner/repository format.</p></div>
+                    <div className="space-y-2"><Label>Branch or tag</Label><Input value={runtime.gitRef} onChange={e => setRuntime({ ...runtime, gitRef: e.target.value })} placeholder="main" /></div>
+                    <div className="space-y-2"><Label>Registry for the built image</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Build image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
+                    <div className="space-y-2"><Label>Build image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
+                    <label className="flex items-start gap-3 rounded-md border p-3 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={runtime.autoDeploy ?? false} onChange={event => setRuntime({ ...runtime, autoDeploy: event.target.checked })} /><span><span className="block text-sm font-medium">Deploy on matching GitHub pushes</span><span className="block text-xs text-muted-foreground">Queue a deployment when the configured branch or tag changes.</span></span></label>
+                  </div> : <div className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
+                    <div className="space-y-2"><Label>Registry</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Docker image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
+                    <div className="space-y-2"><Label>Image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
+                    <p className="text-sm text-muted-foreground sm:col-span-2">When you deploy, Gatekeeperd checks the image on this server first. If it is already present, that local image is used. If it is missing, Gatekeeperd pulls it from the selected registry.</p>
+                  </div>}
+                  <details className="rounded-md border"><summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">Optional runtime settings</summary><div className="grid gap-4 border-t p-3 sm:grid-cols-2">
                     <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select></div>
                     <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
-                    <label className="flex items-start gap-3 rounded-md border p-3 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={runtime.autoDeploy ?? false} onChange={event => setRuntime({ ...runtime, autoDeploy: event.target.checked })} /><span><span className="block text-sm font-medium">Deploy on matching GitHub pushes</span><span className="block text-xs text-muted-foreground">Queue a deployment when the configured branch or tag changes.</span></span></label>
                     <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={4} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Manage secrets in the service environment settings after saving.</p></div>
                   </div></details>
-                  <div className="flex justify-between sm:col-span-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName} onClick={() => void saveSource()} loading={saveRuntime.isPending}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
+                  <div className="flex justify-between"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName.trim() || (sourceMode === "github" && !runtime.repository?.trim())} onClick={() => void saveSource()} loading={saveRuntime.isPending}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card></>}
 
               {step === 2 && <Card>
-                <CardHeader><CardTitle>Review and deploy</CardTitle><CardDescription>Gatekeeperd will build the saved GitHub source or pull the configured image, then check it before switching traffic. Registry access uses the centrally managed credentials for this registry.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Review and deploy</CardTitle><CardDescription>{setup.sourceRuntime?.repository ? "Gatekeeperd will build the selected GitHub revision, then check the candidate before switching traffic." : "Gatekeeperd checks for the selected image on this server first, uses it if present, and pulls it from the registry only when it is missing."} Registry access uses the centrally managed credentials when needed.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Desired image</p><p className="mt-1 font-medium">{setup.sourceRuntime ? `${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Selected source</p><p className="mt-1 font-medium">{setup.sourceRuntime ? setup.sourceRuntime.repository ? `GitHub · ${setup.sourceRuntime.repository}@${setup.sourceRuntime.gitRef}` : `Docker image · ${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p>{setup.sourceRuntime?.repository && <p className="mt-2 text-xs text-muted-foreground">Build output: {setup.sourceRuntime.registry}/{setup.sourceRuntime.imageName}:{setup.sourceRuntime.imageTag}</p>}</div>
                   <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="outline" onClick={() => goToStep(1)}><ChevronLeft className="mr-1 h-4 w-4" />Back to source</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={deploy.isPending || Boolean(queuedDeploymentId) || !setup.sourceRuntime} onClick={() => void queueDeployment()} loading={deploy.isPending}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : "Make deployment"}</Button></div></div>
                 </CardContent>
               </Card>}
