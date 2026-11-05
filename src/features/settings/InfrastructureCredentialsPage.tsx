@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, ExternalLink, Github, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
+import { Boxes, ExternalLink, FileText, Github, HeartPulse, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { useGitHubInstallUrl, useGitHubStatus, useUnlinkGitHub } from "@/hooks/u
 import type { ProviderCredentialMetadata } from "@/types/project";
 import { toast } from "sonner";
 
-type CredentialTab = "registry" | "github-credentials" | "github-connection" | "history";
+type CredentialTab = "registry" | "scribed" | "github-credentials" | "github-connection" | "history";
 type CredentialPanel = "registry" | "github-webhook" | "github-key" | null;
 
 export function InfrastructureCredentialsPage() {
@@ -29,11 +29,21 @@ export function InfrastructureCredentialsPage() {
   const [githubWebhookSecret, setGithubWebhookSecret] = useState("");
   const [githubPrivateKey, setGithubPrivateKey] = useState("");
   const [savingGithub, setSavingGithub] = useState(false);
+  const [scribedBaseUrl, setScribedBaseUrl] = useState("");
+  const [scribedToken, setScribedToken] = useState("");
+  const [savingScribed, setSavingScribed] = useState(false);
+  const [checkingScribed, setCheckingScribed] = useState(false);
+  const [scribedHealth, setScribedHealth] = useState<{ reachable: boolean; message: string } | null>(null);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const credentials = useQuery({
     queryKey: ["provider-credentials-metadata"],
     queryFn: async () => (await api.get<ProviderCredentialMetadata[]>("/admin/provider-credentials")).data,
   });
+  const scribed = useQuery({
+    queryKey: ["integrations", "scribed"],
+    queryFn: async () => (await api.get<{ baseUrl: string; configured: boolean; tokenConfigured: boolean; credentialVersion: number | null }>("/admin/integrations/scribed")).data,
+  });
+  useEffect(() => { if (scribed.data) setScribedBaseUrl(scribed.data.baseUrl); }, [scribed.data]);
   const history = useMemo(() => [...(credentials.data ?? [])].sort((a, b) => a.provider.localeCompare(b.provider) || a.scope.localeCompare(b.scope) || b.version - a.version), [credentials.data]);
   const providers = useMemo(() => [...new Set(history.map(item => item.provider))].sort(), [history]);
   const currentDockerHubCredential = credentials.data?.find(item => item.provider === "docker" && item.type === "registry" && item.scope === "docker.io" && item.current);
@@ -48,6 +58,30 @@ export function InfrastructureCredentialsPage() {
   const github = useGitHubStatus();
   const install = useGitHubInstallUrl();
   const unlink = useUnlinkGitHub();
+
+  const saveScribed = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSavingScribed(true);
+    try {
+      await api.put("/admin/integrations/scribed", { baseUrl: scribedBaseUrl, apiToken: scribedToken });
+      setScribedToken("");
+      setScribedHealth(null);
+      await queryClient.invalidateQueries({ queryKey: ["integrations", "scribed"] });
+      await queryClient.invalidateQueries({ queryKey: ["provider-credentials-metadata"] });
+      toast.success("Scribed connection saved");
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+    finally { setSavingScribed(false); }
+  };
+
+  const checkScribed = async () => {
+    setCheckingScribed(true);
+    try {
+      const result = (await api.post<{ reachable: boolean; message: string }>("/admin/integrations/scribed/health")).data;
+      setScribedHealth(result);
+    } catch (error) {
+      setScribedHealth({ reachable: false, message: getApiErrorMessage(error) });
+    } finally { setCheckingScribed(false); }
+  };
 
   const rotateRegistry = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -90,6 +124,7 @@ export function InfrastructureCredentialsPage() {
       <div className="overflow-x-auto -mx-1 px-1">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="registry" className="flex-1 sm:flex-none"><Boxes className="mr-2 h-4 w-4" />Docker Hub</TabsTrigger>
+          <TabsTrigger value="scribed" className="flex-1 sm:flex-none"><FileText className="mr-2 h-4 w-4" />Scribed</TabsTrigger>
           <TabsTrigger value="github-credentials" className="flex-1 sm:flex-none"><KeyRound className="mr-2 h-4 w-4" />GitHub credentials</TabsTrigger>
           <TabsTrigger value="github-connection" className="flex-1 sm:flex-none"><Github className="mr-2 h-4 w-4" />GitHub connection</TabsTrigger>
           <TabsTrigger value="history" className="flex-1 sm:flex-none"><History className="mr-2 h-4 w-4" />Version history</TabsTrigger>
@@ -101,6 +136,23 @@ export function InfrastructureCredentialsPage() {
           <CardHeader className="border-b pb-4"><CardDescription>Manage Docker Hub access for private image pulls. Provider credentials are separate from service environment variables.</CardDescription></CardHeader>
           <CardContent className="pt-5">
             {credentials.isLoading ? <p className="text-sm text-muted-foreground">Checking Docker Hub connection…</p> : credentials.isError ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-destructive">{getApiErrorMessage(credentials.error)}</p><Button variant="outline" size="sm" loading={credentials.isFetching} loadingText="Checking…" disabled={credentials.isFetching} onClick={() => void credentials.refetch()}>Retry</Button></div> : currentDockerHubCredential ? <div className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"><div className="space-y-1"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" /><p className="font-medium">Docker Hub connected</p></div><p className="text-sm text-foreground/80">{currentDockerHubCredential.displayName}</p><p className="text-xs text-muted-foreground">{currentDockerHubCredential.scope} · version {currentDockerHubCredential.version} · added {new Date(currentDockerHubCredential.createdAt).toLocaleString()}</p><p className="text-xs text-muted-foreground">Deployments for this registry use the current central credential. Previous credential versions remain in history.</p></div><Button variant="outline" className="shrink-0" onClick={() => { setRegistry(currentDockerHubCredential.scope); setUsername(currentDockerHubCredential.displayName); setPassword(""); setRegistryAction("rotate"); setPanel("registry"); }}><RotateCw className="h-4 w-4" />Rotate token</Button></div> : <div className="flex flex-col gap-4 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">Docker Hub is not connected</p><p className="mt-1 text-sm text-muted-foreground">Connect a Docker Hub username and access token for private image pulls across deployments.</p></div><Button className="shrink-0" onClick={() => { setRegistry("docker.io"); setUsername(""); setPassword(""); setRegistryAction("connect"); setPanel("registry"); }}><RotateCw className="h-4 w-4" />Connect Docker Hub</Button></div>}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="scribed">
+        <Card>
+          <CardHeader className="border-b pb-4"><CardDescription>Connect Scribed for Gatekeeper invoice and payment receipt PDFs. The API client token is encrypted and never shown again after saving.</CardDescription></CardHeader>
+          <CardContent className="space-y-5 pt-5">
+            {scribed.isLoading ? <p className="text-sm text-muted-foreground">Loading Scribed settings…</p> : scribed.isError ? <p className="text-sm text-destructive">{getApiErrorMessage(scribed.error)}</p> : <>
+              <form className="max-w-2xl space-y-4" onSubmit={event => void saveScribed(event)}>
+                <div className="space-y-1.5"><Label htmlFor="scribed-url">Scribed base URL</Label><Input id="scribed-url" type="url" placeholder="https://scribed.example.com" value={scribedBaseUrl} onChange={event => setScribedBaseUrl(event.target.value)} required /><p className="text-xs text-muted-foreground">Use the service root URL without an API path.</p></div>
+                <div className="space-y-1.5"><Label htmlFor="scribed-token">{scribed.data?.tokenConfigured ? "Replace API client token" : "API client token"}</Label><Input id="scribed-token" type="password" autoComplete="new-password" placeholder={scribed.data?.tokenConfigured ? "Leave empty to keep current token" : "Paste the registered Gatekeeperd client token"} value={scribedToken} onChange={event => setScribedToken(event.target.value)} required={!scribed.data?.tokenConfigured} /><p className="text-xs text-muted-foreground">Create a registered Gatekeeperd API client in Scribed and paste its one-time token here.</p></div>
+                <div className="flex flex-wrap gap-2"><Button type="submit" loading={savingScribed} disabled={savingScribed || !scribedBaseUrl.trim() || (!scribed.data?.tokenConfigured && !scribedToken.trim())}>{savingScribed ? "Saving…" : "Save Scribed settings"}</Button><Button type="button" variant="outline" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check health</Button></div>
+              </form>
+              {scribed.data?.configured && <p className="text-xs text-muted-foreground">Configured · credential version {scribed.data.credentialVersion ?? "environment"}</p>}
+              {scribedHealth && <div className={`rounded-md border p-3 text-sm ${scribedHealth.reachable ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`} role="status">{scribedHealth.message}</div>}
+            </>}
           </CardContent>
         </Card>
       </TabsContent>
