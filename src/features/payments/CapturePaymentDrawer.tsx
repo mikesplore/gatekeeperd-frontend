@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Copy, ExternalLink, Link2, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,11 +28,13 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
   const [mpesaReference, setMpesaReference] = useState("");
   const [mpesaFinalStatus, setMpesaFinalStatus] = useState<"failed" | "abandoned" | "reversed" | null>(null);
   const [mpesaQueryError, setMpesaQueryError] = useState<string | null>(null);
+  const [mpesaCheckCoolingDown, setMpesaCheckCoolingDown] = useState(false);
+  const mpesaCooldownTimer = useRef<number | null>(null);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const services = useProjectServices(project.id);
   const selectedService = services.data?.find(service => service.id === serviceId);
   const serviceInvoice = useServiceInvoice(project.id, serviceId);
-  const servicePayments = useServicePayments(project.id, serviceId, 25, 0, open && mpesaReference ? 3_000 : false);
+  const servicePayments = useServicePayments(project.id, serviceId, 25, 0, open && mpesaReference ? 10_000 : false);
   const mpesaPayment = servicePayments.data?.payments.find(payment => payment.providerReference === mpesaReference);
   const serviceBalance = Number(serviceInvoice.data?.invoice.balance ?? 0);
   const balance = serviceBalance;
@@ -44,8 +46,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
   const reconcilePayment = useReconcilePayment();
   const mpesaPaymentId = mpesaPayment?.id;
   const mpesaPaymentStatus = mpesaPayment?.gatewayStatus;
-  const reconcilePaymentNow = reconcilePayment.mutateAsync;
-  const refetchServicePayments = servicePayments.refetch;
+  const handledMpesaResult = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -67,31 +68,37 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
     if (selectedService && serviceInvoice.data) setAmount(serviceBalance.toString());
   }, [selectedService, serviceInvoice.data, serviceBalance]);
 
+  useEffect(() => () => {
+    if (mpesaCooldownTimer.current !== null) window.clearTimeout(mpesaCooldownTimer.current);
+  }, []);
+
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
   useEffect(() => {
-    if (!open || !mpesaReference || !mpesaPaymentId || mpesaPaymentStatus !== "pending") return;
-    const interval = window.setInterval(() => {
-      void reconcilePaymentNow(mpesaPaymentId)
-        .then(() => {
-          setMpesaQueryError(null);
-          return refetchServicePayments();
-        })
-        .catch(error => setMpesaQueryError(getApiErrorMessage(error)));
-    }, 10_000);
-    return () => window.clearInterval(interval);
-  }, [open, mpesaReference, mpesaPaymentId, mpesaPaymentStatus, reconcilePaymentNow, refetchServicePayments]);
-
-  useEffect(() => {
-    if (mpesaPaymentStatus === "success") {
+    if (mpesaPaymentId && mpesaPaymentStatus === "success" && handledMpesaResult.current !== mpesaPaymentId) {
+      handledMpesaResult.current = mpesaPaymentId;
       toast.success("M-Pesa payment confirmed");
       void onPaymentChanged?.();
       close();
-    } else if (mpesaPaymentStatus && ["failed", "abandoned", "reversed"].includes(mpesaPaymentStatus)) {
+    } else if (mpesaPaymentId && mpesaPaymentStatus && ["failed", "abandoned", "reversed"].includes(mpesaPaymentStatus) && handledMpesaResult.current !== mpesaPaymentId) {
+      handledMpesaResult.current = mpesaPaymentId;
       setMpesaFinalStatus(mpesaPaymentStatus as "failed" | "abandoned" | "reversed");
       toast.error(`M-Pesa payment ${mpesaPaymentStatus}`);
     }
   }, [mpesaPaymentId, mpesaPaymentStatus, onPaymentChanged, close]);
+
+  const checkMpesaStatus = async () => {
+    if (!mpesaPaymentId || reconcilePayment.isPending || mpesaCheckCoolingDown) return;
+    setMpesaCheckCoolingDown(true);
+    mpesaCooldownTimer.current = window.setTimeout(() => setMpesaCheckCoolingDown(false), 30_000);
+    setMpesaQueryError(null);
+    try {
+      await reconcilePayment.mutateAsync(mpesaPaymentId);
+      await servicePayments.refetch();
+    } catch (error) {
+      setMpesaQueryError(getApiErrorMessage(error));
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -109,6 +116,10 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
         setMpesaReference("");
         setMpesaFinalStatus(null);
         setMpesaQueryError(null);
+        setMpesaCheckCoolingDown(false);
+        if (mpesaCooldownTimer.current !== null) window.clearTimeout(mpesaCooldownTimer.current);
+        mpesaCooldownTimer.current = null;
+        handledMpesaResult.current = null;
         const response = await initiateMpesa.mutateAsync({ slug: project.slug, phone: phone.trim(), amount: numericAmount, serviceId });
         setMpesaReference(response.data.reference);
         toast.success("M-Pesa prompt sent to the customer");
@@ -177,7 +188,7 @@ export function CapturePaymentDrawer({ project, open, onOpenChange, onPaymentCha
           {method === "mpesa" && <div className="space-y-2"><Label htmlFor="capture-phone">M-Pesa phone number</Label><Input id="capture-phone" value={phone} onChange={event => setPhone(event.target.value)} placeholder="2547XXXXXXXX" />{amountValid && !Number.isInteger(numericAmount) && <p className="text-xs text-muted-foreground">M-Pesa accepts whole KES amounts.</p>}</div>}
 
           {method === "mpesa" && mpesaReference && <div role="status" className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            {mpesaFinalStatus ? <><p className="font-medium text-foreground">Payment {mpesaFinalStatus}</p><p className="mt-1">You can send another prompt or close this panel.</p></> : <><p className="flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Waiting for M-Pesa confirmation. This panel will update when the payment succeeds or fails.</p>{mpesaQueryError && <p className="mt-2 text-destructive">Status check failed: {mpesaQueryError}. Retrying automatically.</p>}</>}
+            {mpesaFinalStatus ? <><p className="font-medium text-foreground">Payment {mpesaFinalStatus}</p><p className="mt-1">You can send another prompt or close this panel.</p></> : <><p className="flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Waiting for M-Pesa confirmation. This panel checks Gatekeeperd for updates.</p>{mpesaQueryError && <p className="mt-2 text-destructive">Status check failed: {mpesaQueryError}</p>}{mpesaPaymentId && mpesaPaymentStatus === "pending" && <Button type="button" size="sm" variant="outline" className="mt-2" loading={reconcilePayment.isPending} disabled={reconcilePayment.isPending || mpesaCheckCoolingDown} onClick={() => void checkMpesaStatus()}>{mpesaCheckCoolingDown && !reconcilePayment.isPending ? "Check again shortly" : "Check with Safaricom"}</Button>}</>}
           </div>}
 
           {method && <div className="space-y-2">

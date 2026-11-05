@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Download, Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
+import { Copy, Download, Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAdoptableContainers, useAdoptProjectContainer, useContainer, useCreateServiceDomain, useDeleteServiceDomain, useProjectServices, useProjectSetupStatus, useProjectDeploymentDiagnostics, useSaveServiceEnvironment, useSaveSharedEnvironment, useServiceDomainBindings, useServiceEnvironmentMetadata, useSharedEnvironmentMetadata, useUpdateServiceDomain } from "@/hooks/useProjects";
 import type { Project, ProjectDeploymentHistoryItem, ServiceType } from "@/types/project";
 import type { DashboardSite } from "@/types/sites";
+import type { ContainerPresetCredentials } from "@/types/container";
 import { useDashboardSites } from "@/hooks/useSiteDashboard";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -199,6 +200,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
   const canReadPayments = useCan("payments.read");
   const canManagePayments = useCan("payments.manage");
   const canManageDeployments = useCan("deployments.manage");
+  const canReadDeployments = useCan("deployments.read");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const environment = useServiceEnvironmentMetadata(project.id, service.id);
@@ -220,6 +222,11 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
   const repairGateway = useRepairDeploymentUpstream(service.id);
   const adoptable = useAdoptableContainers(true);
   const adopt = useAdoptProjectContainer(project.id);
+  const [connectionDetailsVisible, setConnectionDetailsVisible] = useState(false);
+  const [connectionPasswordVisible, setConnectionPasswordVisible] = useState(false);
+  const connectionDetails = useMutation({
+    mutationFn: async () => (await api.get<ContainerPresetCredentials>(`/admin/projects/${project.id}/services/${service.id}/connection-details`, { params: { environment: "production" } })).data,
+  });
   const [containerToAttach, setContainerToAttach] = useState("");
   const [removedKeys, setRemovedKeys] = useState<string[]>([]);
   const [environmentDirty, setEnvironmentDirty] = useState(false);
@@ -242,6 +249,11 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
   const deploymentDiagnostics = useProjectDeploymentDiagnostics(project.slug, expandedDeploymentId ?? "", expandedDeployment?.status.toLowerCase() === "failed");
   const [serviceName, setServiceName] = useState(service.name);
   const [serviceType, setServiceType] = useState<ServiceType>(service.serviceType);
+  useEffect(() => {
+    setConnectionDetailsVisible(false);
+    setConnectionPasswordVisible(false);
+    connectionDetails.reset();
+  }, [service.id, serviceType, activeContainerName]);
   const [serviceActionPending, setServiceActionPending] = useState(false);
   const [capturePaymentOpen, setCapturePaymentOpen] = useState(false);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
@@ -480,6 +492,19 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
     </Alert>}
       </TabsContent>
       <TabsContent value="deployments" className="space-y-4">
+    {canReadDeployments && (serviceType === "database" || serviceType === "redis") && <Card>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3"><div><CardTitle className="text-base">Database connection details</CardTitle><p className="text-xs text-muted-foreground">Reveal recognized PostgreSQL or Redis credentials from this service's deployed container.</p></div><Button size="sm" variant="outline" loading={connectionDetails.isPending} disabled={connectionDetails.isPending || !activeContainerName} onClick={() => {
+        if (connectionDetailsVisible) {
+          setConnectionDetailsVisible(false);
+          setConnectionPasswordVisible(false);
+          connectionDetails.reset();
+        } else {
+          setConnectionDetailsVisible(true);
+          connectionDetails.mutate();
+        }
+      }}>{connectionDetailsVisible ? <><EyeOff className="h-4 w-4" />Hide details</> : <><Eye className="h-4 w-4" />{connectionDetails.isPending ? "Loading…" : "Show connection details"}</>}</Button></CardHeader>
+      {connectionDetailsVisible && <CardContent className="pt-0">{connectionDetails.isError ? <p className="text-sm text-destructive">{getApiErrorMessage(connectionDetails.error)}</p> : connectionDetails.data ? <ServiceConnectionDetails credentials={connectionDetails.data} passwordVisible={connectionPasswordVisible} onTogglePassword={() => setConnectionPasswordVisible(value => !value)} /> : <p className="text-sm text-muted-foreground">Loading database connection details…</p>}</CardContent>}
+    </Card>}
     <Card>
       <CardHeader className="py-4"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div></CardHeader>
       <CardContent className="space-y-2 px-3 pb-3 pt-0 sm:px-4">
@@ -631,6 +656,43 @@ function ServiceTypeOptions() {
     ["cache", "Cache"],
     ["custom", "Custom container"],
   ].map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</>;
+}
+
+function ServiceConnectionDetails({ credentials, passwordVisible, onTogglePassword }: { credentials: ContainerPresetCredentials; passwordVisible: boolean; onTogglePassword: () => void }) {
+  const username = credentials.username ?? "default";
+  const password = credentials.password ?? "";
+  const port = credentials.preset === "postgres" ? 5432 : 6379;
+  const internalUrl = credentials.preset === "postgres"
+    ? `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${credentials.internalAddress}/${encodeURIComponent(credentials.database ?? "postgres")}`
+    : password
+      ? `redis://default:${encodeURIComponent(password)}@${credentials.internalAddress}/0`
+      : `redis://${credentials.internalAddress}/0`;
+  const hostUrl = credentials.hostAddress
+    ? credentials.preset === "postgres"
+      ? `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${credentials.hostAddress}/${encodeURIComponent(credentials.database ?? "postgres")}`
+      : password
+        ? `redis://default:${encodeURIComponent(password)}@${credentials.hostAddress}/0`
+        : `redis://${credentials.hostAddress}/0`
+    : null;
+  const copy = async (value: string, label: string) => {
+    try { await navigator.clipboard.writeText(value); toast.success(`${label} copied`); }
+    catch { toast.error(`Could not copy ${label.toLowerCase()}`); }
+  };
+  return <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <InfoItem label="Engine" value={credentials.preset === "postgres" ? "PostgreSQL" : "Redis"} />
+      {credentials.database && <InfoItem label="Database" value={credentials.database} />}
+      <InfoItem label="Username" value={username} />
+      <div><p className="text-xs font-medium uppercase text-muted-foreground">Password</p><div className="mt-1 flex items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">{password ? passwordVisible ? password : "••••••••••••" : "Authentication disabled"}</code>{password && <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={passwordVisible ? "Hide database password" : "Show database password"} onClick={onTogglePassword}>{passwordVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>}</div></div>
+    </div>
+    <ConnectionUrl label="Docker network URL" value={internalUrl} onCopy={copy} />
+    {credentials.internalDnsAvailable ? <p className="text-xs text-muted-foreground">Use the Docker network URL from containers attached to the same user-defined network ({credentials.internalAddress}).</p> : <p className="text-xs text-amber-700">Container-name DNS is unavailable on Docker's default bridge; attach both containers to the same user-defined network.</p>}
+    {hostUrl ? <ConnectionUrl label={`Docker host URL (${credentials.hostAddress})`} value={hostUrl} onCopy={copy} /> : <p className="text-xs text-muted-foreground">No host port is published for the database port {port}.</p>}
+  </div>;
+}
+
+function ConnectionUrl({ label, value, onCopy }: { label: string; value: string; onCopy: (value: string, label: string) => void }) {
+  return <div className="flex min-w-0 items-center gap-2 rounded-md border bg-background p-2"><div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">{label}</p><code className="block break-all text-xs">{value}</code></div><Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" aria-label={`Copy ${label}`} onClick={() => onCopy(value, label)}><Copy className="h-4 w-4" /></Button></div>;
 }
 
 function InfoItem({ label, value, className, valueClassName }: { label: string; value: string; className?: string; valueClassName?: string }) {
