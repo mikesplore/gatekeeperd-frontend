@@ -1,8 +1,9 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { lazy } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { AuthorizedHome, PermissionRoute } from "@/components/auth/PermissionGuard";
+import { RouteErrorPage } from "@/components/RouteErrorPage";
 
 const allow = (permission: string, element: React.ReactNode) => <PermissionRoute permission={permission}>{element}</PermissionRoute>;
 
@@ -43,6 +44,10 @@ const NetworkResourcesPage = lazy(() => import("@/features/infrastructure/Docker
 const VolumeResourcesPage = lazy(() => import("@/features/infrastructure/DockerResourcesPage").then(({ DockerResourcesPage }) => ({ default: () => <DockerResourcesPage kind="volumes" /> })));
 
 export const router = createBrowserRouter([
+  {
+    element: <Outlet />,
+    errorElement: <RouteErrorPage />,
+    children: [
   {
     index: true,
     element: isSelfServiceHost ? <SupportPage /> : <LandingPage />,
@@ -101,4 +106,6 @@ export const router = createBrowserRouter([
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
+    ],
+  },
 ]);
