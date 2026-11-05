@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { AuthorizedHome, PermissionRoute } from "@/components/auth/PermissionGuard";
 import { RouteErrorPage } from "@/components/RouteErrorPage";
+import { useCan } from "@/hooks/usePermissions";
 
 const allow = (permission: string, element: React.ReactNode) => <PermissionRoute permission={permission}>{element}</PermissionRoute>;
 
@@ -17,13 +18,14 @@ const ContainersPage = lazy(() => import("@/features/containers/ContainersPage")
 const ContainerDetailPage = lazy(() => import("@/features/containers/ContainerDetailPage").then((module) => ({ default: module.ContainerDetailPage })));
 const NotFoundPage = lazy(() => import("@/features/NotFoundPage").then((module) => ({ default: module.NotFoundPage })));
 const ProjectDetailPage = lazy(() => import("@/features/projects/ProjectDetailPage").then((module) => ({ default: module.ProjectDetailPage })));
+const DashboardOverviewPage = lazy(() => import("@/features/dashboard/DashboardOverviewPage").then((module) => ({ default: module.DashboardOverviewPage })));
 const ServiceDetailPage = lazy(() => import("@/features/projects/ServiceDetailPage").then((module) => ({ default: module.ServiceDetailPage })));
 const ProjectsListPage = lazy(() => import("@/features/projects/ProjectsListPage").then((module) => ({ default: module.ProjectsListPage })));
 const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then((module) => ({ default: module.PaymentsPage })));
+const OperationsPage = lazy(() => import("@/features/operations/OperationsPage").then((module) => ({ default: module.OperationsPage })));
 const PaymentEventsPage = lazy(() => import("@/features/payments/PaymentEventsPage").then((module) => ({ default: module.PaymentEventsPage })));
 const CertificatesPage = lazy(() => import("@/features/nginx/CertificatesPage").then((module) => ({ default: module.CertificatesPage })));
 const NginxErrorLogsPage = lazy(() => import("@/features/nginx/NginxErrorLogsPage").then((module) => ({ default: module.NginxErrorLogsPage })));
-const OperationsPage = lazy(() => import("@/features/operations/OperationsPage").then((module) => ({ default: module.OperationsPage })));
 const ProfileSettingsPage = lazy(() => import("@/features/settings/ProfileSettingsPage").then((module) => ({ default: module.ProfileSettingsPage })));
 const AdminUsersPage = lazy(() => import("@/features/settings/AdminUsersPage").then((module) => ({ default: module.AdminUsersPage })));
 const RolesPage = lazy(() => import("@/features/settings/RolesPage").then((module) => ({ default: module.RolesPage })));
@@ -42,6 +44,11 @@ const InfrastructureCredentialsPage = lazy(() => import("@/features/settings/Inf
 const LogsPage = lazy(() => import("@/features/logs/LogsPage").then((module) => ({ default: module.LogsPage })));
 const NetworkResourcesPage = lazy(() => import("@/features/infrastructure/DockerResourcesPage").then(({ DockerResourcesPage }) => ({ default: () => <DockerResourcesPage kind="networks" /> })));
 const VolumeResourcesPage = lazy(() => import("@/features/infrastructure/DockerResourcesPage").then(({ DockerResourcesPage }) => ({ default: () => <DockerResourcesPage kind="volumes" /> })));
+
+function DashboardHomeRoute() {
+  const canReadProjects = useCan("projects.read");
+  return canReadProjects ? <DashboardOverviewPage /> : <AuthorizedHome />;
+}
 
 export const router = createBrowserRouter([
   {
@@ -69,7 +76,7 @@ export const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <AuthorizedHome /> },
+          { index: true, element: <DashboardHomeRoute /> },
           { path: "projects", element: allow("projects.read", <ProjectsListPage />) },
           { path: "projects/setup", element: allow("projects.manage", <ProjectSetupWizardPage />) },
           { path: "projects/setup/:projectId", element: allow("projects.manage", <ProjectSetupWizardPage />) },
