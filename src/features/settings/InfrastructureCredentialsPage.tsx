@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, ExternalLink, FileText, Github, HeartPulse, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
+import { Building2, Boxes, CircleAlert, CircleCheck, ExternalLink, FileText, Github, HeartPulse, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -148,6 +148,15 @@ export function InfrastructureCredentialsPage() {
     }
   };
 
+  const scribedStatusLabel = scribedHealth
+    ? scribedHealth.reachable ? "Connected" : "Unavailable"
+    : scribed.data?.credentialVersion != null ? "Token saved" : "Not registered";
+  const scribedStatusStyle = scribedHealth
+    ? scribedHealth.reachable
+      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+      : "border-destructive/20 bg-destructive/10 text-destructive"
+    : "border-border bg-muted text-muted-foreground";
+
   return <div className="w-full space-y-6">
     <Tabs value={tab} onValueChange={value => setTab(value as CredentialTab)} className="space-y-4">
       <div className="overflow-x-auto -mx-1 px-1">
@@ -174,23 +183,43 @@ export function InfrastructureCredentialsPage() {
           <CardHeader className="border-b pb-4"><CardDescription>Connect Scribed for invoice and receipt documents.</CardDescription></CardHeader>
           <CardContent className="space-y-5 pt-5">
             {scribed.isLoading ? <p className="text-sm text-muted-foreground">Loading Scribed settings…</p> : scribed.isError ? <p className="text-sm text-destructive">{getApiErrorMessage(scribed.error)}</p> : <>
-              <div className="max-w-2xl space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${scribedHealth ? (scribedHealth.reachable ? "bg-emerald-500" : "bg-destructive") : "bg-muted-foreground/50"}`} /><p className="font-medium">{scribedHealth ? (scribedHealth.reachable ? "Scribed connected" : "Scribed unavailable") : scribed.data?.credentialVersion != null ? "Scribed token saved" : "Scribed not registered"}</p></div>
-                    <p className="break-all text-sm text-muted-foreground">{scribed.data?.baseUrl || "Scribed URL is not configured"}</p>
-                    {scribed.data?.credentialVersion != null && <p className="text-xs text-muted-foreground">Scoped token stored encrypted · version {scribed.data.credentialVersion}</p>}
+              <div className="max-w-3xl space-y-4">
+                <section className="overflow-hidden rounded-xl border bg-card">
+                  <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${scribedHealth?.reachable ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : scribedHealth?.reachable === false ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
+                      {scribedHealth?.reachable ? <CircleCheck className="h-5 w-5" /> : scribedHealth?.reachable === false ? <CircleAlert className="h-5 w-5" /> : <KeyRound className="h-5 w-5" />}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="font-semibold">Scribed document service</h3>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${scribedStatusStyle}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${scribedHealth ? (scribedHealth.reachable ? "bg-emerald-500" : "bg-destructive") : "bg-muted-foreground"}`} />{scribedStatusLabel}
+                        </span>
+                      </div>
+                      <p className="break-all text-sm text-muted-foreground">{scribed.data?.baseUrl || "Scribed URL is not configured"}</p>
+                      {scribed.data?.credentialVersion != null && <p className="text-xs text-muted-foreground">Scoped token saved securely · version {scribed.data.credentialVersion}</p>}
+                    </div>
                   </div>
-                  <Button type="button" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Checking and saving…" : scribed.data?.credentialVersion != null ? "Refresh token" : "Register"}</Button>
-                </div>
-                {scribed.data?.tokenConfigured && <section className="rounded-lg border p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div><p className="text-sm font-medium">Business profile</p><p className="text-sm text-muted-foreground">{scribedProfile.isError ? "Profile unavailable" : scribedProfile.data?.name ?? "Loading profile…"}</p></div>
-                    {!editingScribedProfile && !scribedProfile.isError && <Button type="button" variant="outline" size="sm" onClick={() => setEditingScribedProfile(true)}>Edit</Button>}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-5 py-3">
+                    <p className="text-xs text-muted-foreground">Used to create invoices and receipts.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check connection</Button>
+                      <Button type="button" size="sm" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Validating…" : scribed.data?.credentialVersion != null ? "Refresh token" : "Register"}</Button>
+                    </div>
                   </div>
-                  {scribedProfile.isError && <p className="mt-3 text-sm text-muted-foreground">{scribedHealth?.reachable === false ? "Scribed is unreachable, so the profile could not be loaded." : "Scribed did not allow this token to access its client profile."}</p>}
-                  {editingScribedProfile && <form className="mt-4 space-y-3" onSubmit={event => void saveScribedProfile(event)}>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                  {scribedHealth && <div className={`border-t px-5 py-3 text-sm ${scribedHealth.reachable ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`} role="status">{scribedHealth.message}</div>}
+                </section>
+                {scribed.data?.tokenConfigured && <section className="rounded-xl border bg-card p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Building2 className="h-4 w-4" /></div>
+                      <div><h3 className="text-sm font-semibold">Business profile</h3><p className="text-sm text-muted-foreground">{scribedProfile.isError ? "Profile unavailable" : scribedProfile.data?.name ?? "Loading profile…"}</p></div>
+                    </div>
+                    {!editingScribedProfile && !scribedProfile.isError && <Button type="button" variant="outline" size="sm" onClick={() => setEditingScribedProfile(true)}>Edit profile</Button>}
+                  </div>
+                  {scribedProfile.isError && <p className="mt-4 rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">{scribedHealth?.reachable === false ? "Scribed is unreachable, so the profile could not be loaded." : "Scribed did not allow this token to access its client profile."}</p>}
+                  {editingScribedProfile && <form className="mt-5 space-y-4 border-t pt-4" onSubmit={event => void saveScribedProfile(event)}>
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5"><Label htmlFor="scribed-profile-name">Business name</Label><Input id="scribed-profile-name" value={scribedProfileForm.name} onChange={event => setScribedProfileForm(current => ({ ...current, name: event.target.value }))} maxLength={120} required /></div>
                       <div className="space-y-1.5"><Label htmlFor="scribed-profile-email">Contact email</Label><Input id="scribed-profile-email" type="email" value={scribedProfileForm.contactEmail} onChange={event => setScribedProfileForm(current => ({ ...current, contactEmail: event.target.value }))} maxLength={254} /></div>
                       <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="scribed-profile-address">Business address</Label><Input id="scribed-profile-address" value={scribedProfileForm.address} onChange={event => setScribedProfileForm(current => ({ ...current, address: event.target.value }))} maxLength={1000} /></div>
@@ -199,9 +228,7 @@ export function InfrastructureCredentialsPage() {
                     <div className="flex gap-2"><Button type="submit" loading={savingScribedProfile} disabled={savingScribedProfile}>Save profile</Button><Button type="button" variant="outline" onClick={() => setEditingScribedProfile(false)} disabled={savingScribedProfile}>Cancel</Button></div>
                   </form>}
                 </section>}
-                <Button type="button" variant="outline" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check health</Button>
               </div>
-              {scribedHealth && <div className={`rounded-md border p-3 text-sm ${scribedHealth.reachable ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`} role="status">{scribedHealth.message}</div>}
             </>}
           </CardContent>
         </Card>
