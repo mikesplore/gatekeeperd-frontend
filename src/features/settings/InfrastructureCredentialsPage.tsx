@@ -137,17 +137,22 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="scribed">
         <Card>
-          <CardHeader className="border-b pb-4"><CardDescription>Configure a scoped Scribed API client token in Gatekeeperd’s environment, then import it into encrypted credential storage with one click.</CardDescription></CardHeader>
+          <CardHeader className="border-b pb-4"><CardDescription>Connect Scribed for invoice and receipt documents.</CardDescription></CardHeader>
           <CardContent className="space-y-5 pt-5">
             {scribed.isLoading ? <p className="text-sm text-muted-foreground">Loading Scribed settings…</p> : scribed.isError ? <p className="text-sm text-destructive">{getApiErrorMessage(scribed.error)}</p> : <>
               <div className="max-w-2xl space-y-4">
-                <div className="space-y-1"><p className="text-sm font-medium">Scribed base URL</p><p className="break-all text-sm text-muted-foreground">{scribed.data?.baseUrl || "Not configured"}</p></div>
-                <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                  <p>Set <code>SCRIBED_BASE_URL</code> and the scoped <code>SCRIBED_API_CLIENT_TOKEN</code> in Gatekeeperd’s environment, then restart Gatekeeperd. Create the scoped token in Scribed first; this page never asks for the token or Scribed administrator credentials.</p>
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${scribed.data?.credentialVersion != null ? "bg-emerald-500" : "bg-muted-foreground/50"}`} /><p className="font-medium">{scribed.data?.credentialVersion != null ? "Scribed connected" : "Scribed not registered"}</p></div>
+                    <p className="break-all text-sm text-muted-foreground">{scribed.data?.baseUrl || "Scribed URL is not configured"}</p>
+                    {scribed.data?.credentialVersion != null && <p className="text-xs text-muted-foreground">Scoped token stored encrypted · version {scribed.data.credentialVersion}</p>}
+                  </div>
+                  <Button type="button" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Checking and saving…" : scribed.data?.credentialVersion != null ? "Refresh token" : "Register"}</Button>
                 </div>
-                <div className="flex flex-wrap gap-2"><Button type="button" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Registering…" : "Register Gatekeeperd with Scribed"}</Button><Button type="button" variant="outline" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check health</Button></div>
+                <p className="text-sm text-muted-foreground">Set <code>SCRIBED_BASE_URL</code> and <code>SCRIBED_API_CLIENT_TOKEN</code> in Gatekeeperd’s environment, restart Gatekeeperd, then register. The scoped token is created in Scribed.</p>
+                <p className="text-sm text-muted-foreground">Set Gatekeeperd’s business name, address, and contact details on the Gatekeeperd API client in Scribed. Scribed uses that profile on generated documents.</p>
+                <Button type="button" variant="outline" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check health</Button>
               </div>
-              {scribed.data?.credentialVersion != null && <p className="text-xs text-muted-foreground">Scoped API client token is stored encrypted in Gatekeeperd (version {scribed.data.credentialVersion}).</p>}
               {scribedHealth && <div className={`rounded-md border p-3 text-sm ${scribedHealth.reachable ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`} role="status">{scribedHealth.message}</div>}
             </>}
           </CardContent>
