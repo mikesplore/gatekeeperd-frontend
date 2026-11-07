@@ -90,10 +90,9 @@ export function GlobalSearchDialog() {
       <DialogContent className="top-[12vh] max-h-[76vh] max-w-2xl translate-y-0 gap-0 overflow-hidden rounded-xl p-0 shadow-2xl">
         <DialogTitle className="sr-only">Search Gatekeeperd</DialogTitle>
         <DialogDescription className="sr-only">Search customers, projects, services, and domains.</DialogDescription>
-        <div className="flex items-center gap-3 border-b px-4 py-3">
+        <div className="flex items-center gap-3 border-b py-3 pl-4 pr-12">
           <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
           <Input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={onInputKeyDown} placeholder="Search customers, projects, services, domains…" className="h-10 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0" aria-label="Search Gatekeeperd" />
-          <kbd className="shrink-0 rounded border px-1.5 py-1 text-[10px] text-muted-foreground">ESC</kbd>
         </div>
         <div className="max-h-[calc(76vh-7rem)] overflow-y-auto p-2">
           {query.trim().length < 2 ? <div className="px-4 py-8 text-center text-sm text-muted-foreground">Search by customer, project, service, or domain.</div>
@@ -118,7 +117,7 @@ export function GlobalSearchDialog() {
                     })}
                   </div>}
         </div>
-        <div className="flex items-center gap-4 border-t bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground"><span className="flex items-center gap-1"><ArrowUp className="h-3 w-3" /><ArrowDown className="h-3 w-3" /> to navigate</span><span>↵ to open</span><span className="ml-auto">Search across Gatekeeperd</span></div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground"><span className="flex items-center gap-1"><ArrowUp className="h-3 w-3" /><ArrowDown className="h-3 w-3" /> to navigate</span><span>↵ to open</span><span>Esc to close</span><span className="ml-auto">Search across Gatekeeperd</span></div>
       </DialogContent>
     </Dialog>
   </>;
