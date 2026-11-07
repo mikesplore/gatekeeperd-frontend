@@ -123,7 +123,7 @@ export function useProjectFromList(slug: string) {
     queryFn: async () => {
       const response = await api.get<{ projects: Project[] }>("/admin/projects", { params: { search: slug } });
       const project = response.data.projects.find(item => item.slug === slug);
-      if (!project) throw new Error(`Project “${slug}” was not found.`);
+      if (!project) throw new Error(`Project “${slug}” is archived or no longer available.`);
       return { project };
     },
     enabled: Boolean(slug),
