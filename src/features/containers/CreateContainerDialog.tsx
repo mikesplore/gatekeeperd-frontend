@@ -45,10 +45,10 @@ interface EnvVar {
   value: string;
 }
 
-type WizardStep = 0 | 1 | 2 | 3;
+type WizardStep = 0 | 1 | 2 | 3 | 4 | 5;
 type ServicePreset = "generic" | "postgres" | "redis";
 
-const STEP_LABELS = ["Basics", "Network & Ports", "Env & Volumes", "Review"];
+const STEP_LABELS = ["Identity", "Image & Version", "Storage", "Network & Ports", "Environment", "Review"];
 
 function parseEnvFile(content: string): EnvVar[] {
   const vars: EnvVar[] = [];
@@ -105,7 +105,7 @@ function StepIndicator({ current }: { current: WizardStep }) {
             >
               {label}
             </span>
-            {step < 3 && <div className="h-px w-6 bg-border" />}
+            {step < 5 && <div className="h-px w-6 bg-border" />}
           </div>
         );
       })}
@@ -353,18 +353,6 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
 
   const handleNext = async () => {
     if (wizardStep === 0) {
-      if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(postgresVersion))) {
-        toast.error("Enter valid PostgreSQL database credentials, a data volume, and image version tag");
-        return;
-      }
-      if (preset === "redis" && !redisVolume) {
-        toast.error("Redis data volume is required");
-        return;
-      }
-      if (preset === "generic" && !image) {
-        toast.error("Image is required");
-        return;
-      }
       if (!configureOnly && !name && !projectSlug) {
         toast.error("Either a container name or project slug is required");
         return;
@@ -374,14 +362,21 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
     }
 
     if (wizardStep === 1) {
-      // Validate on the way to review so the review step has data
-      setWizardStep(2);
-      return;
+      if (preset === "generic" && !image) { toast.error("Image is required"); return; }
+      if (preset === "postgres" && !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(postgresVersion)) { toast.error("Enter a valid PostgreSQL image version tag"); return; }
+      setWizardStep(2); return;
     }
-
     if (wizardStep === 2) {
+      if (preset === "postgres" && !postgresVolume) { toast.error("PostgreSQL data volume is required"); return; }
+      if (preset === "redis" && !redisVolume) { toast.error("Redis data volume is required"); return; }
+      setWizardStep(3); return;
+    }
+    if (wizardStep === 3) { setWizardStep(4); return; }
+
+    if (wizardStep === 4) {
+      if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword)) { toast.error("Enter valid PostgreSQL database credentials"); return; }
       if (configureOnly) {
-        setWizardStep(3);
+        setWizardStep(5);
         return;
       }
       setCheckingWizard(true);
@@ -392,10 +387,10 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
 
         if (res.data.portConflicts.length > 0) {
           toast.error(`Port conflicts detected: ${res.data.portConflicts.join(", ")}`);
-          setWizardStep(1);
+          setWizardStep(3);
           return;
         }
-        setWizardStep(3);
+        setWizardStep(5);
         if (res.data.warnings.length > 0) {
           toast.warning("Warnings found. Review before creating");
         } else {
@@ -454,6 +449,17 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
     }
   };
 
+  const identity = <div className="space-y-4">
+    <div className="space-y-2"><Label htmlFor="preset">Service preset</Label><select id="preset" value={preset} onChange={(e) => { const next = e.target.value as ServicePreset; setPreset(next); if (next === "postgres") { setImage(`postgres:${postgresVersion}`); setPostgresPassword((current) => current || generatePassword()); setPorts([{ host: "", container: "5432" }]); } else if (next === "redis") { setImage("redis:7-alpine"); setPorts([{ host: "", container: "6379" }]); } else { setImage(""); setPorts([{ host: "", container: "" }]); } }} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="generic">Generic container</option><option value="postgres">PostgreSQL database</option><option value="redis">Redis cache</option></select></div>
+    <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="name">Container name</Label><Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-app" /></div><div className="space-y-2"><Label htmlFor="projectSlug">Project slug</Label><Input id="projectSlug" value={projectSlug} onChange={(e) => setProjectSlug(e.target.value)} placeholder="my-app (optional)" /></div></div>
+    <p className="text-xs text-muted-foreground">Enter a container name or project slug. If the name is blank, Gatekeeperd uses the normalized project slug.</p>
+  </div>;
+  const imageFields = <div className="space-y-4">
+    <div className="space-y-2"><Label htmlFor={preset === "postgres" ? "postgresVersion" : "image"}>{preset === "postgres" ? "PostgreSQL image version *" : "Image *"}</Label><Input id={preset === "postgres" ? "postgresVersion" : "image"} value={preset === "postgres" ? postgresVersion : image} disabled={preset !== "generic" && preset !== "postgres"} onChange={(e) => { if (preset === "postgres") { setPostgresVersion(e.target.value); setImage(`postgres:${e.target.value}`); } else { setImage(e.target.value); setImageChecked(false); setImageNotLocal(false); } }} onBlur={handleImageBlur} placeholder={preset === "postgres" ? "17 or 17-alpine" : "nginx:latest"} />{imageChecked && <p className={`text-xs ${imageNotLocal ? "text-amber-600" : "text-emerald-600"}`}>{imageNotLocal ? "Image is not available locally; it will be pulled before creation." : "Image is available locally."}</p>}</div>
+    <div className="space-y-2"><Label htmlFor="restartPolicy">Restart policy</Label><select id="restartPolicy" value={restartPolicy} onChange={(e) => setRestartPolicy(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="no">no</option><option value="always">always</option><option value="unless-stopped">unless-stopped</option><option value="on-failure">on-failure</option></select></div>
+    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pullImage} onChange={(e) => setPullImage(e.target.checked)} className="h-4 w-4" />Pull image if it is not available locally</label><label className="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={pullViaCli} onChange={(e) => setPullViaCli(e.target.checked)} className="h-4 w-4" />Use host Docker credentials for private image pulls</label>
+  </div>;
+
   return (
     <SidePanel
       open={open}
@@ -503,88 +509,17 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
         <Separator />
 
         <div className="space-y-6">
-          {/* Step 1: Basics */}
-          {wizardStep === 0 && (
-            <section className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold tracking-wide">Basics</h3>
-                <p className="text-xs text-muted-foreground">Name, image, and restart behavior.</p>
-              </div>
-              <Separator />
-              <div className="space-y-3">
-                <div>
-                  <h4 className="text-sm font-medium">Container identity</h4>
-                  <p className="text-xs text-muted-foreground">Choose a preset, then identify this container.</p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="preset">Service preset</Label>
-                    <select id="preset" value={preset} onChange={(e) => { const next = e.target.value as ServicePreset; setPreset(next); if (next === "postgres") { setImage(`postgres:${postgresVersion}`); setPostgresPassword((current) => current || generatePassword()); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "5432" }]); } else if (next === "redis") { setImage("redis:7-alpine"); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "6379" }]); } else { setImage(""); setPorts([{ host: "", container: "" }]); } }} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                      <option value="generic">Generic container</option>
-                      <option value="postgres">PostgreSQL database</option>
-                      <option value="redis">Redis cache</option>
-                    </select>
-                    <p className="text-xs text-muted-foreground">Database and Redis presets configure persistent storage and credentials. Host port publishing is optional.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
-                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my-app" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="projectSlug">Project slug</Label>
-                    <Input id="projectSlug" value={projectSlug} onChange={(e) => setProjectSlug(e.target.value)} placeholder="my-app (optional)" />
-                  </div>
-                  <p className="text-xs text-muted-foreground sm:col-span-2">Enter a container name or project slug. If the name is blank, Gatekeeperd uses the normalized project slug as the container name.</p>
-                </div>
-              </div>
+          {/* Step 1: Container identity */}
+          {wizardStep === 0 && <section className="space-y-4"><div><h3 className="text-sm font-semibold tracking-wide">Container identity & preset</h3><p className="text-xs text-muted-foreground">Choose what you are creating and give it a memorable identity.</p></div><Separator />{identity}</section>}
 
-              {preset !== "generic" && <div className="space-y-3 border-t pt-4">
-                <div>
-                  <h4 className="text-sm font-medium">{preset === "postgres" ? "PostgreSQL settings" : "Redis settings"}</h4>
-                  <p className="text-xs text-muted-foreground">Data is stored in a named Docker volume.</p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {preset === "postgres" ? <>
-                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresVersion">PostgreSQL image version</Label><Input id="postgresVersion" value={postgresVersion} onChange={(e) => { const value = e.target.value; setPostgresVersion(value); setImage(`postgres:${value}`); }} placeholder="17 or 17-alpine" aria-describedby="postgresVersionHint" /><p id="postgresVersionHint" className="text-xs text-muted-foreground">Uses the official postgres image tag. Examples: 16, 17, 17-alpine. Changing major versions requires a database migration; changing this tag alone may prevent an existing data volume from starting.</p></div>
-                    <div className="space-y-2"><Label htmlFor="postgresDatabase">Database name</Label><Input id="postgresDatabase" value={postgresDatabase} onChange={(e) => setPostgresDatabase(e.target.value)} /></div>
-                    <div className="space-y-2"><Label htmlFor="postgresUser">Database user</Label><Input id="postgresUser" value={postgresUser} onChange={(e) => setPostgresUser(e.target.value)} /></div>
-                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresPassword">Database password</Label><div className="flex min-w-0 gap-2"><Input id="postgresPassword" className="min-w-0 flex-1" type={showDatabasePassword ? "text" : "password"} value={postgresPassword} onChange={(e) => setPostgresPassword(e.target.value)} autoComplete="new-password" /><Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={showDatabasePassword ? "Hide database password" : "Show database password"} onClick={() => setShowDatabasePassword((visible) => !visible)}>{showDatabasePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="sm" className="shrink-0 px-3" onClick={() => setPostgresPassword(generatePassword())}>Generate password</Button></div></div>
-                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresVolume">Named data volume</Label><select id="postgresVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === postgresVolume) ? postgresVolume : "__new__"} onChange={(e) => { if (e.target.value === "__new__") setPostgresVolume(nextAvailableVolumeName("postgres-data", dockerVolumes)); else setPostgresVolume(e.target.value); }}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === postgresVolume) ? <Input value={postgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} placeholder="postgres-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><p>This reuses existing data in <code className="font-mono">{postgresVolume}</code>. PostgreSQL initialization settings and the password above only apply to a new, empty volume; existing database contents and credentials stay as they are. Major version changes require a database migration.</p></div>}</div>
-                  </> : <>
-                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="redisPassword">Redis password (optional)</Label><div className="flex min-w-0 gap-2"><Input id="redisPassword" className="min-w-0 flex-1" type={showRedisPassword ? "text" : "password"} value={redisPassword} onChange={(e) => setRedisPassword(e.target.value)} autoComplete="new-password" placeholder="No password" /><Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={showRedisPassword ? "Hide Redis password" : "Show Redis password"} onClick={() => setShowRedisPassword((visible) => !visible)}>{showRedisPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="sm" className="shrink-0 px-3" onClick={() => setRedisPassword(generatePassword())}>Generate password</Button></div><p className="text-xs text-muted-foreground">Leave blank to disable authentication. Use only on a trusted private Docker network without a password.</p></div>
-                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="redisVolume">Named data volume</Label><select id="redisVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === redisVolume) ? redisVolume : "__new__"} onChange={(e) => { if (e.target.value === "__new__") setRedisVolume(nextAvailableVolumeName("redis-data", dockerVolumes)); else setRedisVolume(e.target.value); }}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === redisVolume) ? <Input value={redisVolume} onChange={(e) => setRedisVolume(e.target.value)} placeholder="redis-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><p>This reuses existing Redis data in <code className="font-mono">{redisVolume}</code>. Choose this only if you intend to keep using that volume.</p></div>}</div>
-                  </>}
-                </div>
-              </div>}
+          {/* Step 2: Image and version */}
+          {wizardStep === 1 && <section className="space-y-4"><div><h3 className="text-sm font-semibold tracking-wide">Image & version</h3><p className="text-xs text-muted-foreground">Choose the exact image tag and registry pull behavior.</p></div><Separator />{preset === "postgres" && <p className="text-xs text-muted-foreground">Examples: 16, 17, 17-alpine. Changing major versions requires a database migration.</p>}{imageFields}</section>}
 
-              <div className="space-y-3 border-t pt-4">
-                <div>
-                  <h4 className="text-sm font-medium">Image and runtime</h4>
-                  <p className="text-xs text-muted-foreground">Set the image, restart behavior, and image-pull options.</p>
-                </div>
-                <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="image">Image *</Label>
-                    <Input id="image" value={image} disabled={preset !== "generic"} onChange={(e) => { setImage(e.target.value); setImageChecked(false); setImageNotLocal(false); }} onBlur={handleImageBlur} placeholder="nginx:latest" />
-                    {imageChecked && <p className={`text-xs flex items-center gap-1 ${imageNotLocal ? "text-amber-600" : "text-emerald-600"}`}>{imageNotLocal ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}{imageNotLocal ? "Image is not available locally. It will be pulled before creation." : "Image is available locally. No pull is needed."}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="restartPolicy">Restart policy</Label>
-                    <select id="restartPolicy" value={restartPolicy} onChange={(e) => setRestartPolicy(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                      <option value="no">no</option><option value="always">always</option><option value="unless-stopped">unless-stopped</option><option value="on-failure">on-failure</option>
-                    </select>
-                  </div>
-                  <div className="space-y-3 sm:pt-1">
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pullImage} onChange={(e) => setPullImage(e.target.checked)} className="h-4 w-4 rounded border-input" />Pull image if it is not available locally</label>
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={pullViaCli} onChange={(e) => setPullViaCli(e.target.checked)} className="h-4 w-4 rounded border-input" />Use host Docker credentials for private image pulls</label>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
+          {/* Step 3: Storage */}
+          {wizardStep === 2 && <section className="space-y-4"><div><h3 className="text-sm font-semibold tracking-wide">Storage & data volumes</h3><p className="text-xs text-muted-foreground">Choose a named volume. Reusing one keeps its existing data.</p></div><Separator />{preset === "postgres" && <div className="space-y-2"><Label htmlFor="postgresVolume">PostgreSQL data volume</Label><select id="postgresVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === postgresVolume) ? postgresVolume : "__new__"} onChange={(e) => setPostgresVolume(e.target.value === "__new__" ? nextAvailableVolumeName("postgres-data", dockerVolumes) : e.target.value)}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === postgresVolume) ? <Input value={postgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} placeholder="postgres-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /><p>Reusing <code>{postgresVolume}</code> keeps its current database, contents, and credentials. Initialization settings apply only to an empty volume.</p></div>}</div>}{preset === "redis" && <div className="space-y-2"><Label htmlFor="redisVolume">Redis data volume</Label><select id="redisVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === redisVolume) ? redisVolume : "__new__"} onChange={(e) => setRedisVolume(e.target.value === "__new__" ? nextAvailableVolumeName("redis-data", dockerVolumes) : e.target.value)}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === redisVolume) ? <Input value={redisVolume} onChange={(e) => setRedisVolume(e.target.value)} placeholder="redis-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /><p>Reusing <code>{redisVolume}</code> keeps its existing Redis data.</p></div>}</div>}{preset === "generic" && <p className="text-sm text-muted-foreground">Generic containers can add bind mounts and extra mounts in the Environment & advanced settings step.</p>}</section>}
 
-          {/* Step 2: Network & Ports */}
-          {wizardStep === 1 && (
+          {/* Step 4: Network & Ports */}
+          {wizardStep === 3 && (
             <section className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold tracking-wide">Network & Ports</h3>
@@ -666,14 +601,17 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
             </section>
           )}
 
-          {/* Step 3: Env & Volumes */}
-          {wizardStep === 2 && (
+          {/* Step 5: Environment & advanced config */}
+          {wizardStep === 4 && (
             <section className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold tracking-wide">Environment & Volumes</h3>
+                <h3 className="text-sm font-semibold tracking-wide">Environment & advanced config</h3>
                 <p className="text-xs text-muted-foreground">{preset === "generic" ? "Set env vars (or upload a .env file) and optional volume mounts." : "The preset already configures its required data volume. Add custom environment variables or extra mounts only if your setup needs them."}</p>
               </div>
               <Separator />
+
+              {preset === "postgres" && <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="postgresDatabase">Database name</Label><Input id="postgresDatabase" value={postgresDatabase} onChange={(e) => setPostgresDatabase(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="postgresUser">Database user</Label><Input id="postgresUser" value={postgresUser} onChange={(e) => setPostgresUser(e.target.value)} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresPassword">Database password</Label><div className="flex gap-2"><Input id="postgresPassword" className="flex-1" type={showDatabasePassword ? "text" : "password"} value={postgresPassword} onChange={(e) => setPostgresPassword(e.target.value)} autoComplete="new-password" /><Button type="button" variant="outline" size="icon" onClick={() => setShowDatabasePassword((visible) => !visible)}>{showDatabasePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" onClick={() => setPostgresPassword(generatePassword())}>Generate password</Button></div></div></div>}
+              {preset === "redis" && <div className="space-y-2"><Label htmlFor="redisPassword">Redis password (optional)</Label><div className="flex gap-2"><Input id="redisPassword" className="flex-1" type={showRedisPassword ? "text" : "password"} value={redisPassword} onChange={(e) => setRedisPassword(e.target.value)} autoComplete="new-password" placeholder="No password" /><Button type="button" variant="outline" size="icon" onClick={() => setShowRedisPassword((visible) => !visible)}>{showRedisPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" onClick={() => setRedisPassword(generatePassword())}>Generate password</Button></div></div>}
 
               {preset !== "generic" && <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                 <p className="text-sm font-medium">Optional advanced settings</p>
@@ -801,13 +739,13 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
             </section>
           )}
 
-          {/* Step 4: Review */}
-          {wizardStep === 3 && (
+          {/* Step 6: Review */}
+          {wizardStep === 5 && (
             <section className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold tracking-wide">Review & Confirm</h3>
+                <h3 className="text-sm font-semibold tracking-wide">Review & pre-flight validation</h3>
                 <p className="text-xs text-muted-foreground">
-                  Validated by Gatekeeperd. No changes were applied yet.
+                  {configureOnly ? "Review the settings that the deployment worker will apply." : "Validated by Gatekeeperd. No changes were applied yet."}
                 </p>
               </div>
               <Separator />
@@ -881,6 +819,22 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
                     </div>
                   )}
                 </div>
+              ) : configureOnly ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <InfoRow label="Name" value={name || projectSlug || "Generated from deployment"} />
+                    <InfoRow label="Image" value={buildPayload().image} mono />
+                    <InfoRow label="Network" value={network} />
+                    <InfoRow label="Restart policy" value={restartPolicy} />
+                  </div>
+                  {Object.keys(buildPayload().ports ?? {}).length > 0 && <InfoRow label="Port mappings" value={Object.entries(buildPayload().ports ?? {}).map(([hostPort, containerPort]) => `${hostPort} → ${containerPort}`).join(", ")} />}
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={image ? "default" : "destructive"}>{image ? "Image specified" : "Image required"}</Badge>
+                    <Badge variant={wizardContext?.networks.includes(network) || network === "bridge" ? "default" : "secondary"}>{wizardContext?.networks.includes(network) || network === "bridge" ? "Network available" : "Network will be checked at deployment"}</Badge>
+                    <Badge variant="secondary">Port conflicts checked at deployment</Badge>
+                  </div>
+                  {(preset === "postgres" || preset === "redis") && <div className="rounded-md border p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Connection guidance</p><p className="mt-1">Containers on the <code>{network}</code> network connect to <code>{name || projectSlug || "container-name"}:{preset === "postgres" ? 5432 : 6379}</code>.</p></div>}
+                </div>
               ) : (
                 <div className="text-sm text-muted-foreground">
                   <p>Couldn't generate a preview. Review the details below before confirming.</p>
@@ -906,7 +860,7 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
               Cancel
             </Button>
           )}
-          {wizardStep < 3 ? (
+          {wizardStep < 5 ? (
             <Button type="button" loading={checkingWizard} loadingText="Checking…" disabled={checkingWizard} onClick={handleNext}>
               {checkingWizard ? "Checking..." : "Next"}
             </Button>
