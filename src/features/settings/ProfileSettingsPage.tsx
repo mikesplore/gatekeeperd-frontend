@@ -18,13 +18,26 @@ import { toast } from "sonner";
 import { api, getApiErrorMessage } from "@/lib/api";
 
 type Setup = { secret: string; otpauthUri: string; recoveryCodes: string[] };
-type Tab = "general" | "security";
+type Tab = "general" | "deployments" | "security";
 type VersionStatus = {
   status: "up_to_date" | "update_available" | "deployment_failed" | "check_stale" | "unknown";
   runningCommit: string | null;
   latestSuccessfulCommit: string | null;
   checkedAt: string | null;
   upToDate: boolean | null;
+};
+type DeploymentDiagnostics = {
+  available: boolean;
+  id: string | null;
+  runId: string | null;
+  commit: string | null;
+  status: "running" | "succeeded" | "failed" | "unknown" | null;
+  phase: string | null;
+  exitCode: number | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  errorLog: string;
+  logTruncated: boolean;
 };
 
 const versionMessages: Record<VersionStatus["status"], string> = {
@@ -39,7 +52,10 @@ export function ProfileSettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const email = useAuthStore((s) => s.email);
   const role = useAuthStore((s) => s.role);
-  const [tab, setTab] = useState<Tab>(() => searchParams.get("tab") === "security" ? "security" : "general");
+  const [tab, setTab] = useState<Tab>(() => {
+    const value = searchParams.get("tab");
+    return value === "security" || value === "deployments" ? value : "general";
+  });
   const selectTab = (value: Tab) => { setTab(value); const next = new URLSearchParams(searchParams); if (value === "general") next.delete("tab"); else next.set("tab", value); setSearchParams(next); };
   const [displayName, setDisplayName] = useState("");
   const [setup, setSetup] = useState<Setup | null>(null);
@@ -92,6 +108,12 @@ export function ProfileSettingsPage() {
     onSuccess: (result) => toast.success(result.message),
     onError: (error) => toast.error(getApiErrorMessage(error)),
   });
+  const deploymentDiagnostics = useQuery({
+    queryKey: ["system", "deployment-diagnostics"],
+    queryFn: async () => (await api.get<DeploymentDiagnostics>("/admin/system/deployment-diagnostics")).data,
+    enabled: tab === "deployments",
+    refetchInterval: tab === "deployments" ? 5000 : false,
+  });
   useEffect(() => {
     if (account.data?.displayName !== undefined)
       setDisplayName(account.data.displayName);
@@ -130,6 +152,12 @@ export function ProfileSettingsPage() {
           onClick={() => selectTab("general")}
         >
           General
+        </Button>
+        <Button
+          variant={tab === "deployments" ? "secondary" : "ghost"}
+          onClick={() => selectTab("deployments")}
+        >
+          Deployments
         </Button>
         <Button
           variant={tab === "security" ? "secondary" : "ghost"}
@@ -191,45 +219,67 @@ export function ProfileSettingsPage() {
             </Button>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Deployment version</CardTitle>
-            <CardDescription>Check whether this server is running the latest successful Gatekeeperd build.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                loading={versionCheck.isPending} loadingText="Checking…" disabled={versionCheck.isPending}
-                onClick={() => versionCheck.mutate()}
-              >
-                <RefreshCw />
-                {versionCheck.isPending ? "Checking…" : "Check deployment"}
-              </Button>
-              <Button
-                loading={deploymentTrigger.isPending} loadingText="Starting…" disabled={deploymentTrigger.isPending}
-                onClick={() => deploymentTrigger.mutate()}
-              >
-                <RefreshCw />
-                {deploymentTrigger.isPending ? "Starting…" : "Deploy latest now"}
-              </Button>
-              {versionCheck.data && (
-                <span className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${versionCheck.data.status === "up_to_date" ? "border-emerald-500/30 text-emerald-600" : versionCheck.data.status === "update_available" || versionCheck.data.status === "deployment_failed" ? "border-amber-500/30 text-amber-600" : "text-muted-foreground"}`}>
-                  {versionCheck.data.status === "up_to_date" ? <Check className="h-4 w-4" /> : versionCheck.data.status === "update_available" || versionCheck.data.status === "deployment_failed" ? <TriangleAlert className="h-4 w-4" /> : <CircleHelp className="h-4 w-4" />}
-                  {versionMessages[versionCheck.data.status]}
-                </span>
-              )}
-            </div>
-            {versionCheck.data && (
-              <div className="grid gap-3 text-sm sm:grid-cols-2">
-                <div><span className="text-muted-foreground">Running commit</span><p className="font-mono">{versionCheck.data.runningCommit?.slice(0, 12) ?? "Unknown"}</p></div>
-                <div><span className="text-muted-foreground">Latest successful build</span><p className="font-mono">{versionCheck.data.latestSuccessfulCommit?.slice(0, 12) ?? "Unknown"}</p></div>
-                {versionCheck.data.checkedAt && <p className="text-xs text-muted-foreground sm:col-span-2">Last check: {new Date(versionCheck.data.checkedAt).toLocaleString()}</p>}
+        </div>
+      )}
+      {tab === "deployments" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Deployment version</CardTitle>
+              <CardDescription>Check whether this server is running the latest successful Gatekeeperd build.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="outline"
+                  loading={versionCheck.isPending} loadingText="Checking…" disabled={versionCheck.isPending}
+                  onClick={() => versionCheck.mutate()}
+                >
+                  <RefreshCw />
+                  {versionCheck.isPending ? "Checking…" : "Check deployment"}
+                </Button>
+                <Button
+                  loading={deploymentTrigger.isPending} loadingText="Starting…" disabled={deploymentTrigger.isPending}
+                  onClick={() => deploymentTrigger.mutate()}
+                >
+                  <RefreshCw />
+                  {deploymentTrigger.isPending ? "Starting…" : "Deploy latest now"}
+                </Button>
+                {versionCheck.data && (
+                  <span className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${versionCheck.data.status === "up_to_date" ? "border-emerald-500/30 text-emerald-600" : versionCheck.data.status === "update_available" || versionCheck.data.status === "deployment_failed" ? "border-amber-500/30 text-amber-600" : "text-muted-foreground"}`}>
+                    {versionCheck.data.status === "up_to_date" ? <Check className="h-4 w-4" /> : versionCheck.data.status === "update_available" || versionCheck.data.status === "deployment_failed" ? <TriangleAlert className="h-4 w-4" /> : <CircleHelp className="h-4 w-4" />}
+                    {versionMessages[versionCheck.data.status]}
+                  </span>
+                )}
               </div>
-            )}
-            {versionCheck.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(versionCheck.error)}</p>}
-          </CardContent>
-        </Card>
+              {versionCheck.data && (
+                <div className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div><span className="text-muted-foreground">Running commit</span><p className="font-mono">{versionCheck.data.runningCommit?.slice(0, 12) ?? "Unknown"}</p></div>
+                  <div><span className="text-muted-foreground">Latest successful build</span><p className="font-mono">{versionCheck.data.latestSuccessfulCommit?.slice(0, 12) ?? "Unknown"}</p></div>
+                  {versionCheck.data.checkedAt && <p className="text-xs text-muted-foreground sm:col-span-2">Last check: {new Date(versionCheck.data.checkedAt).toLocaleString()}</p>}
+                </div>
+              )}
+              {versionCheck.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(versionCheck.error)}</p>}
+            </CardContent>
+          </Card>
+          {deploymentDiagnostics.data?.status === "failed" && (
+            <Card className="border-destructive/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive"><TriangleAlert className="h-4 w-4" />Deployment error log</CardTitle>
+                <CardDescription>
+                  {deploymentDiagnostics.data.commit && <span className="font-mono">{deploymentDiagnostics.data.commit.slice(0, 12)}</span>}
+                  {deploymentDiagnostics.data.runId && <> · workflow run {deploymentDiagnostics.data.runId}</>}
+                  {deploymentDiagnostics.data.finishedAt && <> · {new Date(deploymentDiagnostics.data.finishedAt).toLocaleString()}</>}
+                  {deploymentDiagnostics.data.exitCode !== null && <> · exit {deploymentDiagnostics.data.exitCode}</>}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-4 font-mono text-xs">{deploymentDiagnostics.data.errorLog || "The deployment failed, but no output log was recorded."}</pre>
+                {deploymentDiagnostics.data.logTruncated && <p className="text-xs text-muted-foreground">Showing the last 64 KiB of the deployment log.</p>}
+              </CardContent>
+            </Card>
+          )}
+          {deploymentDiagnostics.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(deploymentDiagnostics.error)}</p>}
         </div>
       )}
       {tab === "security" && (
