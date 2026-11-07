@@ -10,6 +10,7 @@ const allow = (permission: string, element: React.ReactNode) => <PermissionRoute
 
 const LandingPage = lazy(() => import("@/features/landing/LandingPage").then((module) => ({ default: module.LandingPage })));
 const SupportPage = lazy(() => import("@/features/support/SupportPage").then((module) => ({ default: module.SupportPage })));
+const CustomerPortalPage = lazy(() => import("@/features/support/CustomerPortalPage").then((module) => ({ default: module.CustomerPortalPage })));
 const isSelfServiceHost = window.location.hostname === "selfservice.gatekeeperd.mikesplore.me";
 const LoginPage = lazy(() => import("@/features/auth/LoginPage").then((module) => ({ default: module.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/features/auth/PasswordResetPage").then((module) => ({ default: module.ForgotPasswordPage })));
@@ -57,8 +58,10 @@ export const router = createBrowserRouter([
     children: [
   {
     index: true,
-    element: isSelfServiceHost ? <SupportPage /> : <LandingPage />,
+    element: isSelfServiceHost ? <CustomerPortalPage /> : <LandingPage />,
   },
+  { path: "portal", element: isSelfServiceHost ? <CustomerPortalPage /> : <Navigate to="/" replace /> },
+  { path: "portal/:slug", element: isSelfServiceHost ? <CustomerPortalPage /> : <Navigate to="/" replace /> },
   {
     path: "help",
     element: <SupportPage />,
