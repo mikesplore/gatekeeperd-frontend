@@ -5,6 +5,7 @@ type PortalService = {
   project: string; projectName: string; serviceId: string; serviceName: string; domain: string;
   accessStatus: string; invoiceAmount: string | null; paid: string | null; balance: string | null;
   currency: string; dueDate: string | null; invoiceUrl: string | null; paymentUrl: string | null;
+  availablePaymentMethods: string[];
 };
 type PortalPayment = {
   id: string; serviceName: string; amount: string; currency: string; status: string;
@@ -12,6 +13,7 @@ type PortalPayment = {
 };
 type PortalAccount = { name: string; email: string; services: PortalService[]; payments: PortalPayment[] };
 type Tab = "overview" | "invoices" | "payments";
+type PortalPaymentMethod = "paystack" | "mpesa";
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
 
@@ -42,20 +44,44 @@ export function CustomerPortalPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [payingServiceId, setPayingServiceId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PortalPaymentMethod | "">("");
+  const [phone, setPhone] = useState("");
+  const [startingMpesa, setStartingMpesa] = useState(false);
+  const [pendingMpesa, setPendingMpesa] = useState<{ serviceId: string; startingBalance: number } | null>(null);
 
-  const refresh = useCallback(async () => {
-    setChecking(true);
+  const refresh = useCallback(async (silent = false) => {
+    if (!silent) setChecking(true);
     try {
       const response = await fetch(`${apiBase}/customer/account`, { credentials: "include", cache: "no-store" });
-      if (response.ok) setAccount(await response.json() as PortalAccount);
-      else if (response.status === 401) setAccount(null);
+      if (response.ok) {
+        const nextAccount = await response.json() as PortalAccount;
+        setAccount(nextAccount);
+        return nextAccount;
+      }
+      else if (response.status === 401) { setAccount(null); return null; }
       else throw new Error(await readError(response));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load your account.");
-    } finally { setChecking(false); }
+      return null;
+    } finally { if (!silent) setChecking(false); }
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!pendingMpesa) return;
+    const timer = window.setInterval(() => {
+      void refresh(true).then(nextAccount => {
+        const service = nextAccount?.services.find(item => item.serviceId === pendingMpesa.serviceId);
+        if (service && Number(service.balance ?? 0) < pendingMpesa.startingBalance) {
+          setPendingMpesa(null);
+          setNotice("M-Pesa payment confirmed. Your balance has been updated.");
+        }
+      });
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [pendingMpesa, refresh]);
 
   const outstanding = useMemo(() => {
     const totals = new Map<string, number>();
@@ -93,6 +119,26 @@ export function CustomerPortalPage() {
     setAccount(null); setChallenge(""); setEmail(""); setTab("overview");
   }
 
+  function choosePayment(serviceId: string) {
+    setError(""); setNotice(""); setPaymentMethod(""); setPhone("");
+    setPayingServiceId(current => current === serviceId ? "" : serviceId);
+  }
+
+  async function startMpesa(service: PortalService) {
+    if (!phone.trim()) { setError("Enter the M-Pesa phone number to receive the payment prompt."); return; }
+    setStartingMpesa(true); setError(""); setNotice("");
+    try {
+      const response = await fetch(`${apiBase}/mpesa/pay`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectSlug: service.project, serviceId: service.serviceId, phoneNumber: phone.trim(), amount: String(service.balance) }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+      setPendingMpesa({ serviceId: service.serviceId, startingBalance: Number(service.balance ?? 0) });
+      setNotice("M-Pesa prompt sent. Approve it on your phone; this page will update when the payment is confirmed.");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not start the M-Pesa payment."); }
+    finally { setStartingMpesa(false); }
+  }
+
   async function download(path: string, filename: string) {
     setError("");
     try {
@@ -112,6 +158,7 @@ export function CustomerPortalPage() {
     </header>
     <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
       {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
+      {account && notice && <div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{notice}</div>}
       {account && new URLSearchParams(window.location.search).get("payment") === "success" && <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">Payment confirmed. Your invoice balance has been refreshed.</div>}
       {account && new URLSearchParams(window.location.search).get("payment") === "pending" && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">We could not confirm the payment yet. Refresh your account in a moment or contact support if you have already been charged.</div>}
       {checking ? <div className="rounded-2xl border bg-white p-8 text-sm text-slate-500">Loading your account…</div> : account ? <>
@@ -128,9 +175,9 @@ export function CustomerPortalPage() {
             <Summary label="Services" value={String(account.services.length)} detail="Linked to your account" />
             <Summary label="Successful payments" value={String(account.payments.filter(payment => payment.status.toLowerCase() === "success").length)} detail="Receipts available below" />
           </div>
-          <section className="mt-8"><div className="mb-4 flex items-end justify-between"><div><h2 className="text-lg font-semibold">Your services</h2><p className="mt-1 text-sm text-slate-500">Current access and the latest invoice balance.</p></div><button onClick={() => setTab("invoices")} className="text-sm font-medium text-indigo-700">View invoices <ArrowRight className="inline h-4 w-4" /></button></div><ServiceCards services={account.services} download={download} /></section>
+          <section className="mt-8"><div className="mb-4 flex items-end justify-between"><div><h2 className="text-lg font-semibold">Your services</h2><p className="mt-1 text-sm text-slate-500">Current access and the latest invoice balance.</p></div><button onClick={() => setTab("invoices")} className="text-sm font-medium text-indigo-700">View invoices <ArrowRight className="inline h-4 w-4" /></button></div><ServiceCards services={account.services} download={download} payingServiceId={payingServiceId} paymentMethod={paymentMethod} phone={phone} startingMpesa={startingMpesa} pendingMpesa={pendingMpesa?.serviceId ?? ""} onChoosePayment={choosePayment} onSelectMethod={setPaymentMethod} onPhoneChange={setPhone} onStartMpesa={startMpesa} /></section>
         </>}
-        {tab === "invoices" && <section className="mt-6"><h2 className="text-lg font-semibold">Invoices</h2><p className="mt-1 text-sm text-slate-500">Review charges and download invoice documents.</p><div className="mt-4"><ServiceCards services={account.services} download={download} /></div></section>}
+        {tab === "invoices" && <section className="mt-6"><h2 className="text-lg font-semibold">Invoices</h2><p className="mt-1 text-sm text-slate-500">Review charges and download invoice documents.</p><div className="mt-4"><ServiceCards services={account.services} download={download} payingServiceId={payingServiceId} paymentMethod={paymentMethod} phone={phone} startingMpesa={startingMpesa} pendingMpesa={pendingMpesa?.serviceId ?? ""} onChoosePayment={choosePayment} onSelectMethod={setPaymentMethod} onPhoneChange={setPhone} onStartMpesa={startMpesa} /></div></section>}
         {tab === "payments" && <section className="mt-6"><h2 className="text-lg font-semibold">Payments and receipts</h2><p className="mt-1 text-sm text-slate-500">Receipts are available for confirmed payments.</p><div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">{account.payments.length === 0 ? <p className="p-6 text-sm text-slate-500">No payments have been recorded yet.</p> : <div className="divide-y divide-slate-100">{account.payments.map(payment => <div key={payment.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{payment.serviceName}</p><p className="mt-1 text-sm text-slate-500">{date(payment.paidAt ?? payment.createdAt)} · <span className="capitalize">{payment.status}</span></p></div><div className="flex items-center gap-4"><strong>{money(payment.amount, payment.currency)}</strong>{payment.receiptUrl && <button onClick={() => void download(payment.receiptUrl!, `receipt-${payment.id}.pdf`)} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"><ArrowDownToLine className="h-4 w-4" /> Receipt</button>}</div></div>)}</div>}</div></section>}
       </> : <section className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700"><CreditCard className="h-5 w-5" /></div>
@@ -148,10 +195,26 @@ function Summary({ label, value, detail }: { label: string; value: string; detai
   return <article className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-3 text-2xl font-semibold">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></article>;
 }
 
-function ServiceCards({ services, download }: { services: PortalService[]; download: (path: string, filename: string) => Promise<void> }) {
+function ServiceCards({ services, download, payingServiceId, paymentMethod, phone, startingMpesa, pendingMpesa, onChoosePayment, onSelectMethod, onPhoneChange, onStartMpesa }: {
+  services: PortalService[]; download: (path: string, filename: string) => Promise<void>;
+  payingServiceId: string; paymentMethod: PortalPaymentMethod | ""; phone: string; startingMpesa: boolean; pendingMpesa: string;
+  onChoosePayment: (serviceId: string) => void; onSelectMethod: (method: PortalPaymentMethod | "") => void;
+  onPhoneChange: (phone: string) => void; onStartMpesa: (service: PortalService) => Promise<void>;
+}) {
   if (services.length === 0) return <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><Building2 className="mx-auto h-6 w-6 text-slate-400" /><p className="mt-3 font-medium">No services linked to this account</p><p className="mt-1 text-sm text-slate-500">Contact your hosting provider if this seems unexpected.</p></div>;
   return <div className="grid gap-4">{services.map(service => <article key={service.serviceId} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><div className="flex flex-col justify-between gap-4 sm:flex-row"><div><div className="flex items-center gap-2"><h3 className="font-semibold">{service.serviceName}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${service.accessStatus.toLowerCase() === "active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>{service.accessStatus}</span></div><p className="mt-1 text-sm text-slate-500">{service.projectName} · {service.domain}</p></div><div className="text-left sm:text-right"><p className="text-xs uppercase tracking-wide text-slate-500">Balance</p><p className="mt-1 text-xl font-semibold">{money(service.balance, service.currency)}</p></div></div>
     {service.invoiceAmount !== null && <div className="mt-5 grid gap-3 border-t pt-4 text-sm sm:grid-cols-3"><div><span className="text-slate-500">Invoice total</span><p className="mt-1 font-medium">{money(service.invoiceAmount, service.currency)}</p></div><div><span className="text-slate-500">Paid</span><p className="mt-1 font-medium">{money(service.paid, service.currency)}</p></div><div><span className="text-slate-500">Due date</span><p className="mt-1 font-medium">{date(service.dueDate)}</p></div></div>}
-    <div className="mt-5 flex flex-wrap gap-2">{service.paymentUrl && Number(service.balance ?? 0) > 0 && <a href={service.paymentUrl} className="inline-flex h-10 items-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700">Pay balance <ArrowRight className="h-4 w-4" /></a>}{service.invoiceUrl && <button onClick={() => void download(service.invoiceUrl!, `invoice-${service.project}-${service.serviceId}.pdf`)} className="inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium hover:bg-slate-50"><FileText className="h-4 w-4" /> Download invoice</button>}</div>
+    <div className="mt-5 flex flex-wrap gap-2">{service.paymentUrl && service.availablePaymentMethods.length > 0 && Number(service.balance ?? 0) > 0 && <button onClick={() => onChoosePayment(service.serviceId)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700">Choose payment method <ArrowRight className="h-4 w-4" /></button>}{service.invoiceUrl && <button onClick={() => void download(service.invoiceUrl!, `invoice-${service.project}-${service.serviceId}.pdf`)} className="inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium hover:bg-slate-50"><FileText className="h-4 w-4" /> Download invoice</button>}</div>
+    {service.balance && Number(service.balance) > 0 && service.availablePaymentMethods.length === 0 && <p className="mt-3 text-sm text-slate-500">Online payments are unavailable for this service. Contact your provider for help.</p>}
+    {payingServiceId === service.serviceId && <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-sm font-semibold">Choose how to pay</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {service.availablePaymentMethods.includes("paystack") && service.paymentUrl && <button type="button" onClick={() => onSelectMethod("paystack")} className={`rounded-lg border px-3 py-2 text-sm font-medium ${paymentMethod === "paystack" ? "border-indigo-600 bg-white text-indigo-700" : "bg-white hover:bg-slate-100"}`}>Card or bank</button>}
+        {service.availablePaymentMethods.includes("mpesa") && <button type="button" onClick={() => onSelectMethod("mpesa")} className={`rounded-lg border px-3 py-2 text-sm font-medium ${paymentMethod === "mpesa" ? "border-indigo-600 bg-white text-indigo-700" : "bg-white hover:bg-slate-100"}`}>M-Pesa</button>}
+      </div>
+      {paymentMethod === "paystack" && service.paymentUrl && <a href={`${service.paymentUrl}${service.paymentUrl.includes("?") ? "&" : "?"}return=portal`} className="mt-3 inline-flex h-10 items-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700">Continue to secure payment</a>}
+      {paymentMethod === "mpesa" && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => onPhoneChange(event.target.value)} placeholder="M-Pesa phone number" aria-label="M-Pesa phone number" className="h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm" /><button type="button" disabled={startingMpesa || !phone.trim() || pendingMpesa === service.serviceId} onClick={() => void onStartMpesa(service)} className="h-10 rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">{pendingMpesa === service.serviceId ? "Prompt pending" : startingMpesa ? "Sending prompt…" : "Send M-Pesa prompt"}</button></div>}
+      {pendingMpesa === service.serviceId && <p className="mt-3 text-sm text-amber-800">Waiting for M-Pesa confirmation. Approve the prompt on your phone.</p>}
+    </div>}
     </article>)}</div>;
 }
