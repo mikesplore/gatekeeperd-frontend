@@ -31,6 +31,8 @@ import type {
 interface CreateContainerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  configureOnly?: boolean;
+  onConfigured?: (payload: CreateContainerPayload) => void;
 }
 
 interface PortMapping {
@@ -134,7 +136,7 @@ async function copyValue(value: string, label: string) {
   toast.success(`${label} copied`);
 }
 
-export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDialogProps) {
+export function CreateContainerDialog({ open, onOpenChange, configureOnly = false, onConfigured }: CreateContainerDialogProps) {
   const createContainer = useCreateContainer();
   const validateContainer = useValidateCreateContainer();
   const { data: wizardContext, isLoading: wizardContextLoading } = useContainerWizardContext();
@@ -353,7 +355,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
         toast.error("Image is required");
         return;
       }
-      if (!name && !projectSlug) {
+      if (!configureOnly && !name && !projectSlug) {
         toast.error("Either a container name or project slug is required");
         return;
       }
@@ -368,6 +370,10 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
     }
 
     if (wizardStep === 2) {
+      if (configureOnly) {
+        setWizardStep(3);
+        return;
+      }
       setCheckingWizard(true);
       try {
         const payload = buildPayload();
@@ -406,7 +412,7 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
       toast.error("Redis data volume is required");
       return;
     }
-    if (!name && !projectSlug) {
+    if (!configureOnly && !name && !projectSlug) {
       toast.error("Either a container name or project slug is required");
       return;
     }
@@ -414,6 +420,13 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
     try {
       setCheckingWizard(true);
       const payload = buildPayload();
+      if (configureOnly) {
+        onConfigured?.(payload);
+        toast.success("Container configuration added to deployment");
+        resetForm();
+        onOpenChange(false);
+        return;
+      }
       const response = await createContainer.mutateAsync(payload);
       toast.success(`Container ${response.data.name || name || projectSlug} queued`, {
         description: "Image pulling and startup are continuing in the background.",
@@ -441,9 +454,9 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
     >
       <SidePanelContent className="sm:max-w-2xl">
         <SidePanelHeader className="border-b px-6 py-4 text-left">
-          <SidePanelTitle>Create Container: Wizard</SidePanelTitle>
+          <SidePanelTitle>{configureOnly ? "Configure Deployment Container" : "Create Container: Wizard"}</SidePanelTitle>
           <SidePanelDescription>
-            Configure and create a Docker container, step by step.
+            {configureOnly ? "Choose a container preset and settings for the deployment worker to apply." : "Configure and create a Docker container, step by step."}
           </SidePanelDescription>
         </SidePanelHeader>
 
@@ -887,8 +900,8 @@ export function CreateContainerDialog({ open, onOpenChange }: CreateContainerDia
               {checkingWizard ? "Checking..." : "Next"}
             </Button>
           ) : (
-            <Button type="button" onClick={handleCreate} disabled={createContainer.isPending || checkingWizard} loading={createContainer.isPending || checkingWizard} loadingText={checkingWizard ? "Checking…" : "Creating…"}>
-              {createContainer.isPending ? "Creating..." : "Confirm & Create"}
+            <Button type="button" onClick={handleCreate} disabled={(!configureOnly && createContainer.isPending) || checkingWizard} loading={(!configureOnly && createContainer.isPending) || checkingWizard} loadingText={checkingWizard ? "Checking…" : configureOnly ? "Applying…" : "Creating…"}>
+              {configureOnly ? "Use for deployment" : createContainer.isPending ? "Creating..." : "Confirm & Create"}
             </Button>
           )}
           </>}

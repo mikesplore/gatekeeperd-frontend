@@ -22,6 +22,8 @@ import {
 } from "@/hooks/useProjects";
 import { getApiErrorMessage } from "@/lib/api";
 import { SidePanel, SidePanelContent, SidePanelDescription, SidePanelHeader, SidePanelTitle } from "@/components/ui/side-panel";
+import { CreateContainerDialog } from "@/features/containers/CreateContainerDialog";
+import type { CreateContainerPayload } from "@/types/container";
 
 const steps = ["Source", "Deploy"];
 const inProgressDeploymentStatuses = new Set(["queued", "building", "starting", "health-checking", "ready"]);
@@ -58,6 +60,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
   const [adoptContainerId, setAdoptContainerId] = useState("");
   const [adoptContainerPort, setAdoptContainerPort] = useState("");
   const [attachContainerOpen, setAttachContainerOpen] = useState(false);
+  const [containerMakerOpen, setContainerMakerOpen] = useState(false);
   const status = useProjectSetupStatus(projectId, serviceId);
   const adoptableContainers = useAdoptableContainers(Boolean(projectId) && step === 1 && attachContainerOpen);
   const adoptContainer = useAdoptProjectContainer(projectId);
@@ -94,7 +97,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
       repository: saved.repository ?? "", gitRef: saved.gitRef, registry: saved.registry,
       imageName: saved.imageName, imageTag: saved.imageTag,
       network: saved.network, restartPolicy: saved.restartPolicy,
-      environment: saved.environment, env: saved.env,
+      environment: saved.environment, env: saved.env, preset: saved.preset ?? null, volumes: saved.volumes ?? [], runtimeOptions: saved.runtimeOptions,
       autoDeploy: saved.autoDeploy ?? false,
     });
     setEnvText(Object.entries(saved.env).map(([key, value]) => `${key}=${value}`).join("\n"));
@@ -110,6 +113,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     setAttachContainerOpen(false);
     setAdoptContainerId("");
     setAdoptContainerPort("");
+    setContainerMakerOpen(false);
   }, [open, projectId, initialStep]);
 
   useEffect(() => {
@@ -146,10 +150,36 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
     try {
       const env = parseEnv(envText);
       if (sourceMode === "github" && !runtime.repository?.trim()) throw new Error("Enter the GitHub owner and repository.");
-      await saveRuntime.mutateAsync({ ...runtime, containerPort: undefined, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, repository: sourceMode === "github" ? runtime.repository?.trim() || null : null, autoDeploy: sourceMode === "github" && Boolean(runtime.autoDeploy), env, serviceId });
+      await saveRuntime.mutateAsync({ ...runtime, containerPort: runtime.containerPort, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, repository: sourceMode === "github" ? runtime.repository?.trim() || null : null, autoDeploy: sourceMode === "github" && Boolean(runtime.autoDeploy), preset: sourceMode === "image" ? runtime.preset ?? null : null, runtimeOptions: sourceMode === "image" ? runtime.runtimeOptions : undefined, volumes: sourceMode === "image" ? runtime.volumes ?? [] : [], env, serviceId });
       toast.success("Source and runtime settings saved");
       goToStep(2);
     } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
+  };
+
+
+  const applyContainerMaker = (payload: CreateContainerPayload) => {
+    const reference = payload.image.trim();
+    const firstSlash = reference.indexOf("/");
+    let registry = "docker.io";
+    let imageName = reference;
+    if (firstSlash > 0 && (reference.slice(0, firstSlash).includes(".") || reference.slice(0, firstSlash).includes(":") || reference.slice(0, firstSlash) === "localhost")) {
+      registry = reference.slice(0, firstSlash);
+      imageName = reference.slice(firstSlash + 1);
+    }
+    const lastSlash = imageName.lastIndexOf("/");
+    const lastColon = imageName.lastIndexOf(":");
+    const imageTag = lastColon > lastSlash ? imageName.slice(lastColon + 1) : "latest";
+    if (lastColon > lastSlash) imageName = imageName.slice(0, lastColon);
+    const preset = payload.preset === "generic" ? null : payload.preset;
+    const ports = Object.values(payload.ports ?? {});
+    setRuntime(current => ({
+      ...current, repository: null, registry, imageName, imageTag, preset,
+      containerPort: ports[0] ?? (preset === "postgres" ? 5432 : preset === "redis" ? 6379 : undefined),
+      network: payload.network ?? current.network, restartPolicy: payload.restartPolicy ?? current.restartPolicy,
+      volumes: payload.volumes ?? [], runtimeOptions: payload.runtimeOptions,
+    }));
+    setSourceMode("image");
+    setEnvText(Object.entries(payload.env ?? {}).map(([key, value]) => `${key}=${value}`).join("\n"));
   };
 
   const queueDeployment = async () => {
@@ -241,17 +271,16 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
                     <div className="space-y-2"><Label>Build image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
                     <div className="space-y-2"><Label>Build image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
                     <label className="flex items-start gap-3 rounded-md border p-3 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4" checked={runtime.autoDeploy ?? false} onChange={event => setRuntime({ ...runtime, autoDeploy: event.target.checked })} /><span><span className="block text-sm font-medium">Deploy on matching GitHub pushes</span><span className="block text-xs text-muted-foreground">Queue a deployment when the configured branch or tag changes.</span></span></label>
-                  </div> : <div className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
-                    <div className="space-y-2"><Label>Registry</Label><Input value={runtime.registry} onChange={e => setRuntime({ ...runtime, registry: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Docker image name</Label><Input value={runtime.imageName} onChange={e => setRuntime({ ...runtime, imageName: e.target.value })} placeholder="acme/portal" /></div>
-                    <div className="space-y-2"><Label>Image tag</Label><Input value={runtime.imageTag} onChange={e => setRuntime({ ...runtime, imageTag: e.target.value })} /></div>
-                    <p className="text-sm text-muted-foreground sm:col-span-2">When you deploy, Gatekeeperd checks the image on this server first. If it is already present, that local image is used. If it is missing, Gatekeeperd pulls it from the selected registry.</p>
+                  </div> : <div className="space-y-3 rounded-md border p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-medium">Container configuration</p><p className="mt-1 text-sm text-muted-foreground">Use the shared container maker to choose an application, database, or Redis preset and configure its runtime.</p></div><Button type="button" variant="outline" onClick={() => setContainerMakerOpen(true)}>{runtime.preset || runtime.imageName ? "Edit container" : "Configure container"}</Button></div>
+                    {runtime.imageName ? <p className="text-sm">{runtime.preset ? `${runtime.preset === "postgres" ? "PostgreSQL" : "Redis"} preset · ` : "Image · "}{runtime.registry}/{runtime.imageName}:{runtime.imageTag}{runtime.containerPort ? ` · container port ${runtime.containerPort}` : ""}</p> : <p className="text-sm text-muted-foreground">No container configuration yet.</p>}
+                    <p className="text-xs text-muted-foreground">Gatekeeperd will use this configuration to create and verify the deployment candidate. It will not create a separate unmanaged container.</p>
                   </div>}
-                  <details className="rounded-md border"><summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">Optional runtime settings</summary><div className="grid gap-4 border-t p-3 sm:grid-cols-2">
+                  {sourceMode === "github" && <details className="rounded-md border"><summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">Optional runtime settings</summary><div className="grid gap-4 border-t p-3 sm:grid-cols-2">
                     <div className="space-y-2"><Label>Docker network</Label><select value={runtime.network} onChange={e => setRuntime({ ...runtime, network: e.target.value })} disabled={dockerNetworkContext.isLoading || dockerNetworkContext.isError} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">{dockerNetworkContext.isLoading ? <option value={runtime.network}>Loading networks…</option> : dockerNetworkContext.isError ? <option value={runtime.network}>Could not load Docker networks</option> : <>{!dockerNetworkContext.data?.networks.includes(runtime.network) && <option value={runtime.network}>{runtime.network} (current)</option>}{(dockerNetworkContext.data?.networks.length ? dockerNetworkContext.data.networks : ["bridge"]).map(network => <option key={network} value={network}>{network}{dockerNetworkContext.data?.internalNetwork === network ? " (internal)" : ""}</option>)}</>}</select>{dockerNetworkContext.isError && <Button type="button" size="sm" variant="link" onClick={() => void dockerNetworkContext.refetch()}>Retry</Button>}</div>
                     <div className="space-y-2"><Label>Restart policy</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={runtime.restartPolicy} onChange={e => setRuntime({ ...runtime, restartPolicy: e.target.value })}><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option><option value="no">no</option></select></div>
                     <div className="space-y-2 sm:col-span-2"><Label>Non-secret runtime variables</Label><Textarea rows={4} value={envText} onChange={e => setEnvText(e.target.value)} placeholder="NODE_ENV=production" /><p className="text-xs text-muted-foreground">Manage secrets in the service environment settings after saving.</p></div>
-                  </div></details>
+                  </div></details>}
                   <div className="flex justify-between"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={saveRuntime.isPending || !runtime.imageName.trim() || (sourceMode === "github" && !runtime.repository?.trim())} onClick={() => void saveSource()} loading={saveRuntime.isPending}><Save className="mr-2 h-4 w-4" />{saveRuntime.isPending ? "Saving…" : "Save and continue"}</Button></div>
                 </CardContent>
               </Card></>}
@@ -259,7 +288,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
               {step === 2 && <Card>
                 <CardHeader><CardTitle>Review and deploy</CardTitle><CardDescription>{setup.sourceRuntime?.repository ? "Gatekeeperd will build the selected GitHub revision, then check the candidate before switching traffic." : "Gatekeeperd checks for the selected image on this server first, uses it if present, and pulls it from the registry only when it is missing."} Registry access uses the centrally managed credentials when needed.</CardDescription></CardHeader>
                 <CardContent className="space-y-5">
-                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Selected source</p><p className="mt-1 font-medium">{setup.sourceRuntime ? setup.sourceRuntime.repository ? `GitHub · ${setup.sourceRuntime.repository}@${setup.sourceRuntime.gitRef}` : `Docker image · ${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p>{setup.sourceRuntime?.repository && <p className="mt-2 text-xs text-muted-foreground">Build output: {setup.sourceRuntime.registry}/{setup.sourceRuntime.imageName}:{setup.sourceRuntime.imageTag}</p>}</div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Selected source</p><p className="mt-1 font-medium">{setup.sourceRuntime ? setup.sourceRuntime.repository ? `GitHub · ${setup.sourceRuntime.repository}@${setup.sourceRuntime.gitRef}` : `${setup.sourceRuntime.preset ? `${setup.sourceRuntime.preset === "postgres" ? "PostgreSQL" : "Redis"} preset · ` : "Docker image · "}${setup.sourceRuntime.registry}/${setup.sourceRuntime.imageName}:${setup.sourceRuntime.imageTag}` : "Not configured"}</p>{setup.sourceRuntime?.repository && <p className="mt-2 text-xs text-muted-foreground">Build output: {setup.sourceRuntime.registry}/{setup.sourceRuntime.imageName}:{setup.sourceRuntime.imageTag}</p>}</div>
                   <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="outline" onClick={() => goToStep(1)}><ChevronLeft className="mr-1 h-4 w-4" />Back to source</Button><div className="flex gap-2"><Button variant="outline" onClick={closePanel}>Close</Button><Button disabled={deploy.isPending || Boolean(queuedDeploymentId) || !setup.sourceRuntime} onClick={() => void queueDeployment()} loading={deploy.isPending}><Rocket className="mr-2 h-4 w-4" />{deploy.isPending ? "Queueing…" : "Make deployment"}</Button></div></div>
                 </CardContent>
               </Card>}
@@ -268,8 +297,9 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
         </QueryState>
       )}
 
-      {!projectId && <p className="text-xs text-muted-foreground">Projects created here remain valid indefinitely before a source, runtime, or deployment is configured.</p>}
+      {projectId && <p className="text-xs text-muted-foreground">Projects created here remain valid indefinitely before a source, runtime, or deployment is configured.</p>}
         </div>
+        <CreateContainerDialog open={containerMakerOpen} onOpenChange={setContainerMakerOpen} configureOnly onConfigured={applyContainerMaker} />
       </SidePanelContent>
     </SidePanel>
   );

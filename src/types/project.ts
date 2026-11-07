@@ -70,6 +70,8 @@ export interface UpdateProjectPayload {
 
 export interface ProjectSetupConfiguration {
   id: string; repository: string | null; gitRef: string; registry: string; imageName: string; imageTag: string;
+  preset?: "postgres" | "redis" | null; volumes?: import("@/types/container").VolumeMount[];
+  runtimeOptions?: import("@/types/container").CreateContainerPayload["runtimeOptions"];
   autoDeploy?: boolean; containerPort?: number | null; hostPort?: number | null; network: string; restartPolicy: string; environment: string;
   env: Record<string, string>; envKeys: string[]; secretSetId?: string | null; secretSetVersion?: number | null;
 }

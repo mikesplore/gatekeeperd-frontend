@@ -154,7 +154,9 @@ export function useCreateProjectSetup() {
 export type ProjectSetupRuntimeInput = {
   repository: string | null; gitRef: string; registry: string; imageName: string; imageTag: string; serviceId?: string; containerPort?: number;
   hostPort?: number; network: string; restartPolicy: string; env?: Record<string, string>; environment: string;
-  readinessType?: string; readinessTarget?: string; autoDeploy?: boolean;
+  readinessType?: string; readinessTarget?: string; autoDeploy?: boolean; preset?: "postgres" | "redis" | null;
+  runtimeOptions?: import("@/types/container").CreateContainerPayload["runtimeOptions"];
+  volumes?: import("@/types/container").VolumeMount[];
 };
 export function useSaveProjectSetupRuntime(projectId: string) {
   const qc = useQueryClient();
