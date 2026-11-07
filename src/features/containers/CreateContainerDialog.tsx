@@ -167,9 +167,9 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
   const [postgresDatabase, setPostgresDatabase] = useState("app");
   const [postgresUser, setPostgresUser] = useState("app");
   const [postgresPassword, setPostgresPassword] = useState("");
-  const [postgresVolume, setPostgresVolume] = useState("");
+  const [postgresVolume, setPostgresVolume] = useState<string | null>(null);
   const [redisPassword, setRedisPassword] = useState("");
-  const [redisVolume, setRedisVolume] = useState("");
+  const [redisVolume, setRedisVolume] = useState<string | null>(null);
   const namedContainerBase = dockerNameSlug(name || projectSlug || (preset === "redis" ? "redis" : preset === "postgres" ? "postgres" : "app"));
   const suggestedPostgresVolume = nextAvailableVolumeName(`${namedContainerBase}-data`, dockerVolumes);
   const suggestedRedisVolume = nextAvailableVolumeName(`${namedContainerBase}-data`, dockerVolumes);
@@ -198,9 +198,9 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
     setPostgresDatabase("app");
     setPostgresUser("app");
     setPostgresPassword("");
-    setPostgresVolume("");
+    setPostgresVolume(null);
     setRedisPassword("");
-    setRedisVolume("");
+    setRedisVolume(null);
     setShowDatabasePassword(false);
     setShowRedisPassword(false);
     setShowAdvancedContainerOptions(false);
@@ -246,9 +246,9 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
       ? { ...envMap, POSTGRES_DB: postgresDatabase, POSTGRES_USER: postgresUser, POSTGRES_PASSWORD: postgresPassword }
       : envMap;
     const effectiveVolumes = preset === "postgres"
-      ? [{ hostPath: postgresVolume || suggestedPostgresVolume, containerPath: "/var/lib/postgresql/data", readOnly: false, volumeName: postgresVolume || suggestedPostgresVolume }, ...volumes.filter((v) => v.hostPath && v.containerPath)]
+      ? [{ hostPath: postgresVolume ?? suggestedPostgresVolume, containerPath: "/var/lib/postgresql/data", readOnly: false, volumeName: postgresVolume ?? suggestedPostgresVolume }, ...volumes.filter((v) => v.hostPath && v.containerPath)]
       : preset === "redis"
-        ? [{ hostPath: redisVolume || suggestedRedisVolume, containerPath: "/data", readOnly: false, volumeName: redisVolume || suggestedRedisVolume }, ...volumes.filter((v) => v.hostPath && v.containerPath)]
+        ? [{ hostPath: redisVolume ?? suggestedRedisVolume, containerPath: "/data", readOnly: false, volumeName: redisVolume ?? suggestedRedisVolume }, ...volumes.filter((v) => v.hostPath && v.containerPath)]
       : volumes.filter((v) => v.hostPath && v.containerPath);
     const effectivePorts = { ...portMap };
     return {
@@ -375,8 +375,8 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
       setWizardStep(2); return;
     }
     if (wizardStep === 2) {
-      if (preset === "postgres" && !postgresVolume) { toast.error("PostgreSQL data volume is required"); return; }
-      if (preset === "redis" && !redisVolume) { toast.error("Redis data volume is required"); return; }
+      if (preset === "postgres" && !(postgresVolume ?? suggestedPostgresVolume).trim()) { toast.error("Enter a PostgreSQL data volume name"); return; }
+      if (preset === "redis" && !(redisVolume ?? suggestedRedisVolume).trim()) { toast.error("Enter a Redis data volume name"); return; }
       setWizardStep(3); return;
     }
     if (wizardStep === 3) { setWizardStep(4); return; }
@@ -417,12 +417,12 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
       toast.error("Image is required");
       return;
     }
-    if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(postgresVersion))) {
+    if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !(postgresVolume ?? suggestedPostgresVolume).trim() || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(postgresVersion))) {
       toast.error("Enter valid PostgreSQL database credentials, a data volume, and image version tag");
       return;
     }
-    if (preset === "redis" && !redisVolume) {
-      toast.error("Redis data volume is required");
+    if (preset === "redis" && !(redisVolume ?? suggestedRedisVolume).trim()) {
+      toast.error("Enter a Redis data volume name");
       return;
     }
     if (!configureOnly && !name && !projectSlug) {
@@ -524,7 +524,7 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
           {wizardStep === 1 && <section className="space-y-4"><div><h3 className="text-sm font-semibold tracking-wide">Image & version</h3><p className="text-xs text-muted-foreground">Choose the exact image tag and registry pull behavior.</p></div><Separator />{preset === "postgres" && <p className="text-xs text-muted-foreground">Examples: 16, 17, 17-alpine. Changing major versions requires a database migration.</p>}{imageFields}</section>}
 
           {/* Step 3: Storage */}
-          {wizardStep === 2 && <section className="space-y-4"><div><h3 className="text-sm font-semibold tracking-wide">Storage & data volumes</h3><p className="text-xs text-muted-foreground">Choose a named volume. Reusing one keeps its existing data.</p></div><Separator />{preset === "postgres" && <div className="space-y-2"><Label htmlFor="postgresVolume">PostgreSQL data volume</Label><select id="postgresVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === postgresVolume) ? postgresVolume : "__new__"} onChange={(e) => setPostgresVolume(e.target.value === "__new__" ? suggestedPostgresVolume : e.target.value)}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === postgresVolume) ? <Input value={postgresVolume || suggestedPostgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} placeholder="project-service-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /><p>Reusing <code>{postgresVolume}</code> keeps its current database, contents, and credentials. Initialization settings apply only to an empty volume.</p></div>}</div>}{preset === "redis" && <div className="space-y-2"><Label htmlFor="redisVolume">Redis data volume</Label><select id="redisVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={dockerVolumes.some((volume) => volume.name === redisVolume) ? redisVolume : "__new__"} onChange={(e) => setRedisVolume(e.target.value === "__new__" ? suggestedRedisVolume : e.target.value)}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === redisVolume) ? <Input value={redisVolume || suggestedRedisVolume} onChange={(e) => setRedisVolume(e.target.value)} placeholder="project-service-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /><p>Reusing <code>{redisVolume}</code> keeps its existing Redis data.</p></div>}</div>}{preset === "generic" && <p className="text-sm text-muted-foreground">Generic containers can add bind mounts and extra mounts in the Environment & advanced settings step.</p>}</section>}
+          {wizardStep === 2 && <section className="space-y-4"><div><h3 className="text-sm font-semibold tracking-wide">Storage & data volumes</h3><p className="text-xs text-muted-foreground">Choose a named volume. Reusing one keeps its existing data.</p></div><Separator />{preset === "postgres" && <div className="space-y-2"><Label htmlFor="postgresVolume">PostgreSQL data volume</Label><select id="postgresVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={postgresVolume && dockerVolumes.some((volume) => volume.name === postgresVolume) ? postgresVolume : "__new__"} onChange={(e) => setPostgresVolume(e.target.value === "__new__" ? suggestedPostgresVolume : e.target.value)}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === postgresVolume) ? <Input value={postgresVolume ?? suggestedPostgresVolume} onChange={(e) => setPostgresVolume(e.target.value)} placeholder="project-service-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /><p>Reusing <code>{postgresVolume}</code> keeps its current database, contents, and credentials. Initialization settings apply only to an empty volume.</p></div>}</div>}{preset === "redis" && <div className="space-y-2"><Label htmlFor="redisVolume">Redis data volume</Label><select id="redisVolume" className="flex h-9 w-full rounded-md border bg-background px-3 py-2 text-sm" value={redisVolume && dockerVolumes.some((volume) => volume.name === redisVolume) ? redisVolume : "__new__"} onChange={(e) => setRedisVolume(e.target.value === "__new__" ? suggestedRedisVolume : e.target.value)}><option value="__new__">Create a new named volume</option>{dockerVolumes.filter((volume) => volume.driver === "local").map((volume) => <option key={volume.name} value={volume.name}>{volume.name}</option>)}</select>{!dockerVolumes.some((volume) => volume.name === redisVolume) ? <Input value={redisVolume ?? suggestedRedisVolume} onChange={(e) => setRedisVolume(e.target.value)} placeholder="project-service-data" /> : <div role="alert" className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /><p>Reusing <code>{redisVolume}</code> keeps its existing Redis data.</p></div>}</div>}{preset === "generic" && <p className="text-sm text-muted-foreground">Generic containers can add bind mounts and extra mounts in the Environment & advanced settings step.</p>}</section>}
 
           {/* Step 4: Network & Ports */}
           {wizardStep === 3 && (
