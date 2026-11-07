@@ -185,9 +185,10 @@ export function InfrastructureCredentialsPage() {
                 </div>
                 {scribed.data?.tokenConfigured && <section className="rounded-lg border p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <div><p className="text-sm font-medium">Business profile</p><p className="text-sm text-muted-foreground">{scribedProfile.data?.name ?? "Loading profile…"}</p></div>
-                    {!editingScribedProfile && <Button type="button" variant="outline" size="sm" onClick={() => setEditingScribedProfile(true)}>Edit</Button>}
+                    <div><p className="text-sm font-medium">Business profile</p><p className="text-sm text-muted-foreground">{scribedProfile.isError ? "Profile access unavailable" : scribedProfile.data?.name ?? "Loading profile…"}</p></div>
+                    {!editingScribedProfile && !scribedProfile.isError && <Button type="button" variant="outline" size="sm" onClick={() => setEditingScribedProfile(true)}>Edit</Button>}
                   </div>
+                  {scribedProfile.isError && <p className="mt-3 text-sm text-muted-foreground">The token works for Scribed documents, but this Scribed server does not yet allow scoped profile management. Update Scribed to enable editing this profile here.</p>}
                   {editingScribedProfile && <form className="mt-4 space-y-3" onSubmit={event => void saveScribedProfile(event)}>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5"><Label htmlFor="scribed-profile-name">Business name</Label><Input id="scribed-profile-name" value={scribedProfileForm.name} onChange={event => setScribedProfileForm(current => ({ ...current, name: event.target.value }))} maxLength={120} required /></div>
