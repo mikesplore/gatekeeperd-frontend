@@ -80,7 +80,7 @@ export function InfrastructureCredentialsPage() {
       setScribedHealth(null);
       await queryClient.invalidateQueries({ queryKey: ["integrations", "scribed"] });
       await queryClient.invalidateQueries({ queryKey: ["provider-credentials-metadata"] });
-      toast.success("Scribed scoped token imported and stored encrypted");
+      toast.success("Gatekeeperd registered with Scribed");
     } catch (error) { toast.error(getApiErrorMessage(error)); }
     finally { setSavingScribed(false); }
   };
@@ -198,13 +198,14 @@ export function InfrastructureCredentialsPage() {
                       </div>
                       <p className="break-all text-sm text-muted-foreground">{scribed.data?.baseUrl || "Scribed URL is not configured"}</p>
                       {scribed.data?.credentialVersion != null && <p className="text-xs text-muted-foreground">Scoped token saved securely · version {scribed.data.credentialVersion}</p>}
+                      {!scribed.data?.environmentTokenAvailable && scribed.data?.credentialVersion == null && <p className="text-sm text-muted-foreground">Set <code>SCRIBED_API_TOKEN</code> in Gatekeeperd’s environment to register.</p>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-5 py-3">
                     <p className="text-xs text-muted-foreground">Used to create invoices and receipts.</p>
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check connection</Button>
-                      <Button type="button" size="sm" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Validating…" : scribed.data?.credentialVersion != null ? "Refresh token" : "Register"}</Button>
+                      <Button type="button" size="sm" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Registering…" : scribed.data?.credentialVersion != null ? "Refresh token" : "Register Gatekeeperd"}</Button>
                     </div>
                   </div>
                   {scribedHealth && <div className={`border-t px-5 py-3 text-sm ${scribedHealth.reachable ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`} role="status">{scribedHealth.message}</div>}
