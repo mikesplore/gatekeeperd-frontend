@@ -67,7 +67,7 @@ export function ProjectServicesPanel({ project, view = "overview", serviceId }: 
           const result = await saveShared.mutateAsync({ environment: "production", values });
           setSharedDraft({});
           toast.success(`Shared variables saved as v${result.version}; ${result.deploymentIds.length} deployment(s) queued.`);
-        } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
+        } catch (error) { toast.error(getApiErrorMessage(error)); }
       }}
       onAdd={() => {
         const key = sharedNewKey.trim();
@@ -356,7 +356,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
       toast.success(result.deploymentIds.length
         ? "Environment saved; deployment queued."
         : "Environment saved. Configure a runtime to deploy it.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
   const handleVariablePaste = (field: "name" | "value", event: React.ClipboardEvent<HTMLInputElement>) => {

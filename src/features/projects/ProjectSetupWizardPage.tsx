@@ -153,7 +153,7 @@ export function ProjectSetupWizardPage({ open, onOpenChange, projectId: provided
       await saveRuntime.mutateAsync({ ...runtime, containerPort: runtime.containerPort, hostPort: undefined, readinessType: undefined, readinessTarget: undefined, repository: sourceMode === "github" ? runtime.repository?.trim() || null : null, autoDeploy: sourceMode === "github" && Boolean(runtime.autoDeploy), preset: sourceMode === "image" ? runtime.preset ?? null : null, runtimeOptions: sourceMode === "image" ? runtime.runtimeOptions : undefined, volumes: sourceMode === "image" ? runtime.volumes ?? [] : [], env, serviceId });
       toast.success("Source and runtime settings saved");
       goToStep(2);
-    } catch (error) { toast.error(error instanceof Error ? error.message : getApiErrorMessage(error)); }
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
 
