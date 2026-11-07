@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, ExternalLink, FileText, Github, HeartPulse, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
@@ -29,12 +29,6 @@ export function InfrastructureCredentialsPage() {
   const [githubWebhookSecret, setGithubWebhookSecret] = useState("");
   const [githubPrivateKey, setGithubPrivateKey] = useState("");
   const [savingGithub, setSavingGithub] = useState(false);
-  const [scribedBaseUrl, setScribedBaseUrl] = useState("");
-  const [scribedAdminToken, setScribedAdminToken] = useState("");
-  const [scribedName, setScribedName] = useState("Gatekeeperd");
-  const [scribedAddress, setScribedAddress] = useState("");
-  const [scribedContactEmail, setScribedContactEmail] = useState("");
-  const [scribedPhone, setScribedPhone] = useState("");
   const [savingScribed, setSavingScribed] = useState(false);
   const [checkingScribed, setCheckingScribed] = useState(false);
   const [scribedHealth, setScribedHealth] = useState<{ reachable: boolean; message: string } | null>(null);
@@ -45,16 +39,8 @@ export function InfrastructureCredentialsPage() {
   });
   const scribed = useQuery({
     queryKey: ["integrations", "scribed"],
-    queryFn: async () => (await api.get<{ baseUrl: string; configured: boolean; tokenConfigured: boolean; clientRegistered: boolean; clientName: string | null; clientAddress: string | null; contactEmail: string | null; phone: string | null; credentialVersion: number | null }>("/admin/integrations/scribed")).data,
+    queryFn: async () => (await api.get<{ baseUrl: string; configured: boolean; tokenConfigured: boolean; clientRegistered: boolean; clientName: string | null; clientAddress: string | null; contactEmail: string | null; phone: string | null; credentialVersion: number | null; environmentTokenAvailable: boolean }>("/admin/integrations/scribed")).data,
   });
-  useEffect(() => {
-    if (!scribed.data) return;
-    setScribedBaseUrl(scribed.data.baseUrl);
-    if (scribed.data.clientName) setScribedName(scribed.data.clientName);
-    setScribedAddress(scribed.data.clientAddress ?? "");
-    setScribedContactEmail(scribed.data.contactEmail ?? "");
-    setScribedPhone(scribed.data.phone ?? "");
-  }, [scribed.data]);
   const history = useMemo(() => [...(credentials.data ?? [])].sort((a, b) => a.provider.localeCompare(b.provider) || a.scope.localeCompare(b.scope) || b.version - a.version), [credentials.data]);
   const providers = useMemo(() => [...new Set(history.map(item => item.provider))].sort(), [history]);
   const currentDockerHubCredential = credentials.data?.find(item => item.provider === "docker" && item.type === "registry" && item.scope === "docker.io" && item.current);
@@ -70,23 +56,14 @@ export function InfrastructureCredentialsPage() {
   const install = useGitHubInstallUrl();
   const unlink = useUnlinkGitHub();
 
-  const saveScribed = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const registerScribedFromEnvironment = async () => {
     setSavingScribed(true);
     try {
-      await api.post("/admin/integrations/scribed/register", {
-        baseUrl: scribedBaseUrl,
-        adminToken: scribedAdminToken,
-        name: scribedName,
-        address: scribedAddress || null,
-        contactEmail: scribedContactEmail || null,
-        phone: scribedPhone || null,
-      });
-      setScribedAdminToken("");
+      await api.post("/admin/integrations/scribed/import-env");
       setScribedHealth(null);
       await queryClient.invalidateQueries({ queryKey: ["integrations", "scribed"] });
       await queryClient.invalidateQueries({ queryKey: ["provider-credentials-metadata"] });
-      toast.success("Gatekeeperd client registered with Scribed");
+      toast.success("Scribed scoped token imported and stored encrypted");
     } catch (error) { toast.error(getApiErrorMessage(error)); }
     finally { setSavingScribed(false); }
   };
@@ -160,21 +137,17 @@ export function InfrastructureCredentialsPage() {
 
       <TabsContent value="scribed">
         <Card>
-          <CardHeader className="border-b pb-4"><CardDescription>Set Gatekeeperd’s business profile, then register it as a Scribed API client. Scribed’s administrator token is used only for this request; Gatekeeperd stores the scoped client token it returns.</CardDescription></CardHeader>
+          <CardHeader className="border-b pb-4"><CardDescription>Configure a scoped Scribed API client token in Gatekeeperd’s environment, then import it into encrypted credential storage with one click.</CardDescription></CardHeader>
           <CardContent className="space-y-5 pt-5">
             {scribed.isLoading ? <p className="text-sm text-muted-foreground">Loading Scribed settings…</p> : scribed.isError ? <p className="text-sm text-destructive">{getApiErrorMessage(scribed.error)}</p> : <>
-              <form className="max-w-2xl space-y-4" onSubmit={event => void saveScribed(event)}>
-                <div className="space-y-1.5"><Label htmlFor="scribed-url">Scribed base URL</Label><Input id="scribed-url" type="url" placeholder="https://scribed.example.com" value={scribedBaseUrl} onChange={event => setScribedBaseUrl(event.target.value)} required /><p className="text-xs text-muted-foreground">Use the service root URL without an API path.</p></div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5"><Label htmlFor="scribed-client-name">Gatekeeperd client name</Label><Input id="scribed-client-name" value={scribedName} onChange={event => setScribedName(event.target.value)} maxLength={120} required /></div>
-                  <div className="space-y-1.5"><Label htmlFor="scribed-client-email">Contact email</Label><Input id="scribed-client-email" type="email" value={scribedContactEmail} onChange={event => setScribedContactEmail(event.target.value)} maxLength={254} /></div>
-                  <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="scribed-client-address">Business address</Label><textarea id="scribed-client-address" className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" value={scribedAddress} onChange={event => setScribedAddress(event.target.value)} maxLength={1000} /></div>
-                  <div className="space-y-1.5"><Label htmlFor="scribed-client-phone">Phone</Label><Input id="scribed-client-phone" type="tel" value={scribedPhone} onChange={event => setScribedPhone(event.target.value)} maxLength={40} /></div>
+              <div className="max-w-2xl space-y-4">
+                <div className="space-y-1"><p className="text-sm font-medium">Scribed base URL</p><p className="break-all text-sm text-muted-foreground">{scribed.data?.baseUrl || "Not configured"}</p></div>
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                  <p>Set <code>SCRIBED_BASE_URL</code> and the scoped <code>SCRIBED_API_CLIENT_TOKEN</code> in Gatekeeperd’s environment, then restart Gatekeeperd. Create the scoped token in Scribed first; this page never asks for the token or Scribed administrator credentials.</p>
                 </div>
-                <div className="space-y-1.5"><Label htmlFor="scribed-admin-token">Scribed administrator token</Label><Input id="scribed-admin-token" type="password" autoComplete="new-password" placeholder="Enter SCRIBED_API_TOKEN for this registration" value={scribedAdminToken} onChange={event => setScribedAdminToken(event.target.value)} required /><p className="text-xs text-muted-foreground">This credential is not stored. Re-enter it to update the registered profile.</p></div>
-                <div className="flex flex-wrap gap-2"><Button type="submit" loading={savingScribed} disabled={savingScribed || !scribedBaseUrl.trim() || !scribedAdminToken.trim() || !scribedName.trim()}>{savingScribed ? "Registering…" : scribed.data?.clientRegistered ? "Update client registration" : "Register Gatekeeperd with Scribed"}</Button><Button type="button" variant="outline" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check health</Button></div>
-              </form>
-              {scribed.data?.clientRegistered && <p className="text-xs text-muted-foreground">Registered as {scribed.data.clientName} · API client token is stored encrypted in Gatekeeperd (version {scribed.data.credentialVersion ?? "unknown"}).</p>}
+                <div className="flex flex-wrap gap-2"><Button type="button" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Registering…" : "Register Gatekeeperd with Scribed"}</Button><Button type="button" variant="outline" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check health</Button></div>
+              </div>
+              {scribed.data?.credentialVersion != null && <p className="text-xs text-muted-foreground">Scoped API client token is stored encrypted in Gatekeeperd (version {scribed.data.credentialVersion}).</p>}
               {scribedHealth && <div className={`rounded-md border p-3 text-sm ${scribedHealth.reachable ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`} role="status">{scribedHealth.message}</div>}
             </>}
           </CardContent>
