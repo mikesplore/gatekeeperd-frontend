@@ -150,6 +150,7 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
   const [projectSlug, setProjectSlug] = useState("");
   const [preset, setPreset] = useState<ServicePreset>("generic");
   const [image, setImage] = useState("");
+  const [postgresVersion, setPostgresVersion] = useState("16");
   const [postgresDatabase, setPostgresDatabase] = useState("app");
   const [postgresUser, setPostgresUser] = useState("app");
   const [postgresPassword, setPostgresPassword] = useState("");
@@ -177,6 +178,7 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
     setProjectSlug("");
     setPreset("generic");
     setImage("");
+    setPostgresVersion("16");
     setPostgresDatabase("app");
     setPostgresUser("app");
     setPostgresPassword("");
@@ -205,7 +207,7 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
   };
 
   const buildPayload = (): CreateContainerPayload => {
-    const effectiveImage = preset === "postgres" ? (image || "postgres:16") : preset === "redis" ? (image || "redis:7-alpine") : image;
+    const effectiveImage = preset === "postgres" ? (image || `postgres:${postgresVersion}`) : preset === "redis" ? (image || "redis:7-alpine") : image;
     const portMap: Record<string, number> = {};
     for (const p of ports) {
       if (p.host && p.container) {
@@ -343,8 +345,8 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
 
   const handleNext = async () => {
     if (wizardStep === 0) {
-      if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume)) {
-        toast.error("PostgreSQL database, user, password, and volume are required");
+      if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(postgresVersion))) {
+        toast.error("Enter valid PostgreSQL database credentials, a data volume, and image version tag");
         return;
       }
       if (preset === "redis" && !redisVolume) {
@@ -404,8 +406,8 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
       toast.error("Image is required");
       return;
     }
-    if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume)) {
-      toast.error("PostgreSQL database, user, password, and volume are required");
+    if (preset === "postgres" && (!postgresDatabase || !postgresUser || !postgresPassword || !postgresVolume || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(postgresVersion))) {
+      toast.error("Enter valid PostgreSQL database credentials, a data volume, and image version tag");
       return;
     }
     if (preset === "redis" && !redisVolume) {
@@ -509,7 +511,7 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="preset">Service preset</Label>
-                    <select id="preset" value={preset} onChange={(e) => { const next = e.target.value as ServicePreset; setPreset(next); if (next === "postgres") { setImage("postgres:16"); setPostgresPassword((current) => current || generatePassword()); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "5432" }]); } else if (next === "redis") { setImage("redis:7-alpine"); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "6379" }]); } else { setImage(""); setPorts([{ host: "", container: "" }]); } }} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <select id="preset" value={preset} onChange={(e) => { const next = e.target.value as ServicePreset; setPreset(next); if (next === "postgres") { setImage(`postgres:${postgresVersion}`); setPostgresPassword((current) => current || generatePassword()); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "5432" }]); } else if (next === "redis") { setImage("redis:7-alpine"); setNetwork(wizardContext?.internalNetwork || network); setPorts([{ host: "", container: "6379" }]); } else { setImage(""); setPorts([{ host: "", container: "" }]); } }} className="w-full h-9 rounded-md border border-input bg-background px-3 py-2 text-sm">
                       <option value="generic">Generic container</option>
                       <option value="postgres">PostgreSQL database</option>
                       <option value="redis">Redis cache</option>
@@ -535,6 +537,7 @@ export function CreateContainerDialog({ open, onOpenChange, configureOnly = fals
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {preset === "postgres" ? <>
+                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresVersion">PostgreSQL image version</Label><Input id="postgresVersion" value={postgresVersion} onChange={(e) => { const value = e.target.value; setPostgresVersion(value); setImage(`postgres:${value}`); }} placeholder="17 or 17-alpine" aria-describedby="postgresVersionHint" /><p id="postgresVersionHint" className="text-xs text-muted-foreground">Uses the official postgres image tag. Examples: 16, 17, 17-alpine. Changing major versions requires a database migration; changing this tag alone may prevent an existing data volume from starting.</p></div>
                     <div className="space-y-2"><Label htmlFor="postgresDatabase">Database name</Label><Input id="postgresDatabase" value={postgresDatabase} onChange={(e) => setPostgresDatabase(e.target.value)} /></div>
                     <div className="space-y-2"><Label htmlFor="postgresUser">Database user</Label><Input id="postgresUser" value={postgresUser} onChange={(e) => setPostgresUser(e.target.value)} /></div>
                     <div className="space-y-2 sm:col-span-2"><Label htmlFor="postgresPassword">Database password</Label><div className="flex min-w-0 gap-2"><Input id="postgresPassword" className="min-w-0 flex-1" type={showDatabasePassword ? "text" : "password"} value={postgresPassword} onChange={(e) => setPostgresPassword(e.target.value)} autoComplete="new-password" /><Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={showDatabasePassword ? "Hide database password" : "Show database password"} onClick={() => setShowDatabasePassword((visible) => !visible)}>{showDatabasePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button type="button" variant="outline" size="sm" className="shrink-0 px-3" onClick={() => setPostgresPassword(generatePassword())}>Generate password</Button></div></div>
