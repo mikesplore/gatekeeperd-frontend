@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, ExternalLink, FileText, Github, HeartPulse, History, KeyRound, RefreshCw, RotateCw } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
@@ -31,6 +31,9 @@ export function InfrastructureCredentialsPage() {
   const [savingGithub, setSavingGithub] = useState(false);
   const [savingScribed, setSavingScribed] = useState(false);
   const [checkingScribed, setCheckingScribed] = useState(false);
+  const [editingScribedProfile, setEditingScribedProfile] = useState(false);
+  const [savingScribedProfile, setSavingScribedProfile] = useState(false);
+  const [scribedProfileForm, setScribedProfileForm] = useState({ name: "Gatekeeperd", address: "", contactEmail: "", phone: "" });
   const [scribedHealth, setScribedHealth] = useState<{ reachable: boolean; message: string } | null>(null);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const credentials = useQuery({
@@ -41,6 +44,20 @@ export function InfrastructureCredentialsPage() {
     queryKey: ["integrations", "scribed"],
     queryFn: async () => (await api.get<{ baseUrl: string; configured: boolean; tokenConfigured: boolean; clientRegistered: boolean; clientName: string | null; clientAddress: string | null; contactEmail: string | null; phone: string | null; credentialVersion: number | null; environmentTokenAvailable: boolean }>("/admin/integrations/scribed")).data,
   });
+  const scribedProfile = useQuery({
+    queryKey: ["integrations", "scribed", "profile"],
+    enabled: !!scribed.data?.tokenConfigured,
+    queryFn: async () => (await api.get<{ id: number; name: string; address: string | null; contact_email: string | null; phone: string | null }>("/admin/integrations/scribed/profile")).data,
+  });
+  useEffect(() => {
+    if (!scribedProfile.data || editingScribedProfile) return;
+    setScribedProfileForm({
+      name: scribedProfile.data.name,
+      address: scribedProfile.data.address ?? "",
+      contactEmail: scribedProfile.data.contact_email ?? "",
+      phone: scribedProfile.data.phone ?? "",
+    });
+  }, [scribedProfile.data, editingScribedProfile]);
   const history = useMemo(() => [...(credentials.data ?? [])].sort((a, b) => a.provider.localeCompare(b.provider) || a.scope.localeCompare(b.scope) || b.version - a.version), [credentials.data]);
   const providers = useMemo(() => [...new Set(history.map(item => item.provider))].sort(), [history]);
   const currentDockerHubCredential = credentials.data?.find(item => item.provider === "docker" && item.type === "registry" && item.scope === "docker.io" && item.current);
@@ -76,6 +93,23 @@ export function InfrastructureCredentialsPage() {
     } catch (error) {
       setScribedHealth({ reachable: false, message: getApiErrorMessage(error) });
     } finally { setCheckingScribed(false); }
+  };
+
+  const saveScribedProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSavingScribedProfile(true);
+    try {
+      await api.put("/admin/integrations/scribed/profile", {
+        name: scribedProfileForm.name,
+        address: scribedProfileForm.address || null,
+        contactEmail: scribedProfileForm.contactEmail || null,
+        phone: scribedProfileForm.phone || null,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["integrations", "scribed"] });
+      toast.success("Gatekeeperd business profile updated");
+      setEditingScribedProfile(false);
+    } catch (error) { toast.error(getApiErrorMessage(error)); }
+    finally { setSavingScribedProfile(false); }
   };
 
   const rotateRegistry = async (event: FormEvent<HTMLFormElement>) => {
@@ -149,8 +183,21 @@ export function InfrastructureCredentialsPage() {
                   </div>
                   <Button type="button" onClick={() => void registerScribedFromEnvironment()} loading={savingScribed} disabled={savingScribed || !scribed.data?.environmentTokenAvailable}>{savingScribed ? "Checking and saving…" : scribed.data?.credentialVersion != null ? "Refresh token" : "Register"}</Button>
                 </div>
-                <p className="text-sm text-muted-foreground">Set <code>SCRIBED_BASE_URL</code> and <code>SCRIBED_API_CLIENT_TOKEN</code> in Gatekeeperd’s environment, restart Gatekeeperd, then register. The scoped token is created in Scribed.</p>
-                <p className="text-sm text-muted-foreground">Set Gatekeeperd’s business name, address, and contact details on the Gatekeeperd API client in Scribed. Scribed uses that profile on generated documents.</p>
+                {scribed.data?.tokenConfigured && <section className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><p className="text-sm font-medium">Business profile</p><p className="text-sm text-muted-foreground">{scribedProfile.data?.name ?? "Loading profile…"}</p></div>
+                    {!editingScribedProfile && <Button type="button" variant="outline" size="sm" onClick={() => setEditingScribedProfile(true)}>Edit</Button>}
+                  </div>
+                  {editingScribedProfile && <form className="mt-4 space-y-3" onSubmit={event => void saveScribedProfile(event)}>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5"><Label htmlFor="scribed-profile-name">Business name</Label><Input id="scribed-profile-name" value={scribedProfileForm.name} onChange={event => setScribedProfileForm(current => ({ ...current, name: event.target.value }))} maxLength={120} required /></div>
+                      <div className="space-y-1.5"><Label htmlFor="scribed-profile-email">Contact email</Label><Input id="scribed-profile-email" type="email" value={scribedProfileForm.contactEmail} onChange={event => setScribedProfileForm(current => ({ ...current, contactEmail: event.target.value }))} maxLength={254} /></div>
+                      <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="scribed-profile-address">Business address</Label><Input id="scribed-profile-address" value={scribedProfileForm.address} onChange={event => setScribedProfileForm(current => ({ ...current, address: event.target.value }))} maxLength={1000} /></div>
+                      <div className="space-y-1.5"><Label htmlFor="scribed-profile-phone">Phone</Label><Input id="scribed-profile-phone" type="tel" value={scribedProfileForm.phone} onChange={event => setScribedProfileForm(current => ({ ...current, phone: event.target.value }))} maxLength={40} /></div>
+                    </div>
+                    <div className="flex gap-2"><Button type="submit" loading={savingScribedProfile} disabled={savingScribedProfile}>Save profile</Button><Button type="button" variant="outline" onClick={() => setEditingScribedProfile(false)} disabled={savingScribedProfile}>Cancel</Button></div>
+                  </form>}
+                </section>}
                 <Button type="button" variant="outline" onClick={() => void checkScribed()} loading={checkingScribed} disabled={checkingScribed || !scribed.data?.configured}><HeartPulse className="h-4 w-4" />Check health</Button>
               </div>
               {scribedHealth && <div className={`rounded-md border p-3 text-sm ${scribedHealth.reachable ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`} role="status">{scribedHealth.message}</div>}
