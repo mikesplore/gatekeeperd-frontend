@@ -82,34 +82,35 @@ function parseEnvFile(content: string): EnvVar[] {
 
 function StepIndicator({ current }: { current: WizardStep }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-2">
-      {STEP_LABELS.map((label, idx) => {
-        const step = idx as WizardStep;
-        const isActive = step === current;
-        const isDone = step < current;
-        return (
-          <div key={label} className="flex items-center gap-2">
-            <div
-              className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
-                isDone
-                  ? "bg-emerald-500 text-white"
-                  : isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {isDone ? <Check className="h-3 w-3" /> : idx + 1}
-            </div>
-            <span
-              className={`text-xs ${isActive ? "font-semibold text-foreground" : "text-muted-foreground"}`}
-            >
-              {label}
-            </span>
-            {step < 5 && <div className="h-px w-6 bg-border" />}
-          </div>
-        );
-      })}
-    </div>
+    <nav aria-label="Container setup progress" className="py-3">
+      <ol className="grid grid-cols-6 gap-1">
+        {STEP_LABELS.map((label, idx) => {
+          const step = idx as WizardStep;
+          const isActive = step === current;
+          const isDone = step < current;
+          return (
+            <li key={label} aria-current={isActive ? "step" : undefined} className="min-w-0">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium ring-4 ring-background ${
+                    isDone
+                      ? "bg-emerald-500 text-white"
+                      : isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {isDone ? <Check className="h-3.5 w-3.5" /> : idx + 1}
+                </span>
+                <span className={`max-w-full text-[11px] leading-tight ${isActive ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                  {label}
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
