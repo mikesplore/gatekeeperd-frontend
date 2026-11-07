@@ -20,6 +20,7 @@ import { api } from "@/lib/api";
 import { useNotificationStream, useNotifications } from "@/hooks/useProjects";
 import { AppBreadcrumb } from "@/components/layout/AppBreadcrumb";
 import { clearClientSession } from "@/lib/clearClientSession";
+import { GlobalSearchDialog } from "@/components/layout/GlobalSearchDialog";
 
 const navGroups = [
   {
@@ -116,6 +117,7 @@ export function AppShell() {
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const notifications = useNotifications(10);
   const profile = useQuery({ queryKey: ["auth", "me"], queryFn: async () => (await api.get<{ displayName?: string; avatarUrl?: string }>("/auth/me")).data, staleTime: 60_000 });
+  const permissions = useAuthStore(state => state.permissions);
   useNotificationStream();
   const notificationItems = notifications.data?.data ?? [];
   const notificationCount = notificationItems.length;
@@ -193,6 +195,7 @@ export function AppShell() {
             <AppBreadcrumb />
           </div>
           <div className="flex items-center gap-2">
+            {permissions.includes("projects.read") && <GlobalSearchDialog />}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
