@@ -30,6 +30,7 @@ import { useServiceInvoice, useServicePayments } from "@/hooks/usePayments";
 import { PaymentsHistoryTable } from "@/features/payments/PaymentsHistoryTable";
 import { CapturePaymentDrawer } from "@/features/payments/CapturePaymentDrawer";
 import { CreateServiceInvoiceDialog } from "@/features/payments/CreateServiceInvoiceDialog";
+import { ServiceAdjustmentDialog } from "@/features/payments/ServiceAdjustmentDialog";
 
 type HistoryResponse = { projectId: string; environment: string; items: ProjectDeploymentHistoryItem[] };
 export function ProjectServicesPanel({ project, view = "overview", serviceId }: { project: Project; view?: "overview" | "settings" | "detail"; serviceId?: string }) {
@@ -257,6 +258,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
   const [serviceActionPending, setServiceActionPending] = useState(false);
   const [capturePaymentOpen, setCapturePaymentOpen] = useState(false);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [serviceAdjustmentOpen, setServiceAdjustmentOpen] = useState(false);
   const [invoiceDownloadPending, setInvoiceDownloadPending] = useState(false);
   const [paymentPage, setPaymentPage] = useState(0);
   const serviceInvoice = useServiceInvoice(project.id, service.id);
@@ -565,6 +567,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
           <div><CardTitle className="text-base">Service billing</CardTitle><p className="mt-1 text-xs text-muted-foreground">This invoice and payment history belong only to {service.name}.</p></div>
           <div className="flex flex-wrap gap-2">
             {canManageServices && !serviceInvoice.data && <Button size="sm" variant="outline" onClick={() => setCreateInvoiceOpen(true)}>Create invoice</Button>}
+            {canManageServices && serviceInvoice.data && <Button size="sm" variant="outline" onClick={() => setServiceAdjustmentOpen(true)}>Add charge / discount</Button>}
             {canManagePayments && <Button size="sm" disabled={!serviceInvoice.data} onClick={() => setCapturePaymentOpen(true)}>Capture payment</Button>}
           </div>
         </div>
@@ -587,6 +590,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
         </CardContent></Card>
         <CapturePaymentDrawer project={project} initialServiceId={service.id} open={capturePaymentOpen} onOpenChange={setCapturePaymentOpen} onPaymentChanged={async () => { await Promise.all([servicePayments.refetch(), serviceInvoice.refetch()]); }} />
         <CreateServiceInvoiceDialog projectId={project.id} projectName={project.name} currency={project.currency} initialServiceId={service.id} open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen} onCreated={async () => { await Promise.all([serviceInvoice.refetch(), servicePayments.refetch()]); }} />
+        <ServiceAdjustmentDialog projectId={project.id} serviceId={service.id} serviceName={service.name} currency={serviceInvoice.data?.invoice.currency ?? project.currency} open={serviceAdjustmentOpen} onOpenChange={setServiceAdjustmentOpen} onSaved={async () => { await Promise.all([serviceInvoice.refetch(), servicePayments.refetch()]); }} />
       </TabsContent>}
       <TabsContent value="settings" className="space-y-4">
     <Card>
