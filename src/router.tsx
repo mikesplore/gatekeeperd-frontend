@@ -60,8 +60,8 @@ export const router = createBrowserRouter([
     index: true,
     element: isSelfServiceHost ? <CustomerPortalPage /> : <LandingPage />,
   },
-  { path: "portal", element: isSelfServiceHost ? <CustomerPortalPage /> : <Navigate to="/" replace /> },
-  { path: "portal/:slug", element: isSelfServiceHost ? <CustomerPortalPage /> : <Navigate to="/" replace /> },
+  { path: "portal", element: <CustomerPortalPage /> },
+  { path: "portal/:slug", element: <CustomerPortalPage /> },
   {
     path: "help",
     element: <SupportPage />,
