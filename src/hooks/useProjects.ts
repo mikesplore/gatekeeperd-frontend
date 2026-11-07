@@ -115,6 +115,22 @@ export function useProjects() {
   });
 }
 
+// Service detail pages need the project identity and billing context, but should
+// not depend on the heavier project detail endpoint to manage service domains.
+export function useProjectFromList(slug: string) {
+  return useQuery({
+    queryKey: ["project-list-summary", slug],
+    queryFn: async () => {
+      const response = await api.get<{ projects: Project[] }>("/admin/projects", { params: { search: slug } });
+      const project = response.data.projects.find(item => item.slug === slug);
+      if (!project) throw new Error(`Project “${slug}” was not found.`);
+      return { project };
+    },
+    enabled: Boolean(slug),
+    staleTime: 30_000,
+  });
+}
+
 export function useProjectSetupStatus(projectId: string, serviceId?: string, refetchInterval: number | false = 5_000) {
   return useQuery({
     queryKey: ["project-setup", projectId, serviceId],

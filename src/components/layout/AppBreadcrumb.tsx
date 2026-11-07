@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useDashboardCustomer, useDashboardSite } from "@/hooks/useSiteDashboard";
-import { useProjectDetail, useProjectServices } from "@/hooks/useProjects";
+import { useProjectFromList, useProjectServices } from "@/hooks/useProjects";
 
 const sections = [
   { to: "/app/projects", label: "Projects" },
@@ -23,8 +23,9 @@ export function AppBreadcrumb() {
   const serviceMatch = location.pathname.match(/^\/app\/projects\/([^/]+)\/services\/([^/]+)/);
   const projectMatch = location.pathname.match(/^\/app\/projects\/([^/]+)/);
   const projectSlug = projectMatch?.[1] ? decodeURIComponent(projectMatch[1]) : "";
-  const project = useProjectDetail(projectSlug);
-  const projectServices = useProjectServices(project.data?.project.id ?? "");
+  const projectQuery = useProjectFromList(projectSlug);
+  const projectData = projectQuery.data?.project;
+  const projectServices = useProjectServices(projectData?.id ?? "");
   const serviceId = serviceMatch?.[2] ? decodeURIComponent(serviceMatch[2]) : "";
   const service = projectServices.data?.find(item => item.id === serviceId);
   const customerMatch = location.pathname.match(/^\/app\/customers\/([^/]+)/);
@@ -45,7 +46,7 @@ export function AppBreadcrumb() {
   }
 
   if (projectMatch) {
-    return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/projects" className="transition-colors hover:text-primary">Projects</Link><span className="text-muted-foreground/60">/</span><Link to={`/app/projects/${encodeURIComponent(projectSlug)}`} className="max-w-48 truncate transition-colors hover:text-primary">{project.isLoading ? "Loading…" : project.data?.project.name ?? projectSlug}</Link>{serviceMatch && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{projectServices.isLoading ? "Loading…" : service?.name ?? "Service"}</span></>}</h1>;
+    return <h1 className="flex items-center gap-2 text-sm font-semibold sm:text-base"><Link to="/app/projects" className="transition-colors hover:text-primary">Projects</Link><span className="text-muted-foreground/60">/</span><Link to={`/app/projects/${encodeURIComponent(projectSlug)}`} className="max-w-48 truncate transition-colors hover:text-primary">{projectQuery.isLoading ? "Loading…" : projectData?.name ?? projectSlug}</Link>{serviceMatch && <><span className="text-muted-foreground/60">/</span><span className="max-w-48 truncate text-muted-foreground">{projectServices.isLoading ? "Loading…" : service?.name ?? "Service"}</span></>}</h1>;
   }
 
   if (location.pathname === "/app") return <h1 className="text-sm font-semibold sm:text-base">Dashboard</h1>;
