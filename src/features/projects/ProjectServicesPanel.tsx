@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -361,6 +362,51 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
     } catch (error) { toast.error(getApiErrorMessage(error)); }
   };
 
+  const deploymentColumns: DataTableColumn<ProjectDeploymentHistoryItem>[] = [
+    {
+      key: "image",
+      header: "Image",
+      mobile: "primary",
+      searchable: true,
+      searchValue: item => `${item.imageName}:${item.imageTag}`,
+      render: item => {
+        const expanded = expandedDeploymentId === item.id;
+        const status = item.status.toLowerCase();
+        return <div className="min-w-48 max-w-80">
+          <button type="button" className="block max-w-full truncate text-left font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-expanded={expanded} onClick={() => setExpandedDeploymentId(expanded ? null : item.id)} title={`${item.imageName}:${item.imageTag}`}>
+            {item.imageName}:{item.imageTag}
+          </button>
+          {expanded && <div className="mt-2 space-y-1 whitespace-normal border-t pt-2 text-xs text-muted-foreground">
+            <p>Container: {item.runtimeState === "missing" ? "no longer present" : item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>
+            {item.failureReason && <p className="text-destructive">{item.failureReason}</p>}
+            {status === "failed" && <section className="space-y-2 rounded border bg-background p-2">
+              <p className="font-medium text-foreground">Deployment diagnostics</p>
+              {deploymentDiagnostics.isLoading ? <p>Loading command output…</p>
+                : deploymentDiagnostics.isError ? <p className="text-destructive">Could not load command output: {getApiErrorMessage(deploymentDiagnostics.error)}</p>
+                  : deploymentDiagnostics.data?.logs ? <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-foreground">{deploymentDiagnostics.data.logs}</pre>
+                    : <p>No command output was captured for this attempt.</p>}
+            </section>}
+          </div>}
+        </div>;
+      },
+    },
+    { key: "created", header: "Created", sortable: true, sortValue: item => new Date(item.createdAt).getTime(), render: item => <time className="whitespace-nowrap text-foreground/80" dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time> },
+    { key: "environment", header: "Environment", searchable: true, searchValue: item => item.environment, render: item => <span className="whitespace-nowrap">{item.environment}</span> },
+    { key: "trigger", header: "Trigger", searchable: true, searchValue: item => item.trigger, render: item => <span className="whitespace-nowrap">{item.trigger}</span> },
+    { key: "revision", header: "Revision", render: item => <span className="whitespace-nowrap text-foreground/80">{item.sourceCommit ? item.sourceCommit.slice(0, 7) : item.id.slice(0, 8)}</span> },
+    { key: "status", header: "Status", mobile: "badge", render: item => {
+      const status = item.status.toLowerCase();
+      const statusClass = status === "failed" ? "bg-red-500/10 text-red-700" : status === "active" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground";
+      return <span className={`inline-flex whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${statusClass}`}>{formatStatus(item.status)}</span>;
+    } },
+    { key: "actions", header: "Actions", mobile: "hide", render: item => <div className="flex flex-wrap items-center justify-end gap-2">
+      {item.actions.includes("rollback") && <Button size="sm" variant="outline" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}>Rollback</Button>}
+      {item.actions.includes("delete")
+        ? <Button size="sm" variant="outline" className="text-muted-foreground hover:text-destructive" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" />Delete</Button>
+        : item.actions.includes("referenced") && <Button size="sm" variant="outline" disabled title="Another deployment references this version"><Trash2 className="h-4 w-4" />Delete</Button>}
+    </div> },
+  ];
+
   const handleVariablePaste = (field: "name" | "value", event: React.ClipboardEvent<HTMLInputElement>) => {
     const text = event.clipboardData.getData("text");
     const likelyAssignments = text.includes("=") && (field === "name" || text.includes("\n") || text.includes("\r"));
@@ -509,62 +555,16 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
     </Card>}
     <Card>
       <CardHeader className="py-4"><div><CardTitle className="text-base">Service deployments</CardTitle><p className="text-xs text-muted-foreground">Deployment history and actions belong to this service.</p></div></CardHeader>
-      <CardContent className="space-y-2 px-3 pb-3 pt-0 sm:px-4">
-        {history.data?.items.slice(0, 5).map(item => {
-          const expanded = expandedDeploymentId === item.id;
-          const status = item.status.toLowerCase();
-          const statusClass = status === "failed"
-            ? "bg-red-500/10 text-red-700"
-            : status === "active"
-              ? "bg-emerald-500/10 text-emerald-700"
-              : "bg-muted text-muted-foreground";
-          return <div key={item.id} className="overflow-hidden rounded-md border text-sm">
-            <div className="flex items-stretch">
-              <button
-                type="button"
-                className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-expanded={expanded}
-                onClick={() => setExpandedDeploymentId(expanded ? null : item.id)}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{item.imageName}:{item.imageTag}</span>
-                  <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                    <span>{new Date(item.createdAt).toLocaleString()}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{item.environment} · {item.trigger}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-mono">{item.sourceCommit ? item.sourceCommit.slice(0, 7) : item.id.slice(0, 8)}</span>
-                  </span>
-                </span>
-                <span className={`shrink-0 rounded px-2 py-1 text-xs font-medium ${statusClass}`}>{formatStatus(item.status)}</span>
-              </button>
-              <div className="flex shrink-0 items-center gap-1 border-l px-2">
-                {item.actions.includes("rollback")
-                  ? <Button size="sm" variant="outline" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}>Rollback</Button>
-                  : <span aria-hidden="true" className="w-[5.25rem]" />}
-                {item.actions.includes("delete")
-                  ? <Button size="sm" variant="outline" className="text-muted-foreground hover:text-destructive" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" />Delete</Button>
-                  : item.actions.includes("referenced")
-                    ? <Button size="sm" variant="outline" disabled title="Another deployment references this version"><Trash2 className="h-4 w-4" />Delete</Button>
-                    : <span aria-hidden="true" className="w-[4.75rem]" />}
-              </div>
-            </div>
-            {expanded && <div className="space-y-1 border-t bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              {item.runtimeContainerName && (status === "superseded"
-                ? <p>Previous container removed after cutover</p>
-                : <p className={item.runtimeState && item.runtimeState !== "running" && item.runtimeState !== "missing" ? "text-destructive" : ""}>Container: {item.runtimeState === "missing" ? "no longer present" : item.runtimeState ?? "state unavailable"}{item.restartCount != null ? ` · ${item.restartCount} restarts` : ""}</p>)}
-              {item.failureReason && <p className="text-destructive">{item.failureReason}</p>}
-              {status === "failed" && <section className="space-y-2 rounded border bg-background p-2">
-                <p className="font-medium text-foreground">Deployment diagnostics</p>
-                {deploymentDiagnostics.isLoading ? <p>Loading command output…</p>
-                  : deploymentDiagnostics.isError ? <p className="text-destructive">Could not load command output: {getApiErrorMessage(deploymentDiagnostics.error)}</p>
-                    : deploymentDiagnostics.data?.logs ? <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-foreground">{deploymentDiagnostics.data.logs}</pre>
-                      : <p>No command output was captured for this attempt.</p>}
-              </section>}
-            </div>}
-          </div>;
-        })}
-        {!history.isLoading && !history.data?.items.length && <p className="px-1 py-2 text-sm text-muted-foreground">No deployment attempts for this service yet.</p>}
+      <CardContent>
+        <DataTable
+          data={history.data?.items.slice(0, 5) ?? []}
+          columns={deploymentColumns}
+          getRowKey={item => item.id}
+          hideToolbar
+          hidePagination
+          isLoading={history.isLoading}
+          emptyMessage="No deployment attempts for this service yet."
+        />
       </CardContent>
     </Card>
       </TabsContent>
