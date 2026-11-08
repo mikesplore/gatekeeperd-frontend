@@ -6,7 +6,10 @@ import { Toaster } from "sonner";
 import { router } from "@/router";
 import { useThemeStore } from "@/store/themeStore";
 import { queryClient } from "@/lib/queryClient";
+import { installChunkLoadRecovery } from "@/lib/chunkLoadRecovery";
 import "./index.css";
+
+installChunkLoadRecovery();
 
 function ThemeBootstrap({ children }: { children: React.ReactNode }) {
   const dark = useThemeStore((s) => s.dark);

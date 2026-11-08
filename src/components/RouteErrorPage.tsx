@@ -1,11 +1,15 @@
 import { isRouteErrorResponse, Link, useRouteError } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { hasRecentChunkLoadRetry, retryAfterChunkLoadFailure } from "@/lib/chunkLoadRecovery";
 
 export function RouteErrorPage() {
   const error = useRouteError();
+  const chunkRetryFailed = hasRecentChunkLoadRetry();
   const message = isRouteErrorResponse(error)
     ? `This page could not be opened (HTTP ${error.status}).`
-    : "This page could not be loaded. It may be a temporary connection or update issue.";
+    : chunkRetryFailed
+      ? "The page bundle is still unavailable after an automatic refresh. Try again to fetch the latest version."
+      : "This page could not be loaded. It may be a temporary connection or update issue.";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-5 text-foreground">
@@ -13,7 +17,7 @@ export function RouteErrorPage() {
         <h1 className="text-xl font-semibold">We couldn’t load this page</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => window.location.reload()}>Try again</Button>
+          <Button onClick={retryAfterChunkLoadFailure}>Try again</Button>
           <Button variant="outline" asChild><Link to="/">Go to home</Link></Button>
         </div>
       </section>
