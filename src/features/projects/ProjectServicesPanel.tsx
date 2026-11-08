@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Copy, Download, Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, Save, Settings2, Trash2 } from "lucide-react";
+import { Copy, Download, Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, RotateCcw, Save, Settings2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/QueryState";
 import { Button } from "@/components/ui/button";
@@ -400,10 +400,10 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
       return <span className={`inline-flex whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${statusClass}`}>{formatStatus(item.status)}</span>;
     } },
     { key: "actions", header: "Actions", mobile: "hide", render: item => <div className="flex flex-wrap items-center justify-end gap-2">
-      {item.actions.includes("rollback") && <Button size="sm" variant="outline" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}>Rollback</Button>}
+      {item.actions.includes("rollback") && <Button size="icon" variant="outline" aria-label="Rollback deployment" title="Rollback deployment" disabled={rollbackDeployment.isPending} loading={rollbackDeployment.isPending && rollbackDeployment.variables === item.id} onClick={() => setDeploymentRollbackTarget(item)}><RotateCcw className="h-4 w-4" /></Button>}
       {item.actions.includes("delete")
-        ? <Button size="sm" variant="outline" className="text-muted-foreground hover:text-destructive" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" />Delete</Button>
-        : item.actions.includes("referenced") && <Button size="sm" variant="outline" disabled title="Another deployment references this version"><Trash2 className="h-4 w-4" />Delete</Button>}
+        ? <Button size="icon" variant="outline" className="text-muted-foreground hover:text-destructive" aria-label="Delete deployment" title="Delete deployment" onClick={() => setDeploymentDeleteTarget({ id: item.id, label: `${item.imageName}:${item.imageTag}`, status: item.status, referenced: item.actions.includes("referenced") })}><Trash2 className="h-4 w-4" /></Button>
+        : item.actions.includes("referenced") && <Button size="icon" variant="outline" disabled aria-label="Delete deployment" title="Another deployment references this version"><Trash2 className="h-4 w-4" /></Button>}
     </div> },
   ];
 
