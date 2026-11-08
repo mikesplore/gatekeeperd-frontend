@@ -66,6 +66,7 @@ export function ProfileSettingsPage() {
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
+  const [deploymentRequestedAt, setDeploymentRequestedAt] = useState<number | null>(null);
   const account = useQuery({
     queryKey: ["auth", "me"],
     queryFn: async () =>
@@ -100,12 +101,23 @@ export function ProfileSettingsPage() {
   const regenerate2fa = useMutation({
     mutationFn: async () => (await api.post<{ recoveryCodes: string[] }>("/auth/2fa/recovery-codes/regenerate", { currentPassword: disablePassword, code: disableCode })).data,
   });
-  const versionCheck = useMutation({
-    mutationFn: async () => (await api.get<VersionStatus>("/version")).data,
+  const versionCheck = useQuery({
+    queryKey: ["system", "deployment-version"],
+    queryFn: async () => (await api.get<VersionStatus>("/version")).data,
+    enabled: tab === "deployments",
+    refetchInterval: (query) => {
+      if (deploymentRequestedAt === null) return false;
+      const checkedAt = query.state.data?.checkedAt;
+      if (checkedAt && Date.parse(checkedAt) >= deploymentRequestedAt - 1_000) return false;
+      return Date.now() - deploymentRequestedAt < 5 * 60_000 ? 5_000 : false;
+    },
   });
   const deploymentTrigger = useMutation({
     mutationFn: async () => (await api.post<{ started: boolean; message: string }>("/admin/system/deploy")).data,
-    onSuccess: (result) => toast.success(result.message),
+    onSuccess: (result) => {
+      setDeploymentRequestedAt(Date.now());
+      toast.success(result.message);
+    },
     onError: (error) => toast.error(getApiErrorMessage(error)),
   });
   const deploymentDiagnostics = useQuery({
@@ -232,11 +244,11 @@ export function ProfileSettingsPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <Button
                   variant="outline"
-                  loading={versionCheck.isPending} loadingText="Checking…" disabled={versionCheck.isPending}
-                  onClick={() => versionCheck.mutate()}
+                  loading={versionCheck.isFetching} loadingText="Checking…" disabled={versionCheck.isFetching}
+                  onClick={() => void versionCheck.refetch()}
                 >
                   <RefreshCw />
-                  {versionCheck.isPending ? "Checking…" : "Check deployment"}
+                  {versionCheck.isFetching ? "Checking…" : "Check deployment"}
                 </Button>
                 <Button
                   loading={deploymentTrigger.isPending} loadingText="Starting…" disabled={deploymentTrigger.isPending}
