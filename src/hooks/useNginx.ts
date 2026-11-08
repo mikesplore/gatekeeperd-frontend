@@ -102,6 +102,7 @@ export function useEnableNginx() {
     onSuccess: (_data, { slug }) => {
       qc.invalidateQueries({ queryKey: ["nginx", "status", slug] });
       qc.invalidateQueries({ queryKey: ["dashboard", "sites"] });
+      qc.invalidateQueries({ queryKey: ["dashboard", "site"] });
       qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
     },
   });

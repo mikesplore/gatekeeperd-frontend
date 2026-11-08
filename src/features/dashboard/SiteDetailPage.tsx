@@ -43,8 +43,9 @@ export function SiteDetailPage() {
   return <QueryState isLoading={query.isLoading} isError={query.isError} error={query.error} data={query.data}>
     {detail => <div className="w-full space-y-6">
       {canManageNginx && (() => {
-        const migration = migrationReport.data?.find(row => row.domain.toLowerCase() === detail.site.domain.toLowerCase());
+        const migration = migrationReport.data?.find(row => row.siteId === detail.site.siteId);
         const managed = detail.site.upstreamKind === "DEPLOYMENT_MANAGED" || migration?.currentKind === "DEPLOYMENT_MANAGED";
+        if (managed || !migration) return null;
         return <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
           <div className="flex items-start gap-3"><span className="rounded-lg bg-primary/10 p-2 text-primary"><Link2 className="h-4 w-4" /></span><div><p className="font-medium">Deployment connection</p><p className="mt-1 text-sm text-muted-foreground">{managed ? "This site is connected to its service deployment and can be repaired here." : migration?.result === "ready_to_apply" ? "Connect this site to the service’s active production deployment to enable repair." : migration?.result === "needs_adoption_first" ? "Adopt this site into a service deployment, then activate a production deployment to enable repair." : migration?.result === "explicit_site_unchanged" ? "This site has no service deployment configuration to connect." : "An active production deployment is required before this site can be connected. Development deployments do not qualify."}</p></div></div>
           {managed ? <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-400">Connected</Badge> : migration?.result === "ready_to_apply" ? <Button disabled={convertSite.isPending} onClick={() => { void convertSite.mutateAsync(migration.siteId).then(() => toast.success("Site connected to production deployment")).catch(error => toast.error(getApiErrorMessage(error))); }}>{convertSite.isPending ? "Connecting…" : "Connect to production"}</Button> : <Badge variant="outline">Not connected</Badge>}

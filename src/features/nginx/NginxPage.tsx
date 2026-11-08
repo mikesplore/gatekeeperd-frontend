@@ -176,8 +176,10 @@ export function NginxPage() {
       requireSsl: data.requireSsl !== false,
     };
     try {
-      await enableNginx.mutateAsync({ slug: selectedSlug, payload });
-      toast.success("Nginx site enabled and reloaded");
+      const result = await enableNginx.mutateAsync({ slug: selectedSlug, payload });
+      toast.success(result.data.deploymentConnected === false
+        ? "Nginx site enabled. Connect it to the production deployment from the site page."
+        : "Nginx site enabled and connected to production");
       setEnableDialogOpen(false);
       resetEnable();
       refetchStatus();

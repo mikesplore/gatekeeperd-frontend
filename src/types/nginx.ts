@@ -75,6 +75,7 @@ export interface EnableNginxResponse {
   appPort: number;
   sslEnabled: boolean;
   certificateDomain: string | null;
+  deploymentConnected?: boolean | null;
 }
 
 export interface DisableNginxResponse {
