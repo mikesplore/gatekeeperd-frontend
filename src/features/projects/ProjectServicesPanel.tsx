@@ -526,9 +526,15 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
                 aria-expanded={expanded}
                 onClick={() => setExpandedDeploymentId(expanded ? null : item.id)}
               >
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{item.imageName}:{item.imageTag}</span>
-                  {expanded && <span className="mt-1 block text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()} · {item.environment} · {item.trigger}</span>}
+                  <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>{new Date(item.createdAt).toLocaleString()}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{item.environment} · {item.trigger}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="font-mono">{item.sourceCommit ? item.sourceCommit.slice(0, 7) : item.id.slice(0, 8)}</span>
+                  </span>
                 </span>
                 <span className={`shrink-0 rounded px-2 py-1 text-xs font-medium ${statusClass}`}>{formatStatus(item.status)}</span>
               </button>
