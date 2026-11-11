@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/datetime";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Copy, Download, Eye, EyeOff, Globe, LockKeyhole, MoreHorizontal, Pencil, Plus, Rocket, RotateCcw, Save, Settings2, Trash2 } from "lucide-react";
@@ -390,7 +391,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
         </div>;
       },
     },
-    { key: "created", header: "Created", sortable: true, sortValue: item => new Date(item.createdAt).getTime(), render: item => <time className="whitespace-nowrap text-foreground/80" dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time> },
+    { key: "created", header: "Created", sortable: true, sortValue: item => new Date(item.createdAt).getTime(), render: item => <time className="whitespace-nowrap text-foreground/80" dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time> },
     { key: "environment", header: "Environment", searchable: true, searchValue: item => item.environment, render: item => <span className="whitespace-nowrap">{item.environment}</span> },
     { key: "trigger", header: "Trigger", searchable: true, searchValue: item => item.trigger, render: item => <span className="whitespace-nowrap">{item.trigger}</span> },
     { key: "revision", header: "Revision", render: item => <span className="whitespace-nowrap text-foreground/80">{item.sourceCommit ? item.sourceCommit.slice(0, 7) : item.id.slice(0, 8)}</span> },
@@ -586,7 +587,7 @@ function ServiceCard({ project, service, serviceCount, view, sites, sitesReady, 
           <InfoItem label="Billed" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.amount).toLocaleString()}`} />
           <InfoItem label="Paid" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.paid).toLocaleString()}`} />
           <InfoItem label="Balance" value={`${serviceInvoice.data.invoice.currency} ${Number(serviceInvoice.data.invoice.balance).toLocaleString()}`} />
-          <InfoItem label="Due date" value={serviceInvoice.data.invoice.due_date ? new Date(serviceInvoice.data.invoice.due_date).toLocaleDateString() : "Not set"} />
+          <InfoItem label="Due date" value={serviceInvoice.data.invoice.due_date ? formatDate(serviceInvoice.data.invoice.due_date) : "Not set"} />
           <InfoItem label="Status" value={Number(serviceInvoice.data.invoice.balance) <= 0 ? "Paid" : Number(serviceInvoice.data.invoice.paid) > 0 ? "Partially paid" : "Unpaid"} />
           </div>
         </CardContent></Card>}

@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/datetime";
 import { useMemo } from "react";
 import { Activity, AlertCircle, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -42,7 +43,7 @@ export function LogsPage() {
       searchable: true,
       searchValue: row => row.timestamp,
       sortable: false,
-      render: row => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={row.timestamp}>{new Date(row.timestamp).toLocaleString()}</time>,
+      render: row => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={row.timestamp}>{formatDateTime(row.timestamp)}</time>,
     },
     {
       key: "level",

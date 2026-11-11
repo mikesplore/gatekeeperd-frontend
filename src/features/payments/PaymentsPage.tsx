@@ -157,7 +157,7 @@ function RevenueLineGraph({ data }: { data: RevenueReport }) {
         <path d={path} fill="none" className="stroke-primary" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {points.map((point, index) => <circle key={point.month} cx={point.x} cy={point.y} r="4" className="fill-primary"><title>{`${point.month}: ${data.currency} ${values[index].amount.toLocaleString()}`}</title></circle>)}
       </svg>
-      <div className="mt-2 flex justify-between gap-2 text-xs text-muted-foreground">{points.map(point => <span key={point.month}>{new Date(`${point.month}-01T00:00:00`).toLocaleDateString(undefined, { month: "short", year: "2-digit" })}</span>)}</div>
+      <div className="mt-2 flex justify-between gap-2 text-xs text-muted-foreground">{points.map(point => <span key={point.month}>{new Intl.DateTimeFormat("en-KE", { month: "short", year: "2-digit", timeZone: "Africa/Nairobi" }).format(new Date(`${point.month}-01T00:00:00+03:00`))}</span>)}</div>
     </div>
   );
 }

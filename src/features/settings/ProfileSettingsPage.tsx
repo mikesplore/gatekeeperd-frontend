@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -268,7 +269,7 @@ export function ProfileSettingsPage() {
                 <div className="grid gap-3 text-sm sm:grid-cols-2">
                   <div><span className="text-muted-foreground">Running commit</span><p className="font-mono">{versionCheck.data.runningCommit?.slice(0, 12) ?? "Unknown"}</p></div>
                   <div><span className="text-muted-foreground">Latest successful build</span><p className="font-mono">{versionCheck.data.latestSuccessfulCommit?.slice(0, 12) ?? "Unknown"}</p></div>
-                  {versionCheck.data.checkedAt && <p className="text-xs text-muted-foreground sm:col-span-2">Last check: {new Date(versionCheck.data.checkedAt).toLocaleString()}</p>}
+                  {versionCheck.data.checkedAt && <p className="text-xs text-muted-foreground sm:col-span-2">Last check: {formatDateTime(versionCheck.data.checkedAt)}</p>}
                 </div>
               )}
               {versionCheck.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(versionCheck.error)}</p>}
@@ -281,7 +282,7 @@ export function ProfileSettingsPage() {
                 <CardDescription>
                   {deploymentDiagnostics.data.commit && <span className="font-mono">{deploymentDiagnostics.data.commit.slice(0, 12)}</span>}
                   {deploymentDiagnostics.data.runId && <> · workflow run {deploymentDiagnostics.data.runId}</>}
-                  {deploymentDiagnostics.data.finishedAt && <> · {new Date(deploymentDiagnostics.data.finishedAt).toLocaleString()}</>}
+                  {deploymentDiagnostics.data.finishedAt && <> · {formatDateTime(deploymentDiagnostics.data.finishedAt)}</>}
                   {deploymentDiagnostics.data.exitCode !== null && <> · exit {deploymentDiagnostics.data.exitCode}</>}
                 </CardDescription>
               </CardHeader>

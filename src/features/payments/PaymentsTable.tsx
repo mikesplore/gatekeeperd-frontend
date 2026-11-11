@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { formatDateTime } from "@/lib/datetime";
 import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ export function PaymentsTable({ payments, currency = "KES", toolbarContent }: Pa
         { key: "amount", header: "Amount", render: payment => <span className="whitespace-nowrap">{currency} {payment.amount.toLocaleString()}</span> },
         { key: "status", header: "Status", render: payment => <PaymentStatusBadge status={payment.gatewayStatus} /> },
         { key: "verified", header: "Verified via", render: payment => <span className="text-muted-foreground">{payment.verifiedVia ?? "Not set"}</span> },
-        { key: "paidAt", header: "Paid at", render: payment => <span className="whitespace-nowrap">{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}</span> },
+        { key: "paidAt", header: "Paid at", render: payment => <span className="whitespace-nowrap">{payment.paidAt ? formatDateTime(payment.paidAt) : "Not set"}</span> },
       ]}
     />
   );

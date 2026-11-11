@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { formatDateTime } from "@/lib/datetime";
 import { DataTable } from "@/components/common/DataTable";
 import type { Payment } from "@/types/payment";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
@@ -69,7 +69,7 @@ export function PaymentsHistoryTable({ payments, currency, projectSlug, receiptU
             { key: "amount", header: "Amount", searchable: true, searchValue: (payment) => String(payment.amount), render: (payment) => <span className="whitespace-nowrap">{currency} {payment.amount.toLocaleString()}</span> },
             { key: "status", header: "Status", render: (payment) => <PaymentStatusBadge status={payment.gatewayStatus ?? payment.status} /> },
             { key: "verifiedVia", header: "Verified via", render: (payment) => <span className="capitalize text-muted-foreground">{payment.verifiedVia ?? "Not set"}</span> },
-            { key: "paidAt", header: "Paid at", render: (payment) => <span className="whitespace-nowrap">{payment.paidAt ? format(new Date(payment.paidAt), "MMM d, yyyy HH:mm") : "Not set"}</span> },
+            { key: "paidAt", header: "Paid at", render: (payment) => <span className="whitespace-nowrap">{payment.paidAt ? formatDateTime(payment.paidAt) : "Not set"}</span> },
             { key: "actions", header: "", render: (payment) => <div className="flex flex-wrap gap-2">{payment.gatewayStatus === "success" && (receiptUrls[payment.providerReference] || (projectSlug && `/api/customer/projects/${projectSlug}/payments/${payment.id}/receipt`)) && <Button size="sm" variant="outline" loading={receiptLoading === payment.id} loadingText="Downloading…" disabled={receiptLoading !== null} onClick={() => openReceipt(payment)}>{receiptLoading === payment.id ? "Downloading…" : "Receipt"}</Button>}{payment.gatewayStatus !== "success" && <Button size="sm" variant="ghost" loading={reconcilingPayments.has(payment.id)} disabled={reconcilingPayments.has(payment.id)} onClick={() => void reconcilePayment(payment)}>Reconcile</Button>}</div> },
           ]}
         />

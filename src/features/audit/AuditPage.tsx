@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/datetime";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
@@ -29,7 +30,7 @@ export function AuditPage() {
     { key: "actor", header: "Actor", searchable: true, searchValue: entry => entry.actor, sortable: true, sortValue: entry => entry.actor, render: entry => <span className="text-sm">{entry.actor}</span> },
     { key: "project", header: "Project", searchable: true, searchValue: entry => entry.projectId ?? "System", render: entry => <span className="font-mono text-xs">{entry.projectId ?? "System"}</span> },
     { key: "reason", header: "Details", searchable: true, searchValue: entry => entry.reason ?? "", render: entry => <span className="block max-w-[28rem] truncate text-sm text-muted-foreground" title={entry.reason}>{entry.reason ?? "No details"}</span> },
-    { key: "createdAt", header: "When", sortable: true, sortValue: entry => new Date(entry.createdAt).getTime(), render: entry => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString()}</time> },
+    { key: "createdAt", header: "When", sortable: true, sortValue: entry => new Date(entry.createdAt).getTime(), render: entry => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={entry.createdAt}>{formatDateTime(entry.createdAt)}</time> },
   ];
   const filters: DataTableFilter<AuditLogEntry>[] = [{ label: "Action", options: ["blocked", "unblocked", "payment_received", "manual_override", "project_created", "project_updated"].map(value => ({ label: actionLabel(value), value })), getValue: entry => entry.action }];
   const updateSort = (sortBy: string | undefined, sortDirection: DataTableSortDirection | undefined) => {

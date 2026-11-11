@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/datetime";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,7 +50,7 @@ export function AdminUsersPage() {
   const edit = (user: AdminUser) => { setEditing(user); setEditEmail(user.email); setEditRole(user.role); };
   const columns: DataTableColumn<AdminUser>[] = [
     { key: "email", header: "Email", searchable: true, searchValue: user => `${user.email} ${user.role}`, render: user => <div className="min-w-0"><p className="font-medium">{user.email}</p><p className="text-xs text-muted-foreground">{user.role} · {user.twoFactorEnabled ? "2FA enabled" : "2FA disabled"} · {user.active === false ? "Suspended" : "Active"}</p></div> },
-    { key: "createdAt", header: "Created", sortable: true, sortValue: user => new Date(user.createdAt).getTime(), render: user => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={user.createdAt}>{new Date(user.createdAt).toLocaleDateString()}</time> },
+    { key: "createdAt", header: "Created", sortable: true, sortValue: user => new Date(user.createdAt).getTime(), render: user => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={user.createdAt}>{formatDate(user.createdAt)}</time> },
     ...(canManageUsers ? [{ key: "actions", header: "Actions", render: (user: AdminUser) => <div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => edit(user)}>Edit</Button><Button size="sm" variant="outline" loading={update.isPending && update.variables?.id === user.id} disabled={update.isPending} onClick={() => update.mutate({ id: user.id, changes: { active: user.active === false } })}>{user.active === false ? "Reactivate" : "Suspend"}</Button><Button size="sm" variant="destructive" loading={remove.isPending && remove.variables === user.id} disabled={remove.isPending} onClick={() => setDeleteTarget(user)}>{remove.isPending && remove.variables === user.id ? "Deleting…" : "Delete"}</Button></div> }] : []),
   ];
 

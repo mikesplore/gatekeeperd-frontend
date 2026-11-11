@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { Server, Shield, Trash2, ToggleLeft, Plus, CircleHelp, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -350,7 +351,7 @@ export function NginxPage() {
                       <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Certificate expiry</p>
                         <Badge variant={(nginxStatus.certificateDaysRemaining ?? 999) <= 14 ? "destructive" : "default"}>
-                          {new Date(nginxStatus.certificateExpiresAt).toLocaleDateString()}
+                          {formatDate(nginxStatus.certificateExpiresAt)}
                           {nginxStatus.certificateDaysRemaining != null ? ` · ${nginxStatus.certificateDaysRemaining} days remaining` : ""}
                         </Badge>
                       </div>
@@ -429,7 +430,7 @@ export function NginxPage() {
                       <p className="text-sm font-medium">Configuration versions</p>
                       {versionsQuery.data.map((version) => (
                         <div key={version.name} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div><p className="font-mono text-xs">{version.name}</p><p className="text-xs text-muted-foreground">{new Date(version.createdAt).toLocaleString()} · {version.sizeBytes.toLocaleString()} bytes</p></div>
+                          <div><p className="font-mono text-xs">{version.name}</p><p className="text-xs text-muted-foreground">{formatDateTime(version.createdAt)} · {version.sizeBytes.toLocaleString()} bytes</p></div>
                           <Button size="sm" variant="outline" loading={rollback.isPending} disabled={rollback.isPending} onClick={() => setConfirmTarget({ action: "rollback", version: version.name })}>Rollback</Button>
                         </div>
                       ))}

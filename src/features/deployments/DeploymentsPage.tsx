@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/datetime";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
@@ -143,7 +144,7 @@ export function DeploymentsPage() {
       header: "Timestamp",
       sortable: true,
       sortValue: item => new Date(item.createdAt).getTime(),
-      render: item => <time className="whitespace-nowrap text-foreground/80" dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>,
+      render: item => <time className="whitespace-nowrap text-foreground/80" dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time>,
     },
     {
       key: "actions",

@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/datetime";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -57,7 +58,7 @@ export function NotificationsPage() {
       header: "Created",
       sortable: true,
       sortValue: item => new Date(item.createdAt).getTime(),
-      render: item => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>,
+      render: item => <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time>,
     },
     {
       key: "actions",

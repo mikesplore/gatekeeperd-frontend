@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/datetime";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCw } from "lucide-react";
@@ -68,7 +69,7 @@ export function PaymentWebhookEventsTab() {
             { key: "reference", header: "Reference", render: event => <span className="block max-w-[14rem] truncate font-mono text-xs" title={event.paystackReference ?? "Not matched"}>{event.paystackReference ?? "Not matched"}</span> },
             { key: "status", header: "Status", render: event => <Badge variant={event.processingStatus === "failed" ? "destructive" : event.processingStatus === "processed" ? "default" : "secondary"}>{event.processingStatus}</Badge> },
             { key: "attempts", header: "Attempts", render: event => <span className="tabular-nums">{event.processingAttempts}</span> },
-            { key: "received", header: "Received", render: event => <span className="whitespace-nowrap text-xs text-muted-foreground">{new Date(event.receivedAt).toLocaleString()}</span> },
+            { key: "received", header: "Received", render: event => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDateTime(event.receivedAt)}</span> },
             { key: "error", header: "Processing error", render: event => event.processingError ? <span className="block max-w-[18rem] truncate text-xs text-destructive" title={event.processingError}>{event.processingError}</span> : "—" },
             ...(canManagePayments ? [{ key: "actions", header: "", render: (event: PaymentEvent) => event.provider === "paystack" && event.processingStatus === "failed" ? <Button size="sm" variant="outline" loading={replay.isPending} disabled={replay.isPending} onClick={() => replay.mutate(event.id)}><RotateCw className="mr-2 h-4 w-4" />Replay</Button> : null }] : []),
           ]}
